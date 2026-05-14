@@ -107,18 +107,20 @@ class ClaudeIndicator extends PanelMenu.Button {
 
     _updateLauncher(pct, visible = true) {
         try {
-            const props = new GLib.Variant('a{sv}', {
-                'count':            new GLib.Variant('x', pct),
-                'count-visible':    new GLib.Variant('b', visible),
-                'progress':         new GLib.Variant('d', pct / 100),
-                'progress-visible': new GLib.Variant('b', visible),
-            });
             Gio.DBus.session.emit_signal(
                 null,
                 '/com/canonical/unity/launcherentry/1',
                 'com.canonical.Unity.LauncherEntry',
                 'Update',
-                new GLib.Variant('(sa{sv})', ['application://claude-usage.desktop', props])
+                new GLib.Variant('(sa{sv})', [
+                    'application://claude-usage.desktop',
+                    {
+                        'count':            new GLib.Variant('x', pct),
+                        'count-visible':    new GLib.Variant('b', visible),
+                        'progress':         new GLib.Variant('d', pct / 100),
+                        'progress-visible': new GLib.Variant('b', visible),
+                    },
+                ])
             );
         } catch (_e) { /* dock may not be present */ }
     }

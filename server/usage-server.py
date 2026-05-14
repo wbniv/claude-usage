@@ -10,6 +10,7 @@ PORT = 7331
 
 class Handler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
+        self.send_response(200)
         self._cors()
         self.end_headers()
 
@@ -26,13 +27,12 @@ class Handler(BaseHTTPRequestHandler):
         except Exception as e:
             print(f"Error: {e}", file=sys.stderr, flush=True)
 
-        self._cors()
         self.send_response(200)
+        self._cors()
         self.end_headers()
         self.wfile.write(b'ok')
 
     def _cors(self):
-        self.send_response(200)
         self.send_header('Access-Control-Allow-Origin', '*')
         self.send_header('Access-Control-Allow-Methods', 'POST, OPTIONS')
         self.send_header('Access-Control-Allow-Headers', 'Content-Type')

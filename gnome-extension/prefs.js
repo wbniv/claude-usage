@@ -14,7 +14,7 @@ export default class ClaudeUsagePreferences extends ExtensionPreferences {
 
         const group = new Adw.PreferencesGroup({
             title: 'Display',
-            description: 'Data is fetched by ~/.local/share/claude-usage/fetch-usage.py',
+            description: 'Data is fetched by the Claude Usage Tracker Chrome extension',
         });
         page.add(group);
 
@@ -37,8 +37,8 @@ export default class ClaudeUsagePreferences extends ExtensionPreferences {
         page.add(infoGroup);
 
         const infoRow = new Adw.ActionRow({
-            title: 'First-time login',
-            subtitle: 'Run: python3 ~/.local/share/claude-usage/fetch-usage.py',
+            title: 'Chrome extension',
+            subtitle: 'Load unpacked from: ~/.local/share/claude-usage/chrome-extension/',
         });
         infoGroup.add(infoRow);
 
