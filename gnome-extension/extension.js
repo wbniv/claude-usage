@@ -105,6 +105,24 @@ class ClaudeIndicator extends PanelMenu.Button {
         }
     }
 
+    _updateLauncher(pct, visible = true) {
+        try {
+            const props = new GLib.Variant('a{sv}', {
+                'count':            new GLib.Variant('x', pct),
+                'count-visible':    new GLib.Variant('b', visible),
+                'progress':         new GLib.Variant('d', pct / 100),
+                'progress-visible': new GLib.Variant('b', visible),
+            });
+            Gio.DBus.session.emit_signal(
+                null,
+                '/com/canonical/unity/launcherentry/1',
+                'com.canonical.Unity.LauncherEntry',
+                'Update',
+                new GLib.Variant('(sa{sv})', ['application://claude-usage.desktop', props])
+            );
+        } catch (_e) { /* dock may not be present */ }
+    }
+
     _updateDisplay() {
         const d = this._data;
         if (!d || !d.meters || d.meters.length === 0) {
@@ -112,6 +130,7 @@ class ClaudeIndicator extends PanelMenu.Button {
             this._label.set_style('font-size: 11px; margin-left: 4px;');
             this._statusItem.label.set_text('No data yet');
             this._metersSection.removeAll();
+            this._updateLauncher(0, false);
             return;
         }
 
@@ -123,6 +142,7 @@ class ClaudeIndicator extends PanelMenu.Button {
 
         const pct = primary?.pct ?? 0;
         const color = pctColor(pct);
+        this._updateLauncher(pct);
 
         this._label.set_text(`${pct}%`);
         this._label.set_style(`font-size: 11px; margin-left: 4px; color: ${color};`);

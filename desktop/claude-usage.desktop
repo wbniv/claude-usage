@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Claude Usage
+Comment=Claude.ai weekly usage meter
+Exec=xdg-open https://claude.ai/settings/usage
+Icon=%HOME%/.local/share/gnome-shell/extensions/claude-usage@wbnorris.gmail.com/icons/claude-64.png
+StartupWMClass=claude-usage
+Categories=Utility;
+NoDisplay=false

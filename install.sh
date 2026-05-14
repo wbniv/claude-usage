@@ -26,6 +26,8 @@ uninstall() {
     rm -rf "$GNOME_EXT_DIR"
     rm -rf "$SERVER_DIR"
     rm -f "$HOME/.cache/claude-usage.json"
+    rm -f "$HOME/.local/share/applications/claude-usage.desktop"
+    update-desktop-database "$HOME/.local/share/applications/" 2>/dev/null || true
     echo "Done. Log out and back in to remove the panel indicator."
     exit 0
 }
@@ -58,7 +60,14 @@ systemctl --user daemon-reload
 systemctl --user enable --now claude-usage-fetch.service
 echo "  ✓ Systemd service enabled and started"
 
-# 4. Enable GNOME extension (may fail until after re-login)
+# 4. Dock launcher entry
+mkdir -p "$HOME/.local/share/applications"
+sed "s|%HOME%|$HOME|g" "$REPO_DIR/desktop/claude-usage.desktop" \
+    > "$HOME/.local/share/applications/claude-usage.desktop"
+update-desktop-database "$HOME/.local/share/applications/" 2>/dev/null || true
+echo "  ✓ Dock entry installed — find 'Claude Usage' in the app grid, right-click → Add to Favorites"
+
+# 5. Enable GNOME extension (may fail until after re-login)
 gnome-extensions enable claude-usage@wbnorris.gmail.com 2>/dev/null \
     && echo "  ✓ GNOME extension enabled" \
     || echo "  ℹ  GNOME extension registered — log out and back in to activate it"
