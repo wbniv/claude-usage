@@ -1,0 +1,8 @@
+{
+  "name": "Claude Usage",
+  "description": "Shows Claude.ai weekly usage % in the top panel",
+  "uuid": "claude-usage@wbnorris.gmail.com",
+  "shell-version": ["45", "46", "47", "48", "49"],
+  "version": 1,
+  "url": ""
+}

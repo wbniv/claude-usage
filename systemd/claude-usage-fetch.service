@@ -1,0 +1,12 @@
+[Unit]
+Description=Claude Usage local data server (receives from Chrome extension)
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 %h/.local/share/claude-usage/usage-server.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "Claude Usage Tracker",
+  "version": "1.0",
+  "description": "Sends Claude.ai usage stats to the local panel indicator",
+  "permissions": ["tabs", "scripting", "alarms", "storage"],
+  "host_permissions": [
+    "https://claude.ai/*",
+    "http://localhost/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Claude Usage",
+    "default_icon": "icon48.png"
+  }
+}
