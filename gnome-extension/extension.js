@@ -105,7 +105,7 @@ class ClaudeIndicator extends PanelMenu.Button {
         }
     }
 
-    _updateLauncher(pct, visible = true) {
+    _updateLauncher(weeklyPct, sessionPct = 0, visible = true) {
         try {
             Gio.DBus.session.emit_signal(
                 null,
@@ -115,9 +115,9 @@ class ClaudeIndicator extends PanelMenu.Button {
                 new GLib.Variant('(sa{sv})', [
                     'application://claude-usage.desktop',
                     {
-                        'count':            new GLib.Variant('x', pct),
-                        'count-visible':    new GLib.Variant('b', visible),
-                        'progress':         new GLib.Variant('d', pct / 100),
+                        'count':            new GLib.Variant('x', sessionPct),
+                        'count-visible':    new GLib.Variant('b', visible && sessionPct > 0),
+                        'progress':         new GLib.Variant('d', weeklyPct / 100),
                         'progress-visible': new GLib.Variant('b', visible),
                     },
                 ])
@@ -132,7 +132,7 @@ class ClaudeIndicator extends PanelMenu.Button {
             this._label.set_style('font-size: 11px; margin-left: 4px;');
             this._statusItem.label.set_text('No data yet');
             this._metersSection.removeAll();
-            this._updateLauncher(0, false);
+            this._updateLauncher(0, 0, false);
             return;
         }
 
@@ -142,9 +142,11 @@ class ClaudeIndicator extends PanelMenu.Button {
             || weekly[0]
             || d.meters[0];
 
+        const session = d.meters.find(m => m.label?.toLowerCase().includes('session'));
+
         const pct = primary?.pct ?? 0;
         const color = pctColor(pct);
-        this._updateLauncher(pct);
+        this._updateLauncher(pct, session?.pct ?? 0);
 
         this._label.set_text(`${pct}%`);
         this._label.set_style(`font-size: 11px; margin-left: 4px; color: ${color};`);

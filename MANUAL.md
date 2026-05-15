@@ -29,21 +29,10 @@ Open Usage Page
 
 **Dock icon** (once pinned — right-click → Add to Favorites):
 
-```
-        ▄▄▄▄▄▄▄▄▄▄▄▄
-      ▗█▀▀▀▀▀▀▀▀▀▀▀▀█▖
-    ▗█▘ ┌──────────┐ ▝█▖
-   ▐█   │    ✳✳    │   █▌
-   ██   │  ✳    ✳  │   ██  ╭──╮
-   ██   │  ✳    ✳  │   ██  │74│ ← badge
-   ▐█   │    ✳✳    │   █▌  ╰──╯
-    ▝█▖ └──────────┘ ▗█▘
-      ▝█▄▄▄▄▄▄▄▄▄▄▄▄█▘
-        ▀▀▀▀▀▀▀▀▀▀▀▀
-         ████████░░    ← progress ring (74% filled)
-```
+<img src="docs/dock-icon-example.png" width="96">
 
-The arc drawn around the icon edge fills proportionally to your "All models" weekly usage.
+The amber bar at the bottom fills proportionally to your "All models" weekly usage.
+The badge shows your current session usage.
 
 ---
 
