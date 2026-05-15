@@ -36,7 +36,7 @@ The `●` marks the metric currently shown in the panel label. Scroll on the ind
 <img src="docs/dock-icon-2rings-mockup.png" width="96">
 
 - **Outer ring** — All models weekly usage (green → amber → red)
-- **Inner ring** — Sonnet only weekly usage (blue)
+- **Inner ring** — Sonnet only weekly usage (blue by default)
 - **Hover tooltip** — shows `Claude Usage — 77% / 9%`
 
 The icon regenerates automatically on each data fetch.
@@ -90,6 +90,42 @@ cat ~/.cache/claude-usage.json
 
 ---
 
+## Configuration
+
+Ring colors and other settings are stored in:
+
+```
+~/.config/claude-usage/config.json
+```
+
+You can edit this file by hand, or use the GNOME preferences UI:
+
+```bash
+gnome-extensions prefs claude-usage@wbnorris.gmail.com
+```
+
+The prefs window has color pickers for all four ring states. Changes apply immediately — the dock icon regenerates as soon as you close the color dialog.
+
+**Default config:**
+
+```json
+{
+  "weekly_color_green": "#8cff8c",
+  "weekly_color_amber": "#ffe033",
+  "weekly_color_red":   "#ff5933",
+  "sonnet_color":       "#4dbfff"
+}
+```
+
+| Key | Ring | Condition |
+|-----|------|-----------|
+| `weekly_color_green` | Outer | All models < 50% |
+| `weekly_color_amber` | Outer | All models 50–79% |
+| `weekly_color_red`   | Outer | All models ≥ 80% |
+| `sonnet_color`       | Inner | always |
+
+---
+
 ## Troubleshooting
 
 ### Panel shows `--`
@@ -112,6 +148,13 @@ Open `chrome://extensions` → Claude Usage Tracker → **Errors**. Clear them, 
 gnome-extensions list --enabled | grep claude-usage
 # If not listed:
 gnome-extensions enable claude-usage@wbnorris.gmail.com
+```
+
+### Dock icon colors not updating after editing config.json
+Force a data fetch (click the Chrome extension toolbar icon) or re-run the icon generator directly:
+
+```bash
+python3 ~/.local/share/claude-usage/generate-icon.py
 ```
 
 ---

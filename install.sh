@@ -25,6 +25,7 @@ uninstall() {
     systemctl --user daemon-reload
     rm -rf "$GNOME_EXT_DIR"
     rm -rf "$SERVER_DIR"
+    rm -rf "$HOME/.config/claude-usage"
     rm -f "$HOME/.cache/claude-usage.json"
     rm -f "$HOME/.cache/claude-usage-icon.png"
     rm -f "$HOME/.local/share/applications/claude-usage.desktop"
@@ -53,25 +54,41 @@ mkdir -p "$SERVER_DIR"
 cp "$REPO_DIR/server/usage-server.py" "$SERVER_DIR/"
 cp "$REPO_DIR/server/generate-icon.py" "$SERVER_DIR/"
 chmod +x "$SERVER_DIR/usage-server.py" "$SERVER_DIR/generate-icon.py"
-# Generate initial dock icon (0% rings until first data fetch)
-python3 "$SERVER_DIR/generate-icon.py" 2>/dev/null || true
 echo "  ✓ Usage server installed"
 
-# 3. Systemd service
+# 3. User config (colors etc.) — write defaults only if file absent
+mkdir -p "$HOME/.config/claude-usage"
+if [ ! -f "$HOME/.config/claude-usage/config.json" ]; then
+    cat > "$HOME/.config/claude-usage/config.json" <<'ENDCFG'
+{
+  "weekly_color_green": "#8cff8c",
+  "weekly_color_amber": "#ffe033",
+  "weekly_color_red":   "#ff5933",
+  "sonnet_color":       "#4dbfff"
+}
+ENDCFG
+    echo "  ✓ Config file created: $HOME/.config/claude-usage/config.json"
+else
+    echo "  ✓ Config file already exists (not overwritten)"
+fi
+# Generate initial dock icon (0% rings until first data fetch)
+python3 "$SERVER_DIR/generate-icon.py" 2>/dev/null || true
+
+# 4. Systemd service
 mkdir -p "$SYSTEMD_DIR"
 cp "$REPO_DIR/systemd/claude-usage-fetch.service" "$SYSTEMD_DIR/"
 systemctl --user daemon-reload
 systemctl --user enable --now claude-usage-fetch.service
 echo "  ✓ Systemd service enabled and started"
 
-# 4. Dock launcher entry
+# 5. Dock launcher entry
 mkdir -p "$HOME/.local/share/applications"
 sed "s|%HOME%|$HOME|g" "$REPO_DIR/desktop/claude-usage.desktop" \
     > "$HOME/.local/share/applications/claude-usage.desktop"
 update-desktop-database "$HOME/.local/share/applications/" 2>/dev/null || true
 echo "  ✓ Dock entry installed — find 'Claude Usage' in the app grid, right-click → Add to Favorites"
 
-# 5. Enable GNOME extension (may fail until after re-login)
+# 6. Enable GNOME extension (may fail until after re-login)
 gnome-extensions enable claude-usage@wbnorris.gmail.com 2>/dev/null \
     && echo "  ✓ GNOME extension enabled" \
     || echo "  ℹ  GNOME extension registered — log out and back in to activate it"
