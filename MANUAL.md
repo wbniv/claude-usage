@@ -35,9 +35,9 @@ The `●` marks the metric currently shown in the panel label. Scroll on the ind
 
 <img src="docs/dock-icon-2rings-mockup.png" width="96">
 
-- **Outer ring** — All models weekly usage (color-coded green/amber/red)
+- **Outer ring** — All models weekly usage (green → amber → red)
 - **Inner ring** — Sonnet only weekly usage (blue)
-- **Badge** — Current session usage
+- **Hover tooltip** — shows `Claude Usage — 77% / 9%`
 
 The icon regenerates automatically on each data fetch.
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Generate dock icon PNG with two concentric rings from cached usage data."""
-import cairo, math, json, sys
+import cairo, math, json, re, sys
 from pathlib import Path
 from PIL import Image
 
@@ -14,13 +14,23 @@ SCALE  = 4
 ICON   = 44 * SCALE
 CANVAS = 96 * SCALE
 
-TRACK       = (0.20, 0.20, 0.20, 0.60)
-BLUE_SONNET = (0.30, 0.75, 1.00, 1.00)
+# Anthropic orange (sampled from claude-64.png background)
+ANTHRO_ORANGE = (216/255, 119/255, 88/255, 1.0)
+TRACK         = (0.0, 0.0, 0.0, 0.25)   # subtle dark on orange
+BLUE_SONNET   = (0.30, 0.75, 1.00, 1.0)
 
 def ring_color(pct):
-    if pct >= 80: return (1.00, 0.40, 0.27, 1.0)
-    if pct >= 50: return (1.00, 0.73, 0.12, 1.0)
-    return             (0.53, 1.00, 0.53, 1.0)
+    if pct >= 80: return (1.00, 0.35, 0.20, 1.0)   # red
+    if pct >= 50: return (1.00, 0.88, 0.20, 1.0)   # bright yellow (readable on orange)
+    return             (0.55, 1.00, 0.55, 1.0)      # green
+
+def rounded_rect_path(cr, x, y, w, h, r):
+    cr.new_sub_path()
+    cr.arc(x + r,     y + r,     r, math.pi,     3*math.pi/2)
+    cr.arc(x + w - r, y + r,     r, 3*math.pi/2, 0)
+    cr.arc(x + w - r, y + h - r, r, 0,           math.pi/2)
+    cr.arc(x + r,     y + h - r, r, math.pi/2,   math.pi)
+    cr.close_path()
 
 def draw_ring(cr, cx, cy, radius, thick, pct, color):
     cr.set_line_width(thick)
@@ -31,8 +41,8 @@ def draw_ring(cr, cx, cy, radius, thick, pct, color):
     if pct > 0:
         cr.set_line_cap(cairo.LINE_CAP_ROUND)
         cr.set_source_rgba(*color)
-        end = -math.pi / 2 + 2 * math.pi * (pct / 100)
-        cr.arc(cx, cy, radius, -math.pi / 2, end)
+        cr.arc(cx, cy, radius, -math.pi / 2,
+               -math.pi / 2 + 2 * math.pi * (pct / 100))
         cr.stroke()
 
 def generate(all_pct, sonnet_pct):
@@ -43,15 +53,19 @@ def generate(all_pct, sonnet_pct):
 
     surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, CANVAS, CANVAS)
     cr = cairo.Context(surface)
-    cr.set_source_rgba(0, 0, 0, 0)
-    cr.paint()
+
+    # Full Anthropic-orange background with rounded corners
+    corner_r = 18 * SCALE
+    rounded_rect_path(cr, 0, 0, CANVAS, CANVAS, corner_r)
+    cr.set_source_rgba(*ANTHRO_ORANGE)
+    cr.fill()
 
     draw_ring(cr, cx, cy, R_OUTER, THICK_OUTER, all_pct,    ring_color(all_pct))
     draw_ring(cr, cx, cy, R_INNER, THICK_INNER, sonnet_pct, BLUE_SONNET)
 
-    # Paste base icon
+    # Paste base icon (already orange bg + white star — blends seamlessly)
     icon_pil = Image.open(BASE_ICON).convert('RGBA').resize((ICON, ICON), Image.LANCZOS)
-    b_ch, g_ch, r_ch, a_ch = icon_pil.split()         # PIL RGBA → Cairo BGRA
+    b_ch, g_ch, r_ch, a_ch = icon_pil.split()   # PIL RGBA → Cairo BGRA
     raw = Image.merge('RGBA', (b_ch, g_ch, r_ch, a_ch)).tobytes()
     icon_surf = cairo.ImageSurface.create_for_data(
         bytearray(raw), cairo.FORMAT_ARGB32, ICON, ICON)
@@ -63,18 +77,23 @@ def generate(all_pct, sonnet_pct):
                           bytes(surface.get_data()), 'raw', 'BGRA')
     img.resize((128, 128), Image.LANCZOS).save(CACHE_ICON)
 
-    # Touch .desktop file so the dock re-reads and reloads the icon
-    if DESKTOP.exists():
-        DESKTOP.touch()
+def update_desktop(all_pct, sonnet_pct):
+    if not DESKTOP.exists():
+        return
+    text = DESKTOP.read_text()
+    name = f'Claude Usage — {all_pct}% / {sonnet_pct}%'
+    text = re.sub(r'^Name=.*$', f'Name={name}', text, flags=re.MULTILINE)
+    DESKTOP.write_text(text)   # write triggers dock file monitor
 
 def main():
-    data    = json.loads(CACHE_JSON.read_text())
-    meters  = data.get('meters', [])
-    find    = lambda kw: next(
+    data   = json.loads(CACHE_JSON.read_text())
+    meters = data.get('meters', [])
+    find   = lambda kw: next(
         (m['pct'] for m in meters if kw in (m.get('label') or '').lower()), 0)
     all_pct    = find('all')
     sonnet_pct = find('sonnet')
     generate(all_pct, sonnet_pct)
+    update_desktop(all_pct, sonnet_pct)
     print(f'Icon: All={all_pct}% Sonnet={sonnet_pct}%', flush=True)
 
 if __name__ == '__main__':
