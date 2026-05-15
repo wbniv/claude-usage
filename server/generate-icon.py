@@ -7,9 +7,17 @@ from PIL import Image
 CACHE_JSON  = Path.home() / '.cache' / 'claude-usage.json'
 CACHE_ICON  = Path.home() / '.cache' / 'claude-usage-icon.png'
 CONFIG_JSON = Path.home() / '.config' / 'claude-usage' / 'config.json'
-BASE_ICON   = (Path.home() / '.local/share/gnome-shell/extensions'
-               / 'claude-usage@wbnorris.gmail.com/icons/claude-64.png')
 DESKTOP     = Path.home() / '.local/share/applications/claude-usage.desktop'
+
+# Icon ships with the GNOME extension; check user-install path first, then system path.
+_EXT_REL = Path('gnome-shell/extensions/claude-usage@wbnorris.gmail.com/icons/claude-64.png')
+BASE_ICON = next(
+    p for p in [
+        Path.home() / '.local/share' / _EXT_REL,
+        Path('/usr/share') / _EXT_REL,
+    ]
+    if p.exists()
+)
 
 SCALE  = 4
 ICON   = 44 * SCALE
