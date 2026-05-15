@@ -47,7 +47,17 @@ The icon regenerates automatically on each data fetch.
 
 **Requirements:** Ubuntu 22.04+ · GNOME Shell 45–49 · Google Chrome (logged in to Claude.ai)
 
-**Step 1 — Run the installer:**
+### Option A — Debian package
+
+```bash
+sudo dpkg -i claude-usage_1.0_all.deb
+sudo apt-get install -f   # resolves any missing deps
+claude-usage-setup        # run as yourself, not root
+```
+
+`claude-usage-setup` creates your config file, enables the systemd service, enables the GNOME extension, and installs the dock entry — all in one step.
+
+### Option B — From source
 
 ```bash
 git clone https://github.com/wbniv/claude-usage.git
@@ -55,25 +65,24 @@ cd claude-usage
 ./install.sh
 ```
 
-This installs the GNOME extension, local server, systemd service, dock entry, and config file.
-Python dependencies (`python3-cairo`, `python3-pil`) are installed automatically via apt if missing.
+`install.sh` installs Python deps (`python3-cairo`, `python3-pil`) via apt automatically if missing.
 
-**Step 2 — Load the Chrome extension:**
+### Both paths — complete setup
+
+**Load the Chrome extension:**
 
 1. Open `chrome://extensions`
 2. Enable **Developer mode** (top-right toggle)
-3. Click **Load unpacked** → select the `chrome-extension/` folder inside this repo
+3. Click **Load unpacked** → select:
+   - Source install: `chrome-extension/` inside the repo
+   - .deb install: `/usr/share/claude-usage/chrome-extension/`
 
-**Step 3 — Log out and back in.**
+**Log out and back in** — activates the GNOME Shell extension.
 
-This activates the GNOME Shell extension. The panel indicator appears immediately on login.
-
-**Step 4 — Pin the dock icon (one-time):**
+**Pin the dock icon (one-time):**
 
 1. Press Super → search "Claude Usage"
-2. Right-click the icon → **Add to Favorites**
-
-The dock icon stays pinned across all future logins.
+2. Right-click → **Add to Favorites**
 
 ---
 
@@ -167,7 +176,10 @@ gnome-extensions enable claude-usage@wbnorris.gmail.com
 Force a data fetch (Chrome toolbar icon) or re-run the icon generator directly:
 
 ```bash
+# Source install:
 python3 ~/.local/share/claude-usage/generate-icon.py
+# .deb install:
+python3 /usr/share/claude-usage/generate-icon.py
 ```
 
 ---
@@ -181,7 +193,9 @@ claude-usage/
   server/             Local HTTP server + dock icon generator
   systemd/            User service definition
   desktop/            Dock launcher entry template
-  install.sh          Installs everything; run once per machine
+  packaging/          .deb and Chrome Web Store build scripts
+  install.sh          Source install; run once per machine
+  PRIVACY.md          Chrome Web Store privacy policy
   MANUAL.md           This file
 ```
 
@@ -189,8 +203,17 @@ claude-usage/
 
 ## Uninstall
 
+**Source install:**
+
 ```bash
 ./install.sh --uninstall
 ```
 
-Then open `chrome://extensions` and remove Claude Usage Tracker. Log out and back in to clear the panel indicator.
+**.deb install:**
+
+```bash
+sudo apt remove claude-usage
+rm -rf ~/.config/claude-usage   # optional: remove user config
+```
+
+Both: open `chrome://extensions`, remove Claude Usage Tracker, and log out.

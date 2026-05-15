@@ -30,10 +30,20 @@ Open Usage Page
 
 - Ubuntu 22.04+ / GNOME Shell 45–49
 - Google Chrome (logged in to Claude.ai)
-- Python 3 with `python3-cairo` and `python3-pil` (installed automatically)
+- Python 3 with `python3-cairo` and `python3-pil`
 - systemd user session
 
 ## Install
+
+**Option A — Debian package** (recommended):
+
+```bash
+sudo dpkg -i claude-usage_1.0_all.deb
+sudo apt-get install -f   # resolves any missing deps
+claude-usage-setup        # per-user activation (run as yourself, not root)
+```
+
+**Option B — from source:**
 
 ```bash
 git clone https://github.com/wbniv/claude-usage.git
@@ -41,13 +51,15 @@ cd claude-usage
 ./install.sh
 ```
 
-Then load the Chrome extension:
+`install.sh` installs Python deps via apt automatically.
+
+**Both paths — load the Chrome extension:**
 
 1. Open `chrome://extensions`
 2. Enable **Developer mode**
-3. **Load unpacked** → select the `chrome-extension/` folder inside this repo
-4. Log out and back in (activates the GNOME panel indicator)
-5. Find "Claude Usage" in the app grid → right-click → **Add to Favorites** (pins the dock icon)
+3. **Load unpacked** → select `chrome-extension/` (source install) or `/usr/share/claude-usage/chrome-extension/` (.deb install)
+4. Log out and back in
+5. Super → search "Claude Usage" → right-click → **Add to Favorites** (pins the dock icon)
 
 ## How it works
 
@@ -85,24 +97,28 @@ gnome-extensions prefs claude-usage@wbnorris.gmail.com
 
 ## Uninstall
 
+**Source install:**
 ```bash
 ./install.sh --uninstall
+```
+
+**.deb install:**
+```bash
+sudo apt remove claude-usage
 ```
 
 Then remove the Chrome extension from `chrome://extensions` and log out.
 
 ---
 
-## Distribution
+## Building packages
 
-This is currently a private repo. Options for sharing:
+```bash
+# Chrome Web Store zip
+bash packaging/build-chrome-zip.sh   # → dist/claude-usage-chrome-1.0.zip
 
-| Path | Effort | Reach |
-|------|--------|-------|
-| Share repo URL / add collaborators | none | individuals |
-| Make repo public | none | anyone technical |
-| Chrome Web Store ($5 one-time fee) | low | Chrome users |
-| GNOME Extensions (extensions.gnome.org) | medium | GNOME users (extension only — still needs Chrome ext + server) |
-| `.deb` / Snap / Flatpak | high | broad Ubuntu audience, no manual steps |
+# Debian package
+bash packaging/build-deb.sh          # → dist/claude-usage_1.0_all.deb
+```
 
-For full self-contained distribution the `.deb` route is cleanest — it can bundle the Python server, install system deps, and register the systemd service. The Chrome extension would still need to be loaded separately (Chrome Web Store or Load unpacked).
+Upload the Chrome zip at [chrome.google.com/webstore/devconsole](https://chrome.google.com/webstore/devconsole) ($5 one-time developer fee). The privacy policy required for submission is in `PRIVACY.md`.
