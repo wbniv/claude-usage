@@ -39,6 +39,16 @@ uninstall() {
 
 echo "Installing Claude Usage..."
 
+# 0. Python dependencies (pycairo, pillow — used by the dock icon generator)
+_missing=()
+python3 -c "import cairo" 2>/dev/null || _missing+=(python3-cairo)
+python3 -c "import PIL"   2>/dev/null || _missing+=(python3-pil)
+if [ ${#_missing[@]} -gt 0 ]; then
+    echo "  Installing Python dependencies: ${_missing[*]}"
+    sudo apt-get install -y "${_missing[@]}"
+fi
+echo "  ✓ Python dependencies OK"
+
 # 1. GNOME Shell extension
 mkdir -p "$GNOME_EXT_DIR/schemas" "$GNOME_EXT_DIR/icons"
 cp "$REPO_DIR/gnome-extension/extension.js" "$GNOME_EXT_DIR/"
