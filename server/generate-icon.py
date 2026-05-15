@@ -60,20 +60,24 @@ def generate(all_pct, sonnet_pct):
     cr.set_source_rgba(*ANTHRO_ORANGE)
     cr.fill()
 
+    # Draw icon before rings so rings render on top (star arms may poke in slightly — intentional)
+    icon_surf = cairo.ImageSurface.create_from_png(str(BASE_ICON))
+    iw, ih = icon_surf.get_width(), icon_surf.get_height()
+    scale = ICON / max(iw, ih)
+    cr.save()
+    cr.translate(cx - ICON // 2, cy - ICON // 2)
+    cr.scale(scale, scale)
+    cr.set_source_surface(icon_surf, 0, 0)
+    cr.paint()
+    cr.restore()
+
     draw_ring(cr, cx, cy, R_OUTER, THICK_OUTER, all_pct,    ring_color(all_pct))
     draw_ring(cr, cx, cy, R_INNER, THICK_INNER, sonnet_pct, BLUE_SONNET)
 
-    # Flush Cairo rings to a PIL image, then composite the icon on top in PIL
-    # (avoids BGRA byte-order issues when pasting the base icon)
     surface.flush()
-    rings = Image.frombytes('RGBA', (CANVAS, CANVAS),
-                            bytes(surface.get_data()), 'raw', 'BGRA')
-
-    icon_pil = Image.open(BASE_ICON).convert('RGBA').resize((ICON, ICON), Image.LANCZOS)
-    off = (cx - ICON // 2, cy - ICON // 2)
-    rings.paste(icon_pil, off, icon_pil)
-
-    rings.resize((128, 128), Image.LANCZOS).save(CACHE_ICON)
+    img = Image.frombytes('RGBA', (CANVAS, CANVAS),
+                          bytes(surface.get_data()), 'raw', 'BGRA')
+    img.resize((128, 128), Image.LANCZOS).save(CACHE_ICON)
 
 def update_desktop(all_pct, sonnet_pct):
     if not DESKTOP.exists():
