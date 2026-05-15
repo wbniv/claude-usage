@@ -9,10 +9,10 @@ Shows your Claude.ai weekly usage percentage in the GNOME top panel and dock.
 **Top panel** (right side, next to Wi-Fi/battery):
 
 ```
-  🤖 74%
+  ✳ 74%
 ```
 
-Color-coded: green < 50 % · amber 50–79 % · red ≥ 80 %
+The ✳ is the Anthropic star logo icon. Color-coded: green < 50 % · amber 50–79 % · red ≥ 80 %
 
 **Click** the panel label to open the popup:
 
@@ -27,7 +27,23 @@ Claude Design       51%  █████░░░░░  Resets Tue 1:00 PM
 Open Usage Page
 ```
 
-**Dock icon** (once pinned): shows a progress ring + badge number.
+**Dock icon** (once pinned — right-click → Add to Favorites):
+
+```
+        ▄▄▄▄▄▄▄▄▄▄▄▄
+      ▗█▀▀▀▀▀▀▀▀▀▀▀▀█▖
+    ▗█▘ ┌──────────┐ ▝█▖
+   ▐█   │    ✳✳    │   █▌
+   ██   │  ✳    ✳  │   ██  ╭──╮
+   ██   │  ✳    ✳  │   ██  │74│ ← badge
+   ▐█   │    ✳✳    │   █▌  ╰──╯
+    ▝█▖ └──────────┘ ▗█▘
+      ▝█▄▄▄▄▄▄▄▄▄▄▄▄█▘
+        ▀▀▀▀▀▀▀▀▀▀▀▀
+         ████████░░    ← progress ring (74% filled)
+```
+
+The arc drawn around the icon edge fills proportionally to your "All models" weekly usage.
 
 ---
 
