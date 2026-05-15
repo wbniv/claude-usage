@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Tiny local HTTP server — receives usage JSON from the Chrome extension."""
 from http.server import HTTPServer, BaseHTTPRequestHandler
-import json, sys
+import json, subprocess, sys
 from pathlib import Path
 
-OUTPUT = Path.home() / '.cache' / 'claude-usage.json'
+OUTPUT        = Path.home() / '.cache' / 'claude-usage.json'
+GENERATE_ICON = Path.home() / '.local/share/claude-usage/generate-icon.py'
 PORT = 7331
 
 
@@ -24,6 +25,9 @@ class Handler(BaseHTTPRequestHandler):
             OUTPUT.parent.mkdir(parents=True, exist_ok=True)
             OUTPUT.write_text(json.dumps(body, indent=2))
             print(f"Saved {len(body.get('meters', []))} meters → {OUTPUT}", flush=True)
+            if GENERATE_ICON.exists():
+                subprocess.Popen([sys.executable, str(GENERATE_ICON)],
+                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         except Exception as e:
             print(f"Error: {e}", file=sys.stderr, flush=True)
 

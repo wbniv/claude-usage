@@ -33,10 +33,13 @@ The `●` marks the metric currently shown in the panel label. Scroll on the ind
 
 **Dock icon** (once pinned — right-click → Add to Favorites):
 
-<img src="docs/dock-icon-example.png" width="96">
+<img src="docs/dock-icon-2rings-mockup.png" width="96">
 
-The amber bar at the bottom fills proportionally to your "All models" weekly usage.
-The badge shows your current session usage.
+- **Outer ring** — All models weekly usage (color-coded green/amber/red)
+- **Inner ring** — Sonnet only weekly usage (blue)
+- **Badge** — Current session usage
+
+The icon regenerates automatically on each data fetch.
 
 ---
 

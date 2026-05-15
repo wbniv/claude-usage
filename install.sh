@@ -26,6 +26,7 @@ uninstall() {
     rm -rf "$GNOME_EXT_DIR"
     rm -rf "$SERVER_DIR"
     rm -f "$HOME/.cache/claude-usage.json"
+    rm -f "$HOME/.cache/claude-usage-icon.png"
     rm -f "$HOME/.local/share/applications/claude-usage.desktop"
     update-desktop-database "$HOME/.local/share/applications/" 2>/dev/null || true
     echo "Done. Log out and back in to remove the panel indicator."
@@ -50,7 +51,10 @@ echo "  ✓ GNOME extension installed"
 # 2. Local data server
 mkdir -p "$SERVER_DIR"
 cp "$REPO_DIR/server/usage-server.py" "$SERVER_DIR/"
-chmod +x "$SERVER_DIR/usage-server.py"
+cp "$REPO_DIR/server/generate-icon.py" "$SERVER_DIR/"
+chmod +x "$SERVER_DIR/usage-server.py" "$SERVER_DIR/generate-icon.py"
+# Generate initial dock icon (0% rings until first data fetch)
+python3 "$SERVER_DIR/generate-icon.py" 2>/dev/null || true
 echo "  ✓ Usage server installed"
 
 # 3. Systemd service
