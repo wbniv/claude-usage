@@ -14,18 +14,22 @@ Shows your Claude.ai weekly usage percentage in the GNOME top panel and dock.
 
 The ✳ is the Anthropic star logo icon. Color-coded: green < 50 % · amber 50–79 % · red ≥ 80 %
 
+**Scroll** on the panel label to toggle the displayed metric between **All models** and **Sonnet only**.
+
 **Click** the panel label to open the popup:
 
 ```
 Max plan · 2m ago
 ────────────────────────────────────────────────
-Current session     29%  ███░░░░░░░  Resets in 3 hr 3 min
-All models          74%  ████████░░  Resets Tue 12:59 PM
-Sonnet only          4%  ░░░░░░░░░░  Resets Tue 12:59 PM
-Claude Design       51%  █████░░░░░  Resets Tue 1:00 PM
+  Current session     29%  ███░░░░░░░  Resets in 3 hr 3 min
+● All models          74%  ████████░░  Resets Tue 12:59 PM
+  Sonnet only          4%  ░░░░░░░░░░  Resets Tue 12:59 PM
+  Claude Design       51%  █████░░░░░  Resets Tue 1:00 PM
 ────────────────────────────────────────────────
 Open Usage Page
 ```
+
+The `●` marks the metric currently shown in the panel label. Scroll on the indicator to move it between All models and Sonnet only.
 
 **Dock icon** (once pinned — right-click → Add to Favorites):
 
