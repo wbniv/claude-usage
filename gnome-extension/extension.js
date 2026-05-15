@@ -32,6 +32,17 @@ class ClaudeIndicator extends PanelMenu.Button {
         this._monitor = null;
         this._timerId = null;
         this._data = null;
+        this._showSonnet = false;
+
+        // Scroll wheel toggles panel label between All models / Sonnet only
+        this.connect('scroll-event', (_actor, event) => {
+            const dir = event.get_scroll_direction();
+            if (dir === Clutter.ScrollDirection.UP || dir === Clutter.ScrollDirection.DOWN) {
+                this._showSonnet = !this._showSonnet;
+                if (this._data) this._updateDisplay();
+            }
+            return Clutter.EVENT_STOP;
+        });
 
         // Panel box: icon + label
         const box = new St.BoxLayout({style_class: 'panel-status-menu-box'});
@@ -136,17 +147,17 @@ class ClaudeIndicator extends PanelMenu.Button {
             return;
         }
 
-        // Primary metric: "All models" weekly, or first non-session meter
         const weekly = d.meters.filter(m => m.label && !m.label.toLowerCase().includes('session'));
-        const primary = weekly.find(m => m.label?.toLowerCase().includes('all'))
-            || weekly[0]
-            || d.meters[0];
+        const allModels = weekly.find(m => m.label?.toLowerCase().includes('all')) || weekly[0];
+        const sonnet   = weekly.find(m => m.label?.toLowerCase().includes('sonnet'));
+        const session  = d.meters.find(m => m.label?.toLowerCase().includes('session'));
 
-        const session = d.meters.find(m => m.label?.toLowerCase().includes('session'));
+        // Toggle: scroll wheel switches panel label between All models / Sonnet only
+        const primary = (this._showSonnet && sonnet) ? sonnet : (allModels || d.meters[0]);
 
         const pct = primary?.pct ?? 0;
         const color = pctColor(pct);
-        this._updateLauncher(pct, session?.pct ?? 0);
+        this._updateLauncher((allModels?.pct ?? 0), session?.pct ?? 0);
 
         this._label.set_text(`${pct}%`);
         this._label.set_style(`font-size: 11px; margin-left: 4px; color: ${color};`);
@@ -164,7 +175,9 @@ class ClaudeIndicator extends PanelMenu.Button {
             const barStr = bar(mpct);
             const reset = m.reset ? `  ${m.reset}` : '';
             const label = m.label || 'Usage';
-            const line = `${label.padEnd(18)} ${String(mpct).padStart(3)}%  ${barStr}${reset}`;
+            const active = m === primary;
+            const bullet = active ? '●' : ' ';
+            const line = `${bullet} ${label.padEnd(17)} ${String(mpct).padStart(3)}%  ${barStr}${reset}`;
             const item = new PopupMenu.PopupMenuItem(line, {reactive: false});
             item.label.set_style(`font-family: monospace; font-size: 10px; color: ${pctColor(mpct)};`);
             this._metersSection.addMenuItem(item);
