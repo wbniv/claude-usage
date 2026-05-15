@@ -63,19 +63,17 @@ def generate(all_pct, sonnet_pct):
     draw_ring(cr, cx, cy, R_OUTER, THICK_OUTER, all_pct,    ring_color(all_pct))
     draw_ring(cr, cx, cy, R_INNER, THICK_INNER, sonnet_pct, BLUE_SONNET)
 
-    # Paste base icon (already orange bg + white star — blends seamlessly)
-    icon_pil = Image.open(BASE_ICON).convert('RGBA').resize((ICON, ICON), Image.LANCZOS)
-    b_ch, g_ch, r_ch, a_ch = icon_pil.split()   # PIL RGBA → Cairo BGRA
-    raw = Image.merge('RGBA', (b_ch, g_ch, r_ch, a_ch)).tobytes()
-    icon_surf = cairo.ImageSurface.create_for_data(
-        bytearray(raw), cairo.FORMAT_ARGB32, ICON, ICON)
-    cr.set_source_surface(icon_surf, cx - ICON // 2, cy - ICON // 2)
-    cr.paint()
-
+    # Flush Cairo rings to a PIL image, then composite the icon on top in PIL
+    # (avoids BGRA byte-order issues when pasting the base icon)
     surface.flush()
-    img = Image.frombytes('RGBA', (CANVAS, CANVAS),
-                          bytes(surface.get_data()), 'raw', 'BGRA')
-    img.resize((128, 128), Image.LANCZOS).save(CACHE_ICON)
+    rings = Image.frombytes('RGBA', (CANVAS, CANVAS),
+                            bytes(surface.get_data()), 'raw', 'BGRA')
+
+    icon_pil = Image.open(BASE_ICON).convert('RGBA').resize((ICON, ICON), Image.LANCZOS)
+    off = (cx - ICON // 2, cy - ICON // 2)
+    rings.paste(icon_pil, off, icon_pil)
+
+    rings.resize((128, 128), Image.LANCZOS).save(CACHE_ICON)
 
 def update_desktop(all_pct, sonnet_pct):
     if not DESKTOP.exists():
