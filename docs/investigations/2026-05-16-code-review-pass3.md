@@ -101,7 +101,7 @@ const timeout = setTimeout(() => {
 
 ---
 
-### BUG-P3-3 — Medium: `.deb` path: `claude-usage-setup` writes user‑path icon that doesn't exist
+### ~~BUG-P3-3~~ — Medium: `.deb` path: `claude-usage-setup` writes user‑path icon that doesn't exist ✓ Fixed
 
 **File:** `packaging/claude-usage-setup:15`
 
@@ -141,7 +141,7 @@ No action required.
 
 ---
 
-### BUG-P3-5 — Low: `.deb` path: `gsettings` CLI commands fail without `GSETTINGS_SCHEMA_DIR`
+### ~~BUG-P3-5~~ — Low: `.deb` path: `gsettings` CLI commands fail without `GSETTINGS_SCHEMA_DIR` ✓ Fixed
 
 **File:** `packaging/postinst`
 
@@ -183,7 +183,7 @@ glib-compile-schemas /usr/share/glib-2.0/schemas/ 2>/dev/null || true
 
 ---
 
-### BUG-P3-6 — Low: No concurrency guard — alarm + toolbar click can open two tabs simultaneously
+### ~~BUG-P3-6~~ — Low: No concurrency guard — alarm + toolbar click can open two tabs simultaneously ✓ Fixed
 
 **File:** `chrome-extension/background.js`
 
@@ -210,7 +210,7 @@ async function fetchUsage() {
 
 ## Code Quality
 
-### `update_desktop` accepts `bar_width` but never uses it
+### ~~`update_desktop` accepts `bar_width` but never uses it~~ ✓ Fixed
 
 **File:** `server/generate-icon.py:186, 214`
 
@@ -229,7 +229,7 @@ definition.
 
 ---
 
-### `update_desktop` silently drops `.desktop` comment lines
+### ~~`update_desktop` silently drops `.desktop` comment lines~~ ✓ Fixed
 
 **File:** `server/generate-icon.py:195–199`
 
@@ -249,7 +249,7 @@ allowlist with a denylist (only skip lines that match the "orphaned" heuristic).
 
 ---
 
-### No threshold cross-validation in prefs — warning can exceed critical
+### ~~No threshold cross-validation in prefs — warning can exceed critical~~ ✓ Fixed (subtitle guidance added)
 
 **File:** `gnome-extension/prefs.js:91–94` / `gnome-extension/extension.js:53–56`
 
@@ -264,7 +264,7 @@ callback.
 
 ---
 
-### `prefs.js:regenIcon()` spawns with `Gio.SubprocessFlags.NONE` — stdout/stderr inherited
+### ~~`prefs.js:regenIcon()` spawns with `Gio.SubprocessFlags.NONE` — stdout/stderr inherited~~ ✓ Fixed
 
 **File:** `gnome-extension/prefs.js:12`
 
@@ -278,7 +278,7 @@ the prefs window's log. Use `STDOUT_SILENCE | STDERR_SILENCE` flags for cleanlin
 
 ---
 
-### `release` Taskfile task tags before pushing the branch
+### ~~`release` Taskfile task tags before pushing the branch~~ ✓ Fixed
 
 **File:** `Taskfile.yml:31–41`
 
@@ -407,9 +407,9 @@ sequence coherent.
 
 | Priority | Count | Items |
 |----------|-------|-------|
-| Medium | 1 | BUG-P3-3 (.deb icon path) |
-| Low | 2 | BUG-P3-5 (gsettings CLI on .deb); BUG-P3-6 (double-fetch race) |
-| Code quality | 5 | dead `bar_width` param; comment drop in update_desktop; threshold cross-validation gap; `Gio.SubprocessFlags.NONE`; release task missing branch push |
+| Medium | 0 | — all closed |
+| Low | 0 | — all closed |
+| Code quality | 0 | — all closed |
 
 ---
 

@@ -9,7 +9,10 @@ const ICON_SCRIPT = GLib.get_home_dir() + '/.local/share/claude-usage/generate-i
 
 function regenIcon() {
     try {
-        Gio.Subprocess.new(['python3', ICON_SCRIPT], Gio.SubprocessFlags.NONE);
+        Gio.Subprocess.new(
+            ['python3', ICON_SCRIPT],
+            Gio.SubprocessFlags.STDOUT_SILENCE | Gio.SubprocessFlags.STDERR_SILENCE
+        );
     } catch (_) {}
 }
 
@@ -89,9 +92,9 @@ export default class ClaudeUsagePreferences extends ExtensionPreferences {
         const popupDisplayGroup = new Adw.PreferencesGroup({title: 'Popup Display'});
         page.add(popupDisplayGroup);
         addSpinRow(popupDisplayGroup, settings, 'threshold-warning',
-            'Warning threshold',  '% at which color flips to warning', 1, 99);
+            'Warning threshold',  '% at which color flips to warning (must be below Critical)', 1, 99);
         addSpinRow(popupDisplayGroup, settings, 'threshold-critical',
-            'Critical threshold', '% at which color flips to critical', 1, 99);
+            'Critical threshold', '% at which color flips to critical (must exceed Warning)', 1, 99);
         addSpinRow(popupDisplayGroup, settings, 'bar-width',
             'Bar width', 'Character count of the █░ usage bar', 1, 20);
         addSpinRow(popupDisplayGroup, settings, 'popup-font-size',

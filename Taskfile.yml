@@ -32,6 +32,7 @@ tasks:
           echo "Tag {{.TAG}} already exists — bump Version in packaging/control first"
           exit 1
         fi
+      - git push origin HEAD
       - git tag "{{.TAG}}"
       - git push origin "{{.TAG}}"
       - |

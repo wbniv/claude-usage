@@ -48,7 +48,6 @@ def load_config():
             'weekly_color_amber': s.get_string('weekly-color-amber'),
             'weekly_color_red':   s.get_string('weekly-color-red'),
             'sonnet_color':       s.get_string('sonnet-color'),
-            'bar_width':          s.get_uint('bar-width'),
             'threshold_warning':  s.get_uint('threshold-warning'),
             'threshold_critical': s.get_uint('threshold-critical'),
         }
@@ -187,7 +186,7 @@ def format_tooltip(meters):
         parts.append(part)
     return '   |   '.join(parts) if parts else 'Claude Usage'
 
-def update_desktop(meters, icon_path, bar_width=10):
+def update_desktop(meters, icon_path):
     if not DESKTOP.exists():
         return
     name = format_tooltip(meters).replace('\n', r'\n')
@@ -198,6 +197,8 @@ def update_desktop(meters, icon_path, bar_width=10):
             out.append(f'Name={name}')
         elif line.startswith('Icon='):
             out.append(f'Icon={icon_path}')
+        elif line.startswith('#'):
+            out.append(line)
         elif line.startswith('[') or '=' in line or line == '':
             out.append(line)
         # else: skip orphaned lines from a previous broken write
@@ -215,7 +216,7 @@ def main():
     sonnet_pct = find('sonnet')
     dest = _next_icon_path()
     generate(all_pct, sonnet_pct, cfg, dest)
-    update_desktop(meters, dest, cfg.get('bar_width', 10))
+    update_desktop(meters, dest)
     print(f'Icon: All={all_pct}% Sonnet={sonnet_pct}%', flush=True)
 
 if __name__ == '__main__':

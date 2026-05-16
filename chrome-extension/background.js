@@ -2,7 +2,11 @@ const USAGE_URL = 'https://claude.ai/settings/usage';
 const LOCAL_SERVER = 'http://127.0.0.1:7331/update';
 const INTERVAL_MINUTES = 15;
 
+let _fetching = false;
+
 async function fetchUsage() {
+  if (_fetching) return;
+  _fetching = true;
   // Flush any data stored offline while the server was unavailable
   const { claude_usage: stored } = await chrome.storage.local.get('claude_usage');
   if (stored) {
@@ -144,6 +148,7 @@ async function fetchUsage() {
     if (tab) {
       try { await chrome.tabs.remove(tab.id); } catch (_) {}
     }
+    _fetching = false;
   }
 }
 
