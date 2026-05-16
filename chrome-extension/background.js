@@ -29,15 +29,20 @@ async function fetchUsage() {
       } catch (_) {}
     }
 
-    // Defensive sweep: if a previous fetch was interrupted by SW suspension
-    // between tabs.create and the finally's tabs.remove, the orphaned tab is
-    // still open. Clean those up before opening a fresh one.
+    // Recover any orphan scrape tab from a previous fetch killed mid-scrape
+    // (SW suspension between tabs.create and the finally's tabs.remove).
+    // Match by tab ID — not by URL — so we never close a tab the user
+    // opened themselves at the same URL.
     try {
-      const stale = await chrome.tabs.query({ url: USAGE_URL });
-      for (const t of stale) { try { await chrome.tabs.remove(t.id); } catch (_) {} }
+      const { _scrape_tabs = [] } = await chrome.storage.local.get('_scrape_tabs');
+      for (const id of _scrape_tabs) {
+        try { await chrome.tabs.remove(id); } catch (_) {}
+      }
+      if (_scrape_tabs.length) await chrome.storage.local.set({ _scrape_tabs: [] });
     } catch (_) {}
 
     tab = await chrome.tabs.create({ url: USAGE_URL, active: false });
+    await chrome.storage.local.set({ _scrape_tabs: [tab.id] });
 
     await new Promise((resolve, reject) => {
       // Lifted to a const so both the timeout and the listener body can
@@ -162,6 +167,7 @@ async function fetchUsage() {
   } finally {
     if (tab) {
       try { await chrome.tabs.remove(tab.id); } catch (_) {}
+      try { await chrome.storage.local.set({ _scrape_tabs: [] }); } catch (_) {}
     }
     _fetching = false;
   }
