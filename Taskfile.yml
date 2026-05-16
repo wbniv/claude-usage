@@ -21,6 +21,42 @@ tasks:
     generates:
       - "{{.CHROME_ZIP}}"
 
+  test-deb:
+    desc: Build, install, verify, and remove the .deb in a clean Ubuntu 24.04 container
+    deps: [build]
+    cmds:
+      - |
+        docker run --rm -v "$PWD/dist:/dist:ro" ubuntu:24.04 bash -c '
+          set -euo pipefail
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update -qq
+          apt-get install -y /dist/claude-usage_{{.VERSION}}_all.deb
+          # Shipped binaries
+          test -x /usr/bin/claude-usage-setup
+          test -x /usr/bin/claude-usage-status
+          # Shipped server
+          test -f /usr/share/claude-usage/generate-icon.py
+          test -f /usr/share/claude-usage/usage-server.py
+          # Extension + compiled schema in both locations
+          test -f /usr/share/gnome-shell/extensions/claude-usage@indri.studio/extension.js
+          test -f /usr/share/gnome-shell/extensions/claude-usage@indri.studio/schemas/gschemas.compiled
+          test -f /usr/share/glib-2.0/schemas/org.gnome.shell.extensions.claude-usage.gschema.xml
+          # Desktop entry, icons, systemd unit
+          test -f /usr/share/applications/claude-usage.desktop
+          test -f /usr/share/pixmaps/claude-usage.png
+          test -f /usr/share/icons/hicolor/64x64/apps/claude-usage.png
+          test -f /usr/lib/systemd/user/claude-usage-fetch.service
+          # CLI smoke + script-syntax sanity
+          /usr/bin/claude-usage-status -h >/dev/null
+          python3 -m py_compile /usr/share/claude-usage/generate-icon.py
+          python3 -m py_compile /usr/share/claude-usage/usage-server.py
+          bash -n /usr/bin/claude-usage-setup
+          # Removal must clear the system-wide schema (postrm)
+          apt-get remove -y claude-usage
+          test ! -f /usr/share/glib-2.0/schemas/org.gnome.shell.extensions.claude-usage.gschema.xml
+          echo "OK"
+        '
+
   release:
     desc: Build .deb + Chrome zip, tag, and publish a GitHub release (VERSION= to override)
     deps: [build, build-chrome-zip]
