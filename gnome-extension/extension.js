@@ -12,6 +12,38 @@ import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 const CACHE_FILE = GLib.get_home_dir() + '/.cache/claude-usage.json';
 const USAGE_URL  = 'https://claude.ai/settings/usage';
 
+function formatReset(reset) {
+    if (!reset) return '';
+    let m;
+    m = reset.match(/[Rr]esets? in (\d+) hr (\d+) min/);
+    if (m) return `Resets ⏱${m[1]}:${m[2].padStart(2, '0')}`;
+    m = reset.match(/[Rr]esets? in (\d+) min/);
+    if (m) return `Resets ⏱0:${m[1].padStart(2, '0')}`;
+    m = reset.match(/[Rr]esets? (\w{3}) (\d+):(\d+) (AM|PM)/);
+    if (m) {
+        const [, day, hStr, mnStr, ap] = m;
+        let h = parseInt(hStr), mn = parseInt(mnStr);
+        if (ap === 'PM' && h !== 12) h += 12;
+        else if (ap === 'AM' && h === 12) h = 0;
+        const now = new Date();
+        const wdMap = {Sun:0, Mon:1, Tue:2, Wed:3, Thu:4, Fri:5, Sat:6};
+        let ahead = (wdMap[day] - now.getDay() + 7) % 7;
+        if (ahead === 0) {
+            const candidate = new Date(now);
+            candidate.setHours(h, mn, 0, 0);
+            if (candidate <= now) ahead = 7;
+        }
+        const target = new Date(now);
+        target.setDate(now.getDate() + ahead);
+        target.setHours(h, mn, 0, 0);
+        const mins = Math.floor((target - now) / 60000);
+        if (mins < 24 * 60)
+            return `Resets ⏱${Math.floor(mins / 60)}:${(mins % 60).toString().padStart(2, '0')}`;
+        return `Resets ${day} ${h.toString().padStart(2, '0')}:${mn.toString().padStart(2, '0')}`;
+    }
+    return reset;
+}
+
 function bar(pct, width = 10) {
     const filled = Math.round((pct / 100) * width);
     return '█'.repeat(Math.max(0, filled)) + '░'.repeat(Math.max(0, width - filled));
@@ -38,7 +70,7 @@ function formatRows(meters, barWidth) {
             const pct = m.pct ?? 0;
             const col2 = `${pct}%`.padStart(4);
             const col3 = bar(pct, barWidth);
-            const col4 = m.reset ? `  ${m.reset}` : '';
+            const col4 = m.reset ? `  ${formatReset(m.reset)}` : '';
             text = `${label}  ${col2}  ${col3}${col4}`;
         }
         rows.push({text, meter: m, isSub: false, isExtra});
@@ -177,7 +209,9 @@ class ClaudeIndicator extends PanelMenu.Button {
         const popupFont = s.get_string('popup-font-family');
         const style     = `font-family: ${popupFont}; font-size: ${popupSize}px;`;
 
-        const rows = formatRows(d.meters, barWidth);
+        const visibleMeters = d.meters.filter(m =>
+            !(m.label?.toLowerCase().includes('sonnet') && (m.pct ?? 0) === 0));
+        const rows = formatRows(visibleMeters, barWidth);
 
         // Popup: separator widget before extra section
         this._metersSection.removeAll();

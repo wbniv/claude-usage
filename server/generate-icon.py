@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Generate dock icon PNG with two concentric rings from cached usage data."""
-import cairo, math, json, re, sys
+import cairo, math, json, re, sys, datetime
 from pathlib import Path
 from PIL import Image
 
@@ -121,38 +121,59 @@ def _next_icon_path():
             return CACHE_ICON_B
     return CACHE_ICON_A
 
-def format_tooltip(meters, bar_width=10):
-    if not meters:
-        return 'Claude Usage'
-    max_len = max(len(m.get('label') or '') for m in meters)
-    lines = []
-    saw_extra = False
-    for m in meters:
-        if m.get('spent') is not None and not saw_extra:
-            lines.append('')
-            saw_extra = True
-        label = (m.get('label') or '').ljust(max_len)
-        if 'count' in m and 'total' in m:
-            col2 = f"{m['count']}/{m['total']}".rjust(4)
-            lines.append(f"{' ' * bar_width}  {col2}  {label}")
-        else:
-            pct = m.get('pct', 0)
-            filled = round(pct / 100 * bar_width)
-            col1 = '█' * max(0, filled) + '░' * max(0, bar_width - filled)
-            col2 = f"{pct}%".rjust(4)
-            reset = f"  {m['reset']}" if m.get('reset') else ''
-            lines.append(f"{col1}  {col2}  {label}{reset}")
-        if m.get('spent') or m.get('balance'):
-            parts = []
-            if m.get('spent'):   parts.append(f"{m['spent']} spent")
-            if m.get('balance'): parts.append(f"{m['balance']} balance")
-            lines.append('  '.join(parts))
-    return '\n'.join(lines)
+def parse_reset(reset):
+    """Returns (is_countdown, display) or None. Countdown shows ⏱h:mm; day shows 'Tue 1:00'."""
+    if not reset:
+        return None
+    m = re.match(r'[Rr]esets? in (\d+) hr (\d+) min', reset)
+    if m:
+        return (True, f"{m.group(1)}:{int(m.group(2)):02d}")
+    m = re.match(r'[Rr]esets? in (\d+) min', reset)
+    if m:
+        return (True, f"0:{int(m.group(1)):02d}")
+    m = re.match(r'[Rr]esets? (\w{3}) (\d+):(\d+) (AM|PM)', reset)
+    if m:
+        day, h, mn, ap = m.group(1), int(m.group(2)), int(m.group(3)), m.group(4)
+        if ap == 'PM' and h != 12: h += 12
+        elif ap == 'AM' and h == 12: h = 0
+        now = datetime.datetime.now()
+        wd = {'Mon':0,'Tue':1,'Wed':2,'Thu':3,'Fri':4,'Sat':5,'Sun':6}.get(day, 0)
+        ahead = (wd - now.weekday()) % 7
+        if ahead == 0:
+            candidate = now.replace(hour=h, minute=mn, second=0, microsecond=0)
+            if candidate <= now:
+                ahead = 7
+        target = (now + datetime.timedelta(days=ahead)).replace(hour=h, minute=mn, second=0, microsecond=0)
+        mins = int((target - now).total_seconds() / 60)
+        if mins < 24 * 60:
+            return (True, f"{mins // 60}:{mins % 60:02d}")
+        return (False, f"{day} {h:02d}:{mn:02d}")
+    return None
+
+def format_tooltip(meters):
+    find = lambda kw: next((m for m in meters if kw in (m.get('label') or '').lower()), None)
+    current = find('session') or find('current')
+    all_m   = find('all')
+    sonnet  = find('sonnet')
+    parts = []
+    for key, meter in [('current', current), ('all', all_m), ('sonnet', sonnet)]:
+        if not meter:
+            continue
+        pct = meter.get('pct', 0)
+        if key == 'sonnet' and pct == 0:
+            continue
+        part = f"{key} {pct}%"
+        reset_info = parse_reset(meter.get('reset'))
+        if reset_info:
+            is_countdown, display = reset_info
+            part += f" ⏱{display}" if is_countdown else f" {display}"
+        parts.append(part)
+    return ' | '.join(parts) if parts else 'Claude Usage'
 
 def update_desktop(meters, icon_path, bar_width=10):
     if not DESKTOP.exists():
         return
-    name = format_tooltip(meters, bar_width).replace('\n', r'\n')
+    name = format_tooltip(meters).replace('\n', r'\n')
     lines = DESKTOP.read_text().splitlines()
     out = []
     for line in lines:
