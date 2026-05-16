@@ -28,7 +28,7 @@ class ClaudeIndicator extends PanelMenu.Button {
     _init(ext) {
         super._init(0.0, 'Claude Usage');
         this._ext = ext;
-        this._settings = ext.getSettings();
+        this._settings = ext.getSettings('org.gnome.shell.extensions.claude-usage');
         this._monitor = null;
         this._timerId = null;
         this._data = null;
@@ -116,26 +116,6 @@ class ClaudeIndicator extends PanelMenu.Button {
         }
     }
 
-    _updateLauncher(weeklyPct, sessionPct = 0, visible = true) {
-        try {
-            Gio.DBus.session.emit_signal(
-                null,
-                '/com/canonical/unity/launcherentry/1',
-                'com.canonical.Unity.LauncherEntry',
-                'Update',
-                new GLib.Variant('(sa{sv})', [
-                    'application://claude-usage.desktop',
-                    {
-                        'count':            new GLib.Variant('x', sessionPct),
-                        'count-visible':    new GLib.Variant('b', visible && sessionPct > 0),
-                        'progress':         new GLib.Variant('d', weeklyPct / 100),
-                        'progress-visible': new GLib.Variant('b', visible),
-                    },
-                ])
-            );
-        } catch (_e) { /* dock may not be present */ }
-    }
-
     _updateDisplay() {
         const d = this._data;
         if (!d || !d.meters || d.meters.length === 0) {
@@ -143,7 +123,6 @@ class ClaudeIndicator extends PanelMenu.Button {
             this._label.set_style('font-size: 11px; margin-left: 4px;');
             this._statusItem.label.set_text('No data yet');
             this._metersSection.removeAll();
-            this._updateLauncher(0, 0, false);
             return;
         }
 
@@ -157,7 +136,6 @@ class ClaudeIndicator extends PanelMenu.Button {
 
         const pct = primary?.pct ?? 0;
         const color = pctColor(pct);
-        this._updateLauncher((allModels?.pct ?? 0), session?.pct ?? 0);
 
         this._label.set_text(`${pct}%`);
         this._label.set_style(`font-size: 11px; margin-left: 4px; color: ${color};`);
