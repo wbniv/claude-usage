@@ -99,14 +99,18 @@ class ClaudeIndicator extends PanelMenu.Button {
         this._timerId = null;
         this._settingsId = null;
         this._data = null;
-        this._showSonnet = false;
-        this._wasStale   = false;
+        this._wasStale = false;
 
         this.connect('scroll-event', (_actor, event) => {
             const dir = event.get_scroll_direction();
-            if (dir === Clutter.ScrollDirection.UP || dir === Clutter.ScrollDirection.DOWN) {
-                this._showSonnet = !this._showSonnet;
-                if (this._data) this._updateDisplay();
+            if ((dir === Clutter.ScrollDirection.UP ||
+                 dir === Clutter.ScrollDirection.DOWN) && this._data) {
+                const eligible = (this._data.meters || []).filter(m => this._isEligible(m));
+                if (eligible.length < 2) return Clutter.EVENT_STOP;
+                const cur = this._settings.get_string('panel-metric');
+                const idx = eligible.findIndex(m => m.label === cur);
+                const next = eligible[(idx + 1) % eligible.length];
+                this._settings.set_string('panel-metric', next.label);
             }
             return Clutter.EVENT_STOP;
         });
@@ -194,12 +198,9 @@ class ClaudeIndicator extends PanelMenu.Button {
             return;
         }
 
-        const weekly   = d.meters.filter(m => m.label && !m.label.toLowerCase().includes('session'));
-        const allModels = weekly.find(m => m.label?.toLowerCase().includes('all')) || weekly[0];
-        const sonnet    = weekly.find(m => m.label?.toLowerCase().includes('sonnet'));
-
-        const primary = (this._showSonnet && sonnet) ? sonnet : (allModels || d.meters[0]);
-        const pct = primary?.pct ?? 0;
+        const primary = this._getPrimary(d.meters);
+        const pct = primary?.pct ?? (primary?.total
+            ? Math.round((primary.count / primary.total) * 100) : 0);
 
         const panelColor = pct >= s.get_uint('threshold-critical') ? s.get_string('panel-color-critical')
                          : pct >= s.get_uint('threshold-warning')  ? s.get_string('panel-color-warning')
@@ -236,13 +237,36 @@ class ClaudeIndicator extends PanelMenu.Button {
             const mpct   = row.meter.pct ?? 0;
             const active = !row.isSub && row.meter === primary;
             const prefix = active ? '● ' : '  ';
-            const item   = new PopupMenu.PopupMenuItem(prefix + row.text, {reactive: false});
-            const color  = row.isSub
+            const eligible = !row.isSub && this._isEligible(row.meter);
+            const item     = new PopupMenu.PopupMenuItem(prefix + row.text, {reactive: eligible});
+            if (eligible) {
+                item.connect('activate', () => {
+                    this._settings.set_string('panel-metric', row.meter.label);
+                });
+            }
+            const color = row.isSub
                 ? s.get_string('popup-color-normal')
                 : pctColor(mpct, s);
             item.label.set_style(`${style} color: ${color};`);
             this._metersSection.addMenuItem(item);
         }
+    }
+
+    _isEligible(m) {
+        return m.pct !== undefined ||
+               (m.count !== undefined && m.total !== undefined && m.total > 0);
+    }
+
+    _getPrimary(meters) {
+        const label = this._settings.get_string('panel-metric');
+        if (label) {
+            const found = meters.find(m => m.label === label && this._isEligible(m));
+            if (found) return found;
+        }
+        return meters.find(m => /all/i.test(m.label ?? '') && this._isEligible(m))
+            || meters.find(m => this._isEligible(m))
+            || meters[0]
+            || null;
     }
 
     destroy() {

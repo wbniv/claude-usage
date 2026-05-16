@@ -86,5 +86,9 @@
       <summary>Panel icon pixel size (requires extension reload)</summary>
       <range min="8" max="32"/>
     </key>
+    <key name="panel-metric" type="s">
+      <default>''</default>
+      <summary>Label of the meter shown in the panel (empty = auto-select)</summary>
+    </key>
   </schema>
 </schemalist>
