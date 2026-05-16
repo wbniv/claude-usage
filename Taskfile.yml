@@ -22,11 +22,17 @@ tasks:
       - "{{.CHROME_ZIP}}"
 
   test-deb:
-    desc: Build, install, verify, and remove the .deb in a clean Ubuntu 24.04 container
+    desc: Build, install, verify, and remove the .deb in a clean Ubuntu 24.04 container (apt cache reused across runs)
     deps: [build]
     cmds:
       - |
-        docker run --rm -v "$PWD/dist:/dist:ro" ubuntu:24.04 bash -c '
+        # Persistent apt cache via docker named volumes: ~5 min cold → ~30 s warm.
+        # To bust: docker volume rm claude-usage-apt-archives claude-usage-apt-lists
+        docker run --rm \
+          -v "$PWD/dist:/dist:ro" \
+          -v claude-usage-apt-archives:/var/cache/apt/archives \
+          -v claude-usage-apt-lists:/var/lib/apt/lists \
+          ubuntu:24.04 bash -c '
           set -euo pipefail
           export DEBIAN_FRONTEND=noninteractive
           apt-get update -qq
