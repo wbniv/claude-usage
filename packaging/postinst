@@ -3,8 +3,9 @@ set -e
 case "$1" in
     configure)
         glib-compile-schemas \
-            /usr/share/gnome-shell/extensions/claude-usage@wbnorris.gmail.com/schemas/
+            /usr/share/gnome-shell/extensions/claude-usage@indri.studio/schemas/
         update-desktop-database -q /usr/share/applications/ || true
+        gtk-update-icon-cache -f -t /usr/share/icons/hicolor/ || true
         echo ""
         echo "Claude Usage installed. Activate for your user account:"
         echo ""

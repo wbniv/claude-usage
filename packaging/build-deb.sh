@@ -19,6 +19,7 @@ mkdir -p \
     "$PKG/usr/share/claude-usage" \
     "$PKG/usr/share/applications" \
     "$PKG/usr/share/pixmaps" \
+    "$PKG/usr/share/icons/hicolor/64x64/apps" \
     "$PKG/usr/lib/systemd/user" \
     "$PKG/usr/bin"
 
@@ -53,9 +54,11 @@ Categories=Utility;
 NoDisplay=false
 EOF
 
-# System icon (used by static .desktop before first data fetch)
+# System icon
 cp "$REPO_DIR/gnome-extension/icons/claude-64.png" \
     "$PKG/usr/share/pixmaps/claude-usage.png"
+cp "$REPO_DIR/gnome-extension/icons/claude-64.png" \
+    "$PKG/usr/share/icons/hicolor/64x64/apps/claude-usage.png"
 
 # User setup script
 cp "$REPO_DIR/packaging/claude-usage-setup" "$PKG/usr/bin/"
