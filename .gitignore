@@ -2,3 +2,4 @@ gnome-extension/schemas/gschemas.compiled
 __pycache__/
 *.pyc
 dist/
+.task/

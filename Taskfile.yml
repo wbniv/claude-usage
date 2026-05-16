@@ -22,7 +22,7 @@ tasks:
       - "{{.CHROME_ZIP}}"
 
   test-deb:
-    desc: Install + verify .deb in a clean Ubuntu 24.04 container (validates Depends: end-to-end; ~7 min cold, ~4 min warm)
+    desc: "Install + verify .deb in a clean Ubuntu 24.04 container (validates Depends end-to-end; ~7 min cold, ~4 min warm)"
     deps: [build]
     cmds:
       - |
@@ -59,7 +59,7 @@ tasks:
           packaging/
 
   test-deb-fast:
-    desc: Install + verify .deb on the prebaked image (~10 s; assumes Depends: still resolves — use test-deb before release)
+    desc: "Install + verify .deb on the prebaked image (~10 s; assumes Depends still resolves — use test-deb before release)"
     deps: [build, build-test-image]
     cmds:
       - |
