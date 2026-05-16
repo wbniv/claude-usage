@@ -104,8 +104,9 @@ def generate(all_pct, sonnet_pct, cfg, dest):
     cr.paint()
     cr.restore()
 
-    draw_ring(cr, cx, cy, R_OUTER, THICK_OUTER, all_pct,    ring_color(all_pct, cfg))
-    draw_ring(cr, cx, cy, R_INNER, THICK_INNER, sonnet_pct, hex_to_rgba(cfg['sonnet_color']))
+    draw_ring(cr, cx, cy, R_OUTER, THICK_OUTER, all_pct, ring_color(all_pct, cfg))
+    if sonnet_pct > 0:
+        draw_ring(cr, cx, cy, R_INNER, THICK_INNER, sonnet_pct, hex_to_rgba(cfg['sonnet_color']))
 
     surface.flush()
     img = Image.frombytes('RGBA', (CANVAS, CANVAS),
