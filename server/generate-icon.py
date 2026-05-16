@@ -5,8 +5,7 @@ from pathlib import Path
 from PIL import Image
 
 CACHE_JSON   = Path.home() / '.cache' / 'claude-usage.json'
-CACHE_ICON_A = Path.home() / '.cache' / 'claude-usage-icon-a.png'
-CACHE_ICON_B = Path.home() / '.cache' / 'claude-usage-icon-b.png'
+CACHE_DIR    = Path.home() / '.cache'
 DESKTOP      = Path.home() / '.local/share/applications/claude-usage.desktop'
 
 # Icon ships with the GNOME extension; check user-install path first, then system path.
@@ -133,13 +132,16 @@ def generate(all_pct, sonnet_pct, cfg, dest):
     img.resize((128, 128), Image.LANCZOS).save(dest)
 
 def _next_icon_path():
-    """Alternate between two paths so the .desktop Icon= field always changes,
-    forcing GNOME to reload from disk instead of serving a cached pixbuf."""
-    if DESKTOP.exists():
-        m = re.search(r'^Icon=(.+)$', DESKTOP.read_text(), re.MULTILINE)
-        if m and Path(m.group(1)) == CACHE_ICON_A:
-            return CACHE_ICON_B
-    return CACHE_ICON_A
+    """Return a fresh timestamped path so GNOME never serves a cached pixbuf.
+    Deletes any stale claude-usage-icon-*.png files left from prior runs."""
+    import time
+    new_path = CACHE_DIR / f'claude-usage-icon-{int(time.time())}.png'
+    for old in CACHE_DIR.glob('claude-usage-icon-*.png'):
+        try:
+            old.unlink()
+        except OSError:
+            pass
+    return new_path
 
 def parse_reset(reset):
     """Returns (is_countdown, display) or None. Countdown shows ⏱h:mm; day shows 'Tue 1:00'."""
