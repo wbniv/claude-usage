@@ -7,32 +7,36 @@ let _fetching = false;
 async function fetchUsage() {
   if (_fetching) return;
   _fetching = true;
-  // Flush any data stored offline while the server was unavailable
-  const { claude_usage: stored } = await chrome.storage.local.get('claude_usage');
-  if (stored) {
-    try {
-      const r = await fetch(LOCAL_SERVER, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(stored),
-      });
-      if (r.ok) {
-        await chrome.storage.local.remove('claude_usage');
-        console.log('Claude Usage: flushed offline data to server');
-      }
-    } catch (_) {}
-  }
-
-  // Defensive sweep: if a previous fetch was interrupted by SW suspension
-  // between tabs.create and the finally's tabs.remove, the orphaned tab is
-  // still open. Clean those up before opening a fresh one.
-  try {
-    const stale = await chrome.tabs.query({ url: USAGE_URL });
-    for (const t of stale) { try { await chrome.tabs.remove(t.id); } catch (_) {} }
-  } catch (_) {}
-
   let tab = null;
+  // Outer try/finally wraps the *entire* body so a throw from any await
+  // (storage.get, tabs.query, tabs.create, scripting.executeScript, ...)
+  // still resets _fetching. Inner try/catches handle graceful degradation
+  // of individual operations.
   try {
+    // Flush any data stored offline while the server was unavailable
+    const { claude_usage: stored } = await chrome.storage.local.get('claude_usage');
+    if (stored) {
+      try {
+        const r = await fetch(LOCAL_SERVER, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(stored),
+        });
+        if (r.ok) {
+          await chrome.storage.local.remove('claude_usage');
+          console.log('Claude Usage: flushed offline data to server');
+        }
+      } catch (_) {}
+    }
+
+    // Defensive sweep: if a previous fetch was interrupted by SW suspension
+    // between tabs.create and the finally's tabs.remove, the orphaned tab is
+    // still open. Clean those up before opening a fresh one.
+    try {
+      const stale = await chrome.tabs.query({ url: USAGE_URL });
+      for (const t of stale) { try { await chrome.tabs.remove(t.id); } catch (_) {} }
+    } catch (_) {}
+
     tab = await chrome.tabs.create({ url: USAGE_URL, active: false });
 
     await new Promise((resolve, reject) => {

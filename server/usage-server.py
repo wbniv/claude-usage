@@ -38,7 +38,9 @@ def _validate(body):
         if not isinstance(m, dict):
             return f"meters[{i}] must be an object"
         pct = m.get('pct')
-        if not isinstance(pct, int) or not (0 <= pct <= 100):
+        # bool is a subclass of int — reject explicitly before the int check,
+        # otherwise {"pct": true} passes and renders as "true%" in the panel.
+        if isinstance(pct, bool) or not isinstance(pct, int) or not (0 <= pct <= 100):
             return f"meters[{i}].pct must be an integer in [0, 100]"
         for k in ('label', 'reset', 'spent', 'balance'):
             err = _bounded_str(m.get(k), f"meters[{i}].{k}")
