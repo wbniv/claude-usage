@@ -137,13 +137,13 @@ gsettings reset org.gnome.shell.extensions.claude-usage popup-color-normal  # re
 | Setting | Default | Description |
 |---------|---------|-------------|
 | `poll-interval` | `5` | Minutes between re-reading the cache file |
-| `weekly-color-green` | <span style="background:#8cff8c;display:inline-block;width:10px;height:10px;border-radius:2px;border:1px solid #0003"></span> `#8cff8c` | Dock outer ring · below warning threshold |
-| `weekly-color-amber` | <span style="background:#ffe033;display:inline-block;width:10px;height:10px;border-radius:2px;border:1px solid #0003"></span> `#ffe033` | Dock outer ring · ≥ warning threshold |
-| `weekly-color-red` | <span style="background:#ff5933;display:inline-block;width:10px;height:10px;border-radius:2px;border:1px solid #0003"></span> `#ff5933` | Dock outer ring · ≥ critical threshold |
-| `sonnet-color` | <span style="background:#4dbfff;display:inline-block;width:10px;height:10px;border-radius:2px;border:1px solid #0003"></span> `#4dbfff` | Dock inner ring (hidden when Sonnet usage is 0%) |
-| `popup-color-normal` | <span style="background:#2a9a2a;display:inline-block;width:10px;height:10px;border-radius:2px;border:1px solid #0003"></span> `#2a9a2a` | Popup text · below warning threshold |
-| `popup-color-warning` | <span style="background:#d07000;display:inline-block;width:10px;height:10px;border-radius:2px;border:1px solid #0003"></span> `#d07000` | Popup text · ≥ warning threshold |
-| `popup-color-critical` | <span style="background:#e03030;display:inline-block;width:10px;height:10px;border-radius:2px;border:1px solid #0003"></span> `#e03030` | Popup text · ≥ critical threshold |
+| `weekly-color-green` | ${\color{#8cff8c}■}$ `#8cff8c` | Dock outer ring · below warning threshold |
+| `weekly-color-amber` | ${\color{#ffe033}■}$ `#ffe033` | Dock outer ring · ≥ warning threshold |
+| `weekly-color-red` | ${\color{#ff5933}■}$ `#ff5933` | Dock outer ring · ≥ critical threshold |
+| `sonnet-color` | ${\color{#4dbfff}■}$ `#4dbfff` | Dock inner ring (hidden when Sonnet usage is 0%) |
+| `popup-color-normal` | ${\color{#2a9a2a}■}$ `#2a9a2a` | Popup text · below warning threshold |
+| `popup-color-warning` | ${\color{#d07000}■}$ `#d07000` | Popup text · ≥ warning threshold |
+| `popup-color-critical` | ${\color{#e03030}■}$ `#e03030` | Popup text · ≥ critical threshold |
 | `threshold-warning` | `50` | % at which color flips to warning |
 | `threshold-critical` | `80` | % at which color flips to critical |
 | `bar-width` | `10` | █░ bar character count in popup |
