@@ -49,25 +49,20 @@ Max plan · 2m ago
 Open Usage Page
 ```
 
-**Hover** the panel icon to see a summary tooltip (same data, best-effort alignment):
-
-```
-All models                  1%  ░░░░░░░░░░  Resets Tue 1:00 PM
-Sonnet only                 2%  ░░░░░░░░░░  Resets Tue 1:00 PM
-Current session             8%  ████░░░░░░  Resets in 2h 50m
-Claude Design               0%  ░░░░░░░░░░
-Daily included routine runs  0/15
-
-Extra usage                100%  ██████████  Resets Jun 1
-$4.11 spent · $0.90 balance
-```
-
 **Dock icon** (once pinned — see Installation below):
 
 <img src="docs/dock-icon-2rings-mockup.png" width="96">
 
 - **Outer ring** — All models weekly usage (green → amber → red)
-- **Inner ring** — Sonnet only weekly usage (blue by default)
+- **Inner ring** — Sonnet only weekly usage (blue by default); hidden entirely when Sonnet usage is 0%
+
+**Hover** the dock icon to see a one-line summary tooltip:
+
+```
+current 2% ⏱4:47   |   all 3% Tue 13:00   |   sonnet 5% Tue 13:00
+```
+
+Reset times show a countdown (`⏱h:mm`) when less than 24 h away, or a day + time otherwise. Sonnet is omitted from the tooltip when its usage is 0%.
 
 The icon regenerates automatically on each data fetch.
 
@@ -168,7 +163,7 @@ gsettings reset org.gnome.shell.extensions.claude-usage popup-color-normal  # re
 | `weekly-color-green` | `#8cff8c` | Dock outer ring · below warning threshold |
 | `weekly-color-amber` | `#ffe033` | Dock outer ring · ≥ warning threshold |
 | `weekly-color-red` | `#ff5933` | Dock outer ring · ≥ critical threshold |
-| `sonnet-color` | `#4dbfff` | Dock inner ring |
+| `sonnet-color` | `#4dbfff` | Dock inner ring (hidden when Sonnet usage is 0%) |
 | `popup-color-normal` | `#2a9a2a` | Popup text · below warning threshold |
 | `popup-color-warning` | `#d07000` | Popup text · ≥ warning threshold |
 | `popup-color-critical` | `#e03030` | Popup text · ≥ critical threshold |
