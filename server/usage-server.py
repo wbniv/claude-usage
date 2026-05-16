@@ -19,9 +19,10 @@ class Handler(BaseHTTPRequestHandler):
         try:
             length = int(self.headers.get('Content-Length', 0))
             body = json.loads(self.rfile.read(length))
-            # Normalise timestamp to epoch-seconds
-            ts = body.pop('timestamp', None)
-            body['_timestamp'] = int(ts / 1000) if ts else 0
+            # Accept _timestamp (epoch-s from extension) or legacy timestamp (epoch-ms)
+            if '_timestamp' not in body:
+                ts = body.pop('timestamp', None)
+                body['_timestamp'] = int(ts / 1000) if ts else 0
             OUTPUT.parent.mkdir(parents=True, exist_ok=True)
             OUTPUT.write_text(json.dumps(body, indent=2))
             print(f"Saved {len(body.get('meters', []))} meters → {OUTPUT}", flush=True)

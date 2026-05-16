@@ -54,7 +54,7 @@ async function fetchUsage() {
         }
 
         // ── Section 2: Additional features ───────────────────────────────
-        const addlStart = lines.findIndex(l => l === 'Additional features');
+        const addlStart = lines.findIndex(l => /^Additional features$/i.test(l));
         const addlEnd   = lines.findIndex((l, i) =>
           i > addlStart && /^(Extra usage|Last updated:)/.test(l));
         if (addlStart >= 0) {
@@ -96,11 +96,14 @@ async function fetchUsage() {
           }
         }
 
-        return { meters, plan, _timestamp: Math.floor(Date.now() / 1000) };
+        const addlIdx = lines.findIndex(l => /^Additional features$/i.test(l));
+        return { meters, plan, _timestamp: Math.floor(Date.now() / 1000),
+                 _debug: { addlIdx, addlLines: lines.slice(Math.max(0, addlIdx - 1), addlIdx + 8) } };
       },
     });
 
     const data = result?.result;
+    if (data?._debug) console.log('Claude Usage debug:', JSON.stringify(data._debug));
     if (!data || !data.meters.length) {
       console.warn('Claude Usage: no meters extracted');
       return;

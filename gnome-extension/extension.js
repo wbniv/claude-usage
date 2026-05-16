@@ -154,7 +154,6 @@ class ClaudeIndicator extends PanelMenu.Button {
             this._label.set_style(`font-size: ${fontSize}px; margin-left: 4px;`);
             this._statusItem.label.set_text('No data yet');
             this._metersSection.removeAll();
-            this.set_accessible_name('Claude Usage');
             return;
         }
 
@@ -179,18 +178,6 @@ class ClaudeIndicator extends PanelMenu.Button {
         const style     = `font-family: ${popupFont}; font-size: ${popupSize}px;`;
 
         const rows = formatRows(d.meters, barWidth);
-
-        // Tooltip: blank line before extra section
-        const tooltipLines = [];
-        let sawExtra = false;
-        for (const row of rows) {
-            if (row.isExtra && !sawExtra) {
-                tooltipLines.push('');
-                sawExtra = true;
-            }
-            tooltipLines.push(row.text);
-        }
-        this.set_accessible_name(tooltipLines.join('\n') || 'Claude Usage');
 
         // Popup: separator widget before extra section
         this._metersSection.removeAll();

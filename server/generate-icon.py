@@ -43,6 +43,7 @@ def load_config():
             'weekly_color_amber': s.get_string('weekly-color-amber'),
             'weekly_color_red':   s.get_string('weekly-color-red'),
             'sonnet_color':       s.get_string('sonnet-color'),
+            'bar_width':          s.get_uint('bar-width'),
         }
     except Exception:
         return dict(DEFAULTS)
@@ -87,9 +88,8 @@ def generate(all_pct, sonnet_pct, cfg, dest):
     surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, CANVAS, CANVAS)
     cr = cairo.Context(surface)
 
-    # Full Anthropic-orange background with rounded corners
-    corner_r = 18 * SCALE
-    rounded_rect_path(cr, 0, 0, CANVAS, CANVAS, corner_r)
+    # Full Anthropic-orange background
+    cr.rectangle(0, 0, CANVAS, CANVAS)
     cr.set_source_rgba(*ANTHRO_ORANGE)
     cr.fill()
 
@@ -121,14 +121,49 @@ def _next_icon_path():
             return CACHE_ICON_B
     return CACHE_ICON_A
 
-def update_desktop(all_pct, sonnet_pct, icon_path):
+def format_tooltip(meters, bar_width=10):
+    if not meters:
+        return 'Claude Usage'
+    max_len = max(len(m.get('label') or '') for m in meters)
+    lines = []
+    saw_extra = False
+    for m in meters:
+        if m.get('spent') is not None and not saw_extra:
+            lines.append('')
+            saw_extra = True
+        label = (m.get('label') or '').ljust(max_len)
+        if 'count' in m and 'total' in m:
+            col2 = f"{m['count']}/{m['total']}".rjust(4)
+            lines.append(f"{' ' * bar_width}  {col2}  {label}")
+        else:
+            pct = m.get('pct', 0)
+            filled = round(pct / 100 * bar_width)
+            col1 = '█' * max(0, filled) + '░' * max(0, bar_width - filled)
+            col2 = f"{pct}%".rjust(4)
+            reset = f"  {m['reset']}" if m.get('reset') else ''
+            lines.append(f"{col1}  {col2}  {label}{reset}")
+        if m.get('spent') or m.get('balance'):
+            parts = []
+            if m.get('spent'):   parts.append(f"{m['spent']} spent")
+            if m.get('balance'): parts.append(f"{m['balance']} balance")
+            lines.append('  '.join(parts))
+    return '\n'.join(lines)
+
+def update_desktop(meters, icon_path, bar_width=10):
     if not DESKTOP.exists():
         return
-    text = DESKTOP.read_text()
-    name = f'Claude Usage — {all_pct}% / {sonnet_pct}%'
-    text = re.sub(r'^Name=.*$',  f'Name={name}',        text, flags=re.MULTILINE)
-    text = re.sub(r'^Icon=.*$',  f'Icon={icon_path}',   text, flags=re.MULTILINE)
-    DESKTOP.write_text(text)
+    name = format_tooltip(meters, bar_width).replace('\n', r'\n')
+    lines = DESKTOP.read_text().splitlines()
+    out = []
+    for line in lines:
+        if line.startswith('Name='):
+            out.append(f'Name={name}')
+        elif line.startswith('Icon='):
+            out.append(f'Icon={icon_path}')
+        elif line.startswith('[') or '=' in line or line == '':
+            out.append(line)
+        # else: skip orphaned lines from a previous broken write
+    DESKTOP.write_text('\n'.join(out) + '\n')
 
 def main():
     cfg    = load_config()
@@ -140,7 +175,7 @@ def main():
     sonnet_pct = find('sonnet')
     dest = _next_icon_path()
     generate(all_pct, sonnet_pct, cfg, dest)
-    update_desktop(all_pct, sonnet_pct, dest)
+    update_desktop(meters, dest, cfg.get('bar_width', 10))
     print(f'Icon: All={all_pct}% Sonnet={sonnet_pct}%', flush=True)
 
 if __name__ == '__main__':

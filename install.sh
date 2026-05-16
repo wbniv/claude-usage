@@ -24,6 +24,8 @@ uninstall() {
     rm -f "$SYSTEMD_DIR/claude-usage-fetch.service"
     systemctl --user daemon-reload
     rm -rf "$GNOME_EXT_DIR"
+    rm -f "$HOME/.local/share/glib-2.0/schemas/org.gnome.shell.extensions.claude-usage.gschema.xml"
+    glib-compile-schemas "$HOME/.local/share/glib-2.0/schemas/" 2>/dev/null || true
     rm -rf "$SERVER_DIR"
     rm -rf "$HOME/.config/claude-usage"
     rm -f "$HOME/.cache/claude-usage.json"
@@ -57,6 +59,11 @@ cp "$REPO_DIR/gnome-extension/prefs.js" "$GNOME_EXT_DIR/"
 cp "$REPO_DIR/gnome-extension/schemas/"*.xml "$GNOME_EXT_DIR/schemas/"
 cp "$REPO_DIR/gnome-extension/icons/"* "$GNOME_EXT_DIR/icons/" 2>/dev/null || true
 glib-compile-schemas "$GNOME_EXT_DIR/schemas/"
+# Also install schema to user glib path so plain `gsettings` works without GSETTINGS_SCHEMA_DIR
+GLIB_SCHEMA_DIR="$HOME/.local/share/glib-2.0/schemas"
+mkdir -p "$GLIB_SCHEMA_DIR"
+cp "$REPO_DIR/gnome-extension/schemas/"*.xml "$GLIB_SCHEMA_DIR/"
+glib-compile-schemas "$GLIB_SCHEMA_DIR/"
 echo "  ✓ GNOME extension installed"
 
 # 2. Local data server
@@ -65,6 +72,11 @@ cp "$REPO_DIR/server/usage-server.py" "$SERVER_DIR/"
 cp "$REPO_DIR/server/generate-icon.py" "$SERVER_DIR/"
 chmod +x "$SERVER_DIR/usage-server.py" "$SERVER_DIR/generate-icon.py"
 echo "  ✓ Usage server installed"
+
+# 2b. Chrome extension install copy (Chrome loads unpacked from this path)
+mkdir -p "$SERVER_DIR/chrome-extension"
+cp "$REPO_DIR/chrome-extension/"* "$SERVER_DIR/chrome-extension/"
+echo "  ✓ Chrome extension files synced to $SERVER_DIR/chrome-extension"
 
 # 3. Generate initial dock icon (0% rings until first data fetch)
 # Settings are stored in GSettings (dconf) with built-in defaults.
