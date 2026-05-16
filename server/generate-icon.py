@@ -35,6 +35,8 @@ DEFAULTS = {  # keep in sync with gschema.xml default= attributes
     'weekly_color_amber': '#ffe033',
     'weekly_color_red':   '#ff5933',
     'sonnet_color':       '#4dbfff',
+    'threshold_warning':  50,
+    'threshold_critical': 80,
 }
 
 def load_config():
@@ -47,6 +49,8 @@ def load_config():
             'weekly_color_red':   s.get_string('weekly-color-red'),
             'sonnet_color':       s.get_string('sonnet-color'),
             'bar_width':          s.get_uint('bar-width'),
+            'threshold_warning':  s.get_uint('threshold-warning'),
+            'threshold_critical': s.get_uint('threshold-critical'),
         }
         for key in ('weekly_color_green', 'weekly_color_amber', 'weekly_color_red', 'sonnet_color'):
             try:
@@ -63,9 +67,9 @@ def hex_to_rgba(h):
     return (r/255, g/255, b/255, 1.0)
 
 def ring_color(pct, cfg):
-    if pct >= 80: return hex_to_rgba(cfg['weekly_color_red'])
-    if pct >= 50: return hex_to_rgba(cfg['weekly_color_amber'])
-    return             hex_to_rgba(cfg['weekly_color_green'])
+    if pct >= cfg.get('threshold_critical', 80): return hex_to_rgba(cfg['weekly_color_red'])
+    if pct >= cfg.get('threshold_warning',  50): return hex_to_rgba(cfg['weekly_color_amber'])
+    return                                             hex_to_rgba(cfg['weekly_color_green'])
 
 def rounded_rect_path(cr, x, y, w, h, r):
     cr.new_sub_path()
