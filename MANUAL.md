@@ -250,7 +250,15 @@ claude-usage/
 
 ```bash
 sudo apt remove claude-usage
-rm -rf ~/.config/claude-usage   # optional: remove user config
 ```
+
+`postrm` runs as root, so it only cleans system files under `/usr/share/`. Per-user state from `claude-usage-setup` is left behind — remove it manually for a full wipe:
+
+```bash
+rm -f  ~/.local/share/applications/claude-usage.desktop
+rm -rf ~/.cache/claude-usage
+```
+
+(The `org.gnome.shell.enabled-extensions` dconf entry is harmless once the extension files are gone — GNOME Shell silently ignores unknown UUIDs.)
 
 Both: open `chrome://extensions`, remove Claude Usage Tracker, and log out.

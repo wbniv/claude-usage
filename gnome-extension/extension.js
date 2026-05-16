@@ -213,7 +213,8 @@ class ClaudeIndicator extends PanelMenu.Button {
         const ageStr = age !== null ? ` · ${age < 1 ? '<1' : age}m ago` : '';
         this._statusItem.label.set_text(`${stale ? '⚠ ' : ''}${plan}${ageStr}`);
         if (stale && !this._wasStale)
-            Main.notify('Claude Usage', `No update in ${age} min — click the Chrome extension icon to refresh`);
+            Main.notify('Claude Usage',
+                `No update in ${age} min. Open Chrome and click the extension icon, or run claude-usage-status to diagnose.`);
         this._wasStale = stale;
 
         const barWidth  = s.get_uint('bar-width');
