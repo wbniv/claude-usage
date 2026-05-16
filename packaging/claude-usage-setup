@@ -42,7 +42,7 @@ systemctl --user enable --now claude-usage-fetch.service
 echo "  ✓ Service enabled"
 
 # 4. GNOME extension
-gnome-extensions enable claude-usage@wbnorris.gmail.com 2>/dev/null \
+gnome-extensions enable claude-usage@indri.studio 2>/dev/null \
     && echo "  ✓ GNOME extension enabled" \
     || echo "  ℹ  GNOME extension registered — log out and back in to activate"
 

@@ -12,12 +12,15 @@ DESKTOP      = Path.home() / '.local/share/applications/claude-usage.desktop'
 # Icon ships with the GNOME extension; check user-install path first, then system path.
 _EXT_REL = Path('gnome-shell/extensions/claude-usage@indri.studio/icons/claude-64.png')
 BASE_ICON = next(
-    p for p in [
+    (p for p in [
         Path.home() / '.local/share' / _EXT_REL,
         Path('/usr/share') / _EXT_REL,
-    ]
-    if p.exists()
+    ] if p.exists()),
+    None,
 )
+if BASE_ICON is None:
+    raise FileNotFoundError(
+        "Base icon not found: checked ~/.local/share and /usr/share")
 
 SCALE  = 4
 ICON   = 44 * SCALE
@@ -107,6 +110,7 @@ def generate(all_pct, sonnet_pct, cfg, dest):
 
     draw_ring(cr, cx, cy, R_OUTER, THICK_OUTER, all_pct, ring_color(all_pct, cfg))
     if sonnet_pct > 0:
+        # Sonnet ring intentionally uses a fixed blue — color family distinguishes it from the outer ring.
         draw_ring(cr, cx, cy, R_INNER, THICK_INNER, sonnet_pct, hex_to_rgba(cfg['sonnet_color']), track=False)
 
     surface.flush()
@@ -190,7 +194,9 @@ def update_desktop(meters, icon_path, bar_width=10):
     DESKTOP.write_text('\n'.join(out) + '\n')
 
 def main():
-    cfg    = load_config()
+    cfg = load_config()
+    if not CACHE_JSON.exists():
+        sys.exit(0)  # no data yet — not an error
     data   = json.loads(CACHE_JSON.read_text())
     meters = data.get('meters', [])
     find   = lambda kw: next(

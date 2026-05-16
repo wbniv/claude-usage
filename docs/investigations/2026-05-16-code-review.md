@@ -1,0 +1,281 @@
+# Code Review — claude-usage
+
+**Date:** 2026-05-16  
+**Scope:** Exhaustive review of all source files  
+**Reviewer:** Claude Code
+
+---
+
+## Project Purpose
+
+`claude-usage` is a Linux (GNOME) system indicator that displays Claude.ai API usage
+percentages in real-time. Four integrated components collaborate to show a live percentage
+label in the GNOME top panel and a color-coded icon in the application dock.
+
+---
+
+## Architecture
+
+```
+Chrome Extension (15-min scrape)
+        │  POST JSON
+        ▼
+usage-server.py  (127.0.0.1:7331)
+        │  writes
+        ├──▶ ~/.cache/claude-usage.json
+        │         │  file-watch (GLib.FileMonitor)
+        │         └──▶ GNOME Extension (panel label + popup)
+        │  spawns
+        └──▶ generate-icon.py
+                  │  writes alternating PNG + updates Icon= in
+                  └──▶ ~/.local/share/applications/claude-usage.desktop
+```
+
+**Data flow:** Chrome Extension → localhost:7331 → cache JSON → GNOME extension + icon
+generator.
+
+**Four independent processes:** Chrome, systemd user service, GNOME Shell, and the icon
+generator subprocess. If any one fails, the panel shows "--" with no error surfaced to the
+user.
+
+---
+
+## File Inventory
+
+| File | Role |
+|---|---|
+| `chrome-extension/manifest.json` | MV3 extension manifest; host perms for 127.0.0.1:7331 and claude.ai |
+| `chrome-extension/background.js` | Scraper, 15-min alarm scheduler, chrome.storage.local fallback |
+| `server/usage-server.py` | HTTP POST handler; writes cache; spawns icon generator |
+| `server/generate-icon.py` | Cairo + PIL dock icon renderer; updates .desktop Icon= field |
+| `gnome-extension/extension.js` | Panel indicator, popup menu, file watcher, poll timer |
+| `gnome-extension/prefs.js` | GSettings preferences UI (colors, thresholds, fonts) |
+| `gnome-extension/metadata.json` | UUID: `claude-usage@indri.studio`; GNOME 45–49 |
+| `gnome-extension/schemas/org.gnome.shell.extensions.claude-usage.gschema.xml` | 14 GSettings keys |
+| `install.sh` | Source-install and uninstall script |
+| `packaging/build-deb.sh` | Debian package builder |
+| `packaging/claude-usage-setup` | Per-user setup script invoked by the .deb postinst |
+| `packaging/control` | Debian metadata, v0.9, python3-cairo + python3-pil deps |
+| `packaging/postinst` / `postrm` | Debian lifecycle hooks |
+| `Taskfile.yml` | `build-deb`, `build-chrome-zip` tasks |
+| `MANUAL.md` | User documentation |
+| `PRIVACY.md` | Chrome Web Store privacy disclosure |
+
+---
+
+## Bugs
+
+### ~~BUG-1 — Critical: Extension UUID mismatch in .deb setup script~~ ✓ Fixed
+
+**File:** `packaging/claude-usage-setup:45`  
+**Symptom:** `.deb` install completes without error but the GNOME extension is never
+enabled; panel indicator never appears.  
+**Cause:** `gnome-extensions enable claude-usage@wbnorris.gmail.com` — the argument uses
+the old email-based UUID, not the actual UUID `claude-usage@indri.studio` declared in
+`gnome-extension/metadata.json`.  
+**Fix:**
+```bash
+gnome-extensions enable claude-usage@indri.studio 2>/dev/null \
+```
+
+### ~~BUG-2 — High: generate-icon.py crashes on first run (missing cache file)~~ ✓ Fixed
+
+**File:** `server/generate-icon.py:194`  
+**Symptom:** Icon generator exits with `FileNotFoundError` before any fetch has populated
+the cache; user sees no dock icon until the first successful scrape cycle.  
+**Cause:** `CACHE_JSON.read_text()` is called unconditionally; no existence check precedes
+it.  
+**Fix:** Add an early exit (or placeholder icon) when the cache is absent:
+```python
+if not CACHE_JSON.exists():
+    sys.exit(0)  # nothing to render yet; not an error
+data = json.loads(CACHE_JSON.read_text())
+```
+Alternatively, pre-create a zero-percent placeholder at install time.
+
+### ~~BUG-3 — High: BASE_ICON lookup raises StopIteration on partial install~~ ✓ Fixed
+
+**File:** `server/generate-icon.py:12–20`  
+**Symptom:** Cryptic `StopIteration` traceback when neither the user-install nor the
+system path contains the GNOME extension icon.  
+**Cause:** `next(p for p in [...] if p.exists())` has no default; bare `next()` on an
+exhausted iterator raises `StopIteration`.  
+**Fix:**
+```python
+BASE_ICON = next((p for p in CANDIDATES if p.exists()), None)
+if BASE_ICON is None:
+    sys.exit(f"error: base icon not found in any candidate path")
+```
+
+### ~~BUG-4 — Medium: Weekday numbering inconsistency between Python and JavaScript~~ ✗ Not a bug
+
+**Retracted.** The two implementations use different but internally consistent conventions:
+Python dict maps Mon=0…Sun=6 matching `datetime.weekday()`; JS `wdMap` maps Sun=0…Sat=6
+matching `getDay()`. Verified with test cases (Sunday→Monday, Wednesday→Monday): both
+produce identical `ahead` values. The original review made an arithmetic error by applying
+the JS mapping to the Python calculation.
+
+### BUG-5 — Low: Sonnet ring ignores warning/critical color thresholds (by design)
+
+**File:** `server/generate-icon.py:109`  
+**Resolution:** Intentional design — blue always = Sonnet so users can distinguish the two
+rings by color family at a glance. A clarifying comment has been added to the source. No
+behavior change.
+
+### ~~BUG-6 — Low: Chrome scraper DOM index lacks lower-bound guard~~ ✗ Not a bug
+
+**Retracted.** Every `lines[i-1]` access is guarded by `i >= 1` and every `lines[i-2]`
+access is guarded by `i >= 2` — verified by reading lines 46–54, 62–70, and 80–88 of
+`chrome-extension/background.js`. Guards were already consistently applied.
+
+---
+
+## Code Quality Issues
+
+### Silent error swallowing in the HTTP server
+
+**File:** `server/usage-server.py:32–33`  
+POST handler catches all exceptions and always returns 200. If JSON parsing fails, the
+cache is silently not updated. At minimum, log the error and return 400.
+
+### Concurrent icon generator spawns
+
+**File:** `server/usage-server.py:30–31`  
+`subprocess.Popen` is fire-and-forget; two POST requests in quick succession spawn two
+concurrent `generate-icon.py` processes. Outcome is non-deterministic (last writer wins on
+the PNG). In practice the 15-minute poll makes this unlikely, but the race is real.
+Consider a file lock or serialized queue.
+
+### GSettings defaults duplicated in two languages
+
+Default color values exist in `gschema.xml` (the schema) **and** as a Python dict in
+`generate-icon.py`. If one is updated, the other requires manual sync. A comment cross-
+referencing both locations would reduce drift risk.
+
+### Hardcoded English weekday strings in Python
+
+**File:** `server/generate-icon.py:142`  
+Weekday parsing is hard-coded to `['Mon', 'Tue', 'Wed', …]`. Systems configured for a
+non-English locale will silently mismatch. Replace with `calendar.day_abbr` (locale-aware)
+or pass language-tagged data from the extension.
+
+### Magic numbers in extension.js
+
+Panel label spacing, menu column widths, and bar width dimensions are scattered as literal
+integers throughout `extension.js`. The ones already in GSettings are good; the rest
+should either follow or be named constants at the top of the file.
+
+### No validation of hex color strings from GSettings
+
+**File:** `server/generate-icon.py` (`hex_to_rgba` call)  
+An invalid hex value (user types a typo in prefs) propagates through Cairo rendering and
+produces a cryptic exception. Add input validation in `load_config()` with a fallback to
+the schema default.
+
+---
+
+## Security Observations
+
+### ~~Cache file permissions (Medium)~~ ✓ Fixed
+
+**File:** `server/usage-server.py:27`  
+`Path.write_text()` inherits the process umask (typically 0644 — world-readable). The
+cache contains the user's plan type, API usage percentages, and remaining balance — all
+mildly sensitive. Fix:
+```python
+OUTPUT.write_text(json.dumps(data, indent=2))
+os.chmod(OUTPUT, 0o600)
+```
+
+### Unauthenticated local POST endpoint (Low)
+
+Any process running as the same user can POST arbitrary JSON to port 7331 and overwrite
+the cache. The loopback binding prevents remote access. For additional hardening, reject
+requests whose `Content-Type` is not `application/json`, and validate the JSON schema
+before writing.
+
+### Percentage values not bounds-checked (Low)
+
+**File:** `chrome-extension/background.js:47,84`  
+`parseInt(pctMatch[1])` trusts the page content verbatim. If the Claude UI ever renders a
+value outside 0–100 (A/B test, error state), it propagates into the cache and display.
+Fix: `Math.min(100, Math.max(0, parseInt(...)))`.
+
+---
+
+## Missing Features / Implied TODOs
+
+| # | Gap | Notes |
+|---|---|---|
+| 1 | Stale-data warning | Panel shows time-since-update but never warns when > 30 min; user has no indication the scraper is broken |
+| 2 | Chrome storage → GNOME bridge | If the server is down, Chrome falls back to `chrome.storage.local`, but that data is never surfaced in GNOME extension — the fallback is invisible |
+| 3 | Chrome Web Store publication | `build-chrome-zip.sh` exists; extension not yet published; users must load unpacked |
+| 4 | Config validation UI | Preferences UI accepts any string for colors; invalid input crashes the icon generator |
+| 5 | Locale/timezone detection | Reset times assume system timezone == page timezone; not documented or verified |
+| 6 | Diagnostics command | No tool to check service health, cache freshness, or Chrome extension status without manual log inspection |
+
+---
+
+## Non-obvious Design Decisions (Worth Preserving)
+
+### Alternating PNG filenames for icon cache busting
+
+`generate-icon.py` alternates between `claude-usage-icon-a.png` and `claude-usage-icon-b.png`
+on each write, then updates the `Icon=` line in the `.desktop` file to the new path.
+This is a deliberate workaround: GNOME caches `.desktop` icons by filename and does not
+invalidate on file modification time alone. Changing the filename forces a reload.
+**Do not "simplify" this to a single fixed filename — the icon will stop updating.**
+
+### File watcher + poll timer redundancy
+
+`extension.js` uses both a `GLib.FileMonitor` (immediate response to cache writes) and a
+configurable poll timer (default 5 min). The watcher is primary; the timer is a safety net
+for missed `CHANGES_DONE_HINT` events (known GLib edge case on some filesystems). Both
+are intentional.
+
+### Two-library image pipeline
+
+`generate-icon.py` uses Cairo (`ImageSurface`) for vector drawing and PIL for the final
+PNG resize. Cairo is used for its arc/stroke API; PIL is used because Cairo's PNG writing
+does not easily support palette or resize operations at the correct output size. This
+two-library approach is intentional, not redundant.
+
+---
+
+## Dependency Summary
+
+| Dependency | Source | Version constraint |
+|---|---|---|
+| Python | system | ≥3.8 |
+| python3-cairo | apt | any |
+| python3-pil | apt | any |
+| GNOME Shell | system | 45–49 (metadata.json) |
+| systemd (user) | system | any |
+| Chrome / Chromium | user-installed | MV3 support |
+
+No PyPI packages. All Python stdlib. Minimal footprint — good for distro packaging.
+
+---
+
+## Priority Summary
+
+| Priority | Count | Items | Status |
+|---|---|---|---|
+| Critical (blocks release) | 1 | BUG-1: UUID mismatch in .deb | ✓ Fixed |
+| High (crash/data loss) | 2 | BUG-2: missing cache guard; BUG-3: StopIteration | ✓ Fixed |
+| Medium (correctness) | 2 | ~~BUG-4: weekday inconsistency~~ (not a bug); cache file permissions | ✓ Fixed |
+| Low (quality/safety) | 4 | BUG-5: by design (comment added); ~~BUG-6: DOM index~~ (not a bug); bounds-check %; CORS | Partial |
+| Nice-to-have | 6 | See Missing Features table | Open |
+
+---
+
+## Overall Assessment
+
+**Grade: B+**
+
+Architecture is clean and well-separated. Configuration surface via GSettings is solid.
+The loopback-only server, systemd user service, and file-watcher design are all appropriate
+choices. Plans in `docs/plans/` show that recent work was methodical.
+
+**Before the next .deb release:** fix BUG-1 (UUID), BUG-2 (crash on first run), and
+set cache file permissions to 0600. The rest can follow.
