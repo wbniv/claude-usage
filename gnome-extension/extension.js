@@ -18,9 +18,9 @@ function bar(pct, width = 10) {
 }
 
 function pctColor(pct) {
-    if (pct >= 80) return '#ff6644';
-    if (pct >= 50) return '#ffcc44';
-    return '#88ff88';
+    if (pct >= 80) return '#e03030';
+    if (pct >= 50) return '#d07000';
+    return '#2a9a2a';
 }
 
 const ClaudeIndicator = GObject.registerClass(
