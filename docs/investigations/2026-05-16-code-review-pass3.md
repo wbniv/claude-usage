@@ -60,7 +60,7 @@ def ring_color(pct, cfg):
 
 ---
 
-### BUG-P3-2 — Medium: Tab listener never removed on 30‑second timeout — accumulates across calls
+### ~~BUG-P3-2~~ — Medium: Tab listener never removed on 30‑second timeout — accumulates across calls ✓ Fixed
 
 **File:** `chrome-extension/background.js:27–36`
 
@@ -407,7 +407,7 @@ sequence coherent.
 
 | Priority | Count | Items |
 |----------|-------|-------|
-| Medium | 2 | BUG-P3-2 (tab listener leak on timeout); BUG-P3-3 (.deb icon path) |
+| Medium | 1 | BUG-P3-3 (.deb icon path) |
 | Low | 2 | BUG-P3-5 (gsettings CLI on .deb); BUG-P3-6 (double-fetch race) |
 | Code quality | 5 | dead `bar_width` param; comment drop in update_desktop; threshold cross-validation gap; `Gio.SubprocessFlags.NONE`; release task missing branch push |
 

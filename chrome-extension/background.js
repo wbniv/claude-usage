@@ -24,7 +24,10 @@ async function fetchUsage() {
     tab = await chrome.tabs.create({ url: USAGE_URL, active: false });
 
     await new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error('tab load timeout')), 30_000);
+      const timeout = setTimeout(() => {
+        chrome.tabs.onUpdated.removeListener(listener);
+        reject(new Error('tab load timeout'));
+      }, 30_000);
       chrome.tabs.onUpdated.addListener(function listener(tabId, info) {
         if (tabId !== tab.id) return;
         if (info.status === 'complete') {
