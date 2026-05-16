@@ -169,7 +169,7 @@ def format_tooltip(meters):
             is_countdown, display = reset_info
             part += f" ⏱{display}" if is_countdown else f" {display}"
         parts.append(part)
-    return ' | '.join(parts) if parts else 'Claude Usage'
+    return '   |   '.join(parts) if parts else 'Claude Usage'
 
 def update_desktop(meters, icon_path, bar_width=10):
     if not DESKTOP.exists():
