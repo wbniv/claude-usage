@@ -16,9 +16,9 @@ function formatReset(reset) {
     if (!reset) return '';
     let m;
     m = reset.match(/[Rr]esets? in (\d+) hr (\d+) min/);
-    if (m) return `Resets ⏱${m[1]}:${m[2].padStart(2, '0')}`;
+    if (m) return `Resets in ⏱${m[1]}:${m[2].padStart(2, '0')}`;
     m = reset.match(/[Rr]esets? in (\d+) min/);
-    if (m) return `Resets ⏱0:${m[1].padStart(2, '0')}`;
+    if (m) return `Resets in ⏱0:${m[1].padStart(2, '0')}`;
     m = reset.match(/[Rr]esets? (\w{3}) (\d+):(\d+) (AM|PM)/);
     if (m) {
         const [, day, hStr, mnStr, ap] = m;
@@ -38,7 +38,7 @@ function formatReset(reset) {
         target.setHours(h, mn, 0, 0);
         const mins = Math.floor((target - now) / 60000);
         if (mins < 24 * 60)
-            return `Resets ⏱${Math.floor(mins / 60)}:${(mins % 60).toString().padStart(2, '0')}`;
+            return `Resets in ⏱${Math.floor(mins / 60)}:${(mins % 60).toString().padStart(2, '0')}`;
         return `Resets ${day} ${h.toString().padStart(2, '0')}:${mn.toString().padStart(2, '0')}`;
     }
     return reset;

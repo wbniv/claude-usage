@@ -12,7 +12,7 @@
 |----|-------------|--------|
 | BUG-P2-1 | `claude-usage-setup` created config.json that nothing reads | ✓ Fixed — block removed; file no longer written |
 | BUG-P2-2 | `packaging/control` version 0.9, Chrome manifest 1.0 | ✓ Both confirmed at 0.9 — in sync |
-| BUG-P2-3 | Uninstall missed alternating icon files | ✓ Fixed — `install.sh:33–35` removes all three variants |
+| BUG-P2-3 | Uninstall missed alternating icon files | ✓ Fixed — `install.sh` removes `claude-usage-icon*.png` glob |
 | BUG-P2-4 | `claude-usage-setup` desktop icon used old filename | Partial — old path removed, new path introduced; see BUG-P3-3 below |
 | `padStart(4)` overflow | Count column broke at double-digit values | ✓ Fixed — `formatRows` now computes `maxCol2` across all rows |
 | `addlIdx` duplication | `findIndex` called twice for same result | ✓ Fixed — removed |
@@ -354,7 +354,7 @@ usage-server.py (127.0.0.1:7331)
     ├──▶ spawn generate-icon.py
     │         ├── read GSettings (colors, thresholds)
     │         ├── render PNG (Cairo → PIL resize)
-    │         ├── alternate a/b filename (GNOME pixbuf cache bust)
+    │         ├── timestamped filename (GNOME pixbuf cache bust)
     │         └── update Icon= in ~/.local/share/applications/claude-usage.desktop
     │
     └──▶ GLib.FileMonitor fires in GNOME Shell
@@ -364,8 +364,8 @@ usage-server.py (127.0.0.1:7331)
 ```
 
 No shared mutable state between processes; each reads the same `claude-usage.json`. The
-alternating-filename trick for GNOME pixbuf cache busting is correctly documented in pass 1
-and must not be "simplified."
+timestamped-filename approach for GNOME pixbuf cache busting guarantees a cache miss on every
+write; old files are cleaned up by the generator on each run.
 
 ### `.deb` install creates three `.desktop` files at different stages
 
