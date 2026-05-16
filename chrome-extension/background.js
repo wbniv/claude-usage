@@ -46,7 +46,7 @@ async function fetchUsage() {
         for (let i = planRange[0]; i < planRange[1]; i++) {
           const pctMatch = lines[i].match(/^(\d+)%\s*used$/i);
           if (!pctMatch) continue;
-          const pct   = parseInt(pctMatch[1]);
+          const pct   = Math.min(100, Math.max(0, parseInt(pctMatch[1])));
           const reset = i >= 1 && /[Rr]esets?/.test(lines[i - 1]) ? lines[i - 1] : null;
           const label = i >= 2 ? lines[i - 2] : null;
           if (!label || /^(Weekly limits|Plan usage limits|Learn more)/i.test(label)) continue;
@@ -64,7 +64,7 @@ async function fetchUsage() {
             if (!countMatch) continue;
             const count = parseInt(countMatch[1]);
             const total = parseInt(countMatch[2]);
-            const pct   = total > 0 ? Math.round(count / total * 100) : 0;
+            const pct   = Math.min(100, total > 0 ? Math.round(count / total * 100) : 0);
             const label = i >= 2 ? lines[i - 2] : null;
             if (!label || /^(Additional features|Learn more)/i.test(label)) continue;
             meters.push({count, total, pct, label, reset: null});
@@ -83,7 +83,7 @@ async function fetchUsage() {
             if (spentMatch) { spent = spentMatch[1]; continue; }
             const pctMatch = lines[i].match(/^(\d+)%\s*used$/i);
             if (pctMatch) {
-              pct   = parseInt(pctMatch[1]);
+              pct   = Math.min(100, Math.max(0, parseInt(pctMatch[1])));
               reset = i >= 1 && /[Rr]esets?/.test(lines[i - 1]) ? lines[i - 1] : null;
               continue;
             }

@@ -132,45 +132,43 @@ access is guarded by `i >= 2` — verified by reading lines 46–54, 62–70, an
 
 ## Code Quality Issues
 
-### Silent error swallowing in the HTTP server
+### ~~Silent error swallowing in the HTTP server~~ ✓ Fixed
 
-**File:** `server/usage-server.py:32–33`  
-POST handler catches all exceptions and always returns 200. If JSON parsing fails, the
-cache is silently not updated. At minimum, log the error and return 400.
+**File:** `server/usage-server.py`  
+Returns 400 on parse/write failure; returns 415 if Content-Type is not `application/json`.
+Error is still logged to stderr. Chrome extension's `if (!resp.ok)` branch will now trigger
+correctly on failure and fall back to `chrome.storage.local`.
 
-### Concurrent icon generator spawns
+### Concurrent icon generator spawns — theoretical, not fixing
 
 **File:** `server/usage-server.py:30–31`  
-`subprocess.Popen` is fire-and-forget; two POST requests in quick succession spawn two
-concurrent `generate-icon.py` processes. Outcome is non-deterministic (last writer wins on
-the PNG). In practice the 15-minute poll makes this unlikely, but the race is real.
-Consider a file lock or serialized queue.
+The 15-minute Chrome alarm makes two concurrent POST requests essentially impossible in
+normal use. The race (last-writer-wins on the PNG) is real in theory but has no practical
+consequence. Not worth the complexity of a lock.
 
-### GSettings defaults duplicated in two languages
+### ~~GSettings defaults duplicated in two languages~~ ✓ Fixed
 
-Default color values exist in `gschema.xml` (the schema) **and** as a Python dict in
-`generate-icon.py`. If one is updated, the other requires manual sync. A comment cross-
-referencing both locations would reduce drift risk.
+Added `# keep in sync with gschema.xml default= attributes` comment on the `DEFAULTS` dict
+in `generate-icon.py` to make the coupling explicit.
 
-### Hardcoded English weekday strings in Python
+### Hardcoded English weekday strings — not applicable
 
-**File:** `server/generate-icon.py:142`  
-Weekday parsing is hard-coded to `['Mon', 'Tue', 'Wed', …]`. Systems configured for a
-non-English locale will silently mismatch. Replace with `calendar.day_abbr` (locale-aware)
-or pass language-tagged data from the extension.
+`parse_reset` parses text scraped from `claude.ai`, which is always served in English
+regardless of system locale. Hardcoded English abbreviations are correct; `calendar.day_abbr`
+would be wrong here.
 
-### Magic numbers in extension.js
+### Magic numbers in extension.js — already resolved
 
-Panel label spacing, menu column widths, and bar width dimensions are scattered as literal
-integers throughout `extension.js`. The ones already in GSettings are good; the rest
-should either follow or be named constants at the top of the file.
+All significant UI dimensions (`panel-icon-size`, `panel-font-size`, `panel-label-spacing`,
+`bar-width`, `popup-font-size`, `popup-font-family`) are now GSettings keys. The remaining
+literals (`0.0` alignment, `0, 'right'` panel position) are fixed layout constants, not
+configurable values. Nothing to do.
 
-### No validation of hex color strings from GSettings
+### ~~No validation of hex color strings from GSettings~~ ✓ Fixed
 
-**File:** `server/generate-icon.py` (`hex_to_rgba` call)  
-An invalid hex value (user types a typo in prefs) propagates through Cairo rendering and
-produces a cryptic exception. Add input validation in `load_config()` with a fallback to
-the schema default.
+`load_config()` now validates each color string by calling `hex_to_rgba()` on it; any that
+raise fall back to the `DEFAULTS` value. Bad prefs input can no longer crash the icon
+generator.
 
 ---
 
@@ -187,19 +185,17 @@ OUTPUT.write_text(json.dumps(data, indent=2))
 os.chmod(OUTPUT, 0o600)
 ```
 
-### Unauthenticated local POST endpoint (Low)
+### ~~Unauthenticated local POST endpoint (Low)~~ ✓ Partially fixed
 
-Any process running as the same user can POST arbitrary JSON to port 7331 and overwrite
-the cache. The loopback binding prevents remote access. For additional hardening, reject
-requests whose `Content-Type` is not `application/json`, and validate the JSON schema
-before writing.
+Content-Type is now validated — requests without `application/json` receive 415. Full
+schema validation of the JSON body would add more hardening but is not implemented (low
+practical risk given loopback-only binding).
 
-### Percentage values not bounds-checked (Low)
+### ~~Percentage values not bounds-checked (Low)~~ ✓ Fixed
 
-**File:** `chrome-extension/background.js:47,84`  
-`parseInt(pctMatch[1])` trusts the page content verbatim. If the Claude UI ever renders a
-value outside 0–100 (A/B test, error state), it propagates into the cache and display.
-Fix: `Math.min(100, Math.max(0, parseInt(...)))`.
+All three `pct` assignments in `background.js` (Section 1, Section 2 count-based, Section 3
+extra usage) now clamp with `Math.min(100, Math.max(0, ...))`. Out-of-range values from the
+page can no longer propagate into the cache or display.
 
 ---
 

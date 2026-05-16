@@ -16,6 +16,15 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_POST(self):
+        ct = self.headers.get('Content-Type', '').split(';')[0].strip()
+        if ct != 'application/json':
+            self.send_response(415)
+            self._cors()
+            self.end_headers()
+            self.wfile.write(b'expected application/json')
+            return
+
+        status, reply = 200, b'ok'
         try:
             length = int(self.headers.get('Content-Length', 0))
             body = json.loads(self.rfile.read(length))
@@ -32,11 +41,12 @@ class Handler(BaseHTTPRequestHandler):
                                  stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         except Exception as e:
             print(f"Error: {e}", file=sys.stderr, flush=True)
+            status, reply = 400, b'error'
 
-        self.send_response(200)
+        self.send_response(status)
         self._cors()
         self.end_headers()
-        self.wfile.write(b'ok')
+        self.wfile.write(reply)
 
     def _cors(self):
         self.send_header('Access-Control-Allow-Origin', '*')

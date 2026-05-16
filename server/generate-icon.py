@@ -30,7 +30,7 @@ CANVAS = 96 * SCALE
 ANTHRO_ORANGE = (216/255, 119/255, 88/255, 1.0)
 TRACK         = (0.0, 0.0, 0.0, 0.25)   # subtle dark on orange
 
-DEFAULTS = {
+DEFAULTS = {  # keep in sync with gschema.xml default= attributes
     'weekly_color_green': '#8cff8c',
     'weekly_color_amber': '#ffe033',
     'weekly_color_red':   '#ff5933',
@@ -41,13 +41,19 @@ def load_config():
     try:
         from gi.repository import Gio
         s = Gio.Settings.new('org.gnome.shell.extensions.claude-usage')
-        return {
+        cfg = {
             'weekly_color_green': s.get_string('weekly-color-green'),
             'weekly_color_amber': s.get_string('weekly-color-amber'),
             'weekly_color_red':   s.get_string('weekly-color-red'),
             'sonnet_color':       s.get_string('sonnet-color'),
             'bar_width':          s.get_uint('bar-width'),
         }
+        for key in ('weekly_color_green', 'weekly_color_amber', 'weekly_color_red', 'sonnet_color'):
+            try:
+                hex_to_rgba(cfg[key])
+            except Exception:
+                cfg[key] = DEFAULTS[key]
+        return cfg
     except Exception:
         return dict(DEFAULTS)
 
