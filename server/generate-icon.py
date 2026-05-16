@@ -132,16 +132,9 @@ def generate(all_pct, sonnet_pct, cfg, dest):
     img.resize((128, 128), Image.LANCZOS).save(dest)
 
 def _next_icon_path():
-    """Return a fresh timestamped path so GNOME never serves a cached pixbuf.
-    Deletes any stale claude-usage-icon-*.png files left from prior runs."""
+    """Return a fresh timestamped path so GNOME never serves a cached pixbuf."""
     import time
-    new_path = CACHE_DIR / f'claude-usage-icon-{int(time.time())}.png'
-    for old in CACHE_DIR.glob('claude-usage-icon-*.png'):
-        try:
-            old.unlink()
-        except OSError:
-            pass
-    return new_path
+    return CACHE_DIR / f'claude-usage-icon-{int(time.time())}.png'
 
 def parse_reset(reset):
     """Returns (is_countdown, display) or None. Countdown shows ⏱h:mm; day shows 'Tue 1:00'."""
@@ -223,6 +216,12 @@ def main():
     sonnet_pct = find('sonnet')
     dest = _next_icon_path()
     generate(all_pct, sonnet_pct, cfg, dest)
+    for old in CACHE_DIR.glob('claude-usage-icon-*.png'):
+        if old != dest:
+            try:
+                old.unlink()
+            except OSError:
+                pass
     update_desktop(meters, dest)
     print(f'Icon: All={all_pct}% Sonnet={sonnet_pct}%', flush=True)
 
