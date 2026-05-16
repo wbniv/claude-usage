@@ -101,6 +101,11 @@ def generate(all_pct, sonnet_pct, cfg, dest):
     surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, CANVAS, CANVAS)
     cr = cairo.Context(surface)
 
+    # Clip to rounded rect so corners are transparent (matches GNOME icon style)
+    corner_r = 18 * SCALE
+    rounded_rect_path(cr, 0, 0, CANVAS, CANVAS, corner_r)
+    cr.clip()
+
     # Full Anthropic-orange background
     cr.rectangle(0, 0, CANVAS, CANVAS)
     cr.set_source_rgba(*ANTHRO_ORANGE)
