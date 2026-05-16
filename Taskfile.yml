@@ -22,15 +22,15 @@ tasks:
       - "{{.CHROME_ZIP}}"
 
   test-deb:
-    desc: Build, install, verify, and remove the .deb in a clean Ubuntu 24.04 container (apt cache reused across runs)
+    desc: Install + verify .deb in a clean Ubuntu 24.04 container (validates Depends: end-to-end; ~7 min cold, ~4 min warm)
     deps: [build]
     cmds:
       - |
-        # Persistent apt cache via docker named volumes: ~7 min cold → ~4 min warm.
-        # (Cache skips package download; container still unpacks/configures every run.)
-        # To bust: docker volume rm claude-usage-apt-archives claude-usage-apt-lists
+        # Apt cache reused across runs via docker named volumes.
+        # Bust with: docker volume rm claude-usage-apt-archives claude-usage-apt-lists
         docker run --rm \
           -v "$PWD/dist:/dist:ro" \
+          -v "$PWD/packaging/test-deb-verify.sh:/usr/local/bin/verify:ro" \
           -v claude-usage-apt-archives:/var/cache/apt/archives \
           -v claude-usage-apt-lists:/var/lib/apt/lists \
           ubuntu:24.04 bash -c '
@@ -38,30 +38,38 @@ tasks:
           export DEBIAN_FRONTEND=noninteractive
           apt-get update -qq
           apt-get install -y /dist/claude-usage_{{.VERSION}}_all.deb
-          # Shipped binaries
-          test -x /usr/bin/claude-usage-setup
-          test -x /usr/bin/claude-usage-status
-          # Shipped server
-          test -f /usr/share/claude-usage/generate-icon.py
-          test -f /usr/share/claude-usage/usage-server.py
-          # Extension + compiled schema in both locations
-          test -f /usr/share/gnome-shell/extensions/claude-usage@indri.studio/extension.js
-          test -f /usr/share/gnome-shell/extensions/claude-usage@indri.studio/schemas/gschemas.compiled
-          test -f /usr/share/glib-2.0/schemas/org.gnome.shell.extensions.claude-usage.gschema.xml
-          # Desktop entry, icons, systemd unit
-          test -f /usr/share/applications/claude-usage.desktop
-          test -f /usr/share/pixmaps/claude-usage.png
-          test -f /usr/share/icons/hicolor/64x64/apps/claude-usage.png
-          test -f /usr/lib/systemd/user/claude-usage-fetch.service
-          # CLI smoke + script-syntax sanity
-          /usr/bin/claude-usage-status -h >/dev/null
-          python3 -m py_compile /usr/share/claude-usage/generate-icon.py
-          python3 -m py_compile /usr/share/claude-usage/usage-server.py
-          bash -n /usr/bin/claude-usage-setup
-          # Removal must clear the system-wide schema (postrm)
-          apt-get remove -y claude-usage
-          test ! -f /usr/share/glib-2.0/schemas/org.gnome.shell.extensions.claude-usage.gschema.xml
-          echo "OK"
+          /usr/local/bin/verify
+        '
+
+  build-test-image:
+    desc: Build claude-usage-test:latest with all .deb deps prebaked (rebuilds when packaging/control changes)
+    sources:
+      - packaging/control
+      - packaging/test-deb.Dockerfile
+    cmds:
+      - |
+        # Strip version constraints and commas from the Depends: line so we can
+        # feed it straight to `apt-get install` inside the Dockerfile.
+        deps=$(grep '^Depends:' packaging/control | sed 's/^Depends: //; s/([^)]*)//g; s/,//g')
+        echo "Building claude-usage-test:latest with deps: $deps"
+        docker build \
+          --build-arg DEPS="$deps" \
+          -f packaging/test-deb.Dockerfile \
+          -t claude-usage-test:latest \
+          packaging/
+
+  test-deb-fast:
+    desc: Install + verify .deb on the prebaked image (~10 s; assumes Depends: still resolves — use test-deb before release)
+    deps: [build, build-test-image]
+    cmds:
+      - |
+        docker run --rm \
+          -v "$PWD/dist:/dist:ro" \
+          -v "$PWD/packaging/test-deb-verify.sh:/usr/local/bin/verify:ro" \
+          claude-usage-test:latest bash -c '
+          set -euo pipefail
+          dpkg -i /dist/claude-usage_{{.VERSION}}_all.deb
+          /usr/local/bin/verify
         '
 
   release:

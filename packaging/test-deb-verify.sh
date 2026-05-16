@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# Verify a freshly-installed claude-usage .deb inside a container.
+# Runs file-presence checks, syntax sanity, then apt-removes and confirms
+# postrm cleaned the system-wide GSettings schema.
+#
+# Shared between `task test-deb` (cold/clean Ubuntu) and `task test-deb-fast`
+# (prebaked image) — keep both paths exercising the same checks.
+set -euo pipefail
+
+# Shipped binaries
+test -x /usr/bin/claude-usage-setup
+test -x /usr/bin/claude-usage-status
+# Shipped server
+test -f /usr/share/claude-usage/generate-icon.py
+test -f /usr/share/claude-usage/usage-server.py
+# Extension + compiled schema in both locations
+test -f /usr/share/gnome-shell/extensions/claude-usage@indri.studio/extension.js
+test -f /usr/share/gnome-shell/extensions/claude-usage@indri.studio/schemas/gschemas.compiled
+test -f /usr/share/glib-2.0/schemas/org.gnome.shell.extensions.claude-usage.gschema.xml
+# Desktop entry, icons, systemd unit
+test -f /usr/share/applications/claude-usage.desktop
+test -f /usr/share/pixmaps/claude-usage.png
+test -f /usr/share/icons/hicolor/64x64/apps/claude-usage.png
+test -f /usr/lib/systemd/user/claude-usage-fetch.service
+# CLI smoke + script-syntax sanity
+/usr/bin/claude-usage-status -h >/dev/null
+python3 -m py_compile /usr/share/claude-usage/generate-icon.py
+python3 -m py_compile /usr/share/claude-usage/usage-server.py
+bash -n /usr/bin/claude-usage-setup
+# Removal must clear the system-wide schema (postrm)
+DEBIAN_FRONTEND=noninteractive apt-get remove -y claude-usage
+test ! -f /usr/share/glib-2.0/schemas/org.gnome.shell.extensions.claude-usage.gschema.xml
+echo OK
