@@ -71,10 +71,11 @@ async function fetchUsage() {
           }
         }
 
-        // ── Section 3: Extra usage (only when toggle is on) ───────────────
-        const extraStart   = lines.findIndex(l => l === 'Extra usage');
-        const toggleOff    = lines.some(l => /Turn on extra usage/.test(l));
-        if (extraStart >= 0 && !toggleOff) {
+        // ── Section 3: Extra usage ────────────────────────────────────────
+        const extraStart = lines.findIndex(l => l === 'Extra usage');
+        const extraToggleEl = document.querySelector('[role="switch"][aria-label="Extra usage"]');
+        const extraOn = extraToggleEl?.getAttribute('aria-checked') === 'true';
+        if (extraStart >= 0 && extraOn) {
           let spent = null, balance = null, pct = null, reset = null;
           for (let i = extraStart + 1; i < lines.length; i++) {
             if (/^Last updated:/.test(lines[i])) break;

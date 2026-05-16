@@ -18,36 +18,13 @@ The ✳ is the Anthropic star logo icon. Color-coded: green below the warning th
 
 **Click** the panel label to open the popup:
 
-```
-Max plan · 2m ago
-──────────────────────────────────────────────────────────────
-● All models                  1%  ░░░░░░░░░░  Resets Tue 1:00 PM
-  Sonnet only                 2%  ░░░░░░░░░░  Resets Tue 1:00 PM
-  Current session             8%  ████░░░░░░  Resets in 2h 50m
-  Claude Design               0%  ░░░░░░░░░░
-  Daily included routine runs  0/15
-──────────────────────────────────────────────────────────────
-Open Usage Page
-```
+<img src="docs/popup-screenshot.png" width="564">
 
 The `●` marks the metric shown in the panel label.
 
 With extra usage enabled on your account, a second section appears:
 
-```
-Max plan · 2m ago
-──────────────────────────────────────────────────────────────
-● All models                  1%  ░░░░░░░░░░  Resets Tue 1:00 PM
-  Sonnet only                 2%  ░░░░░░░░░░  Resets Tue 1:00 PM
-  Current session             8%  ████░░░░░░  Resets in 2h 50m
-  Claude Design               0%  ░░░░░░░░░░
-  Daily included routine runs  0/15
-  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·
-  Extra usage                100%  ██████████  Resets Jun 1
-  $4.11 spent · $0.90 balance
-──────────────────────────────────────────────────────────────
-Open Usage Page
-```
+<img src="docs/popup-extra-usage-screenshot.png" width="564">
 
 **Dock icon** (once pinned — see Installation below):
 
@@ -58,9 +35,7 @@ Open Usage Page
 
 **Hover** the dock icon to see a one-line summary tooltip:
 
-```
-current 2% ⏱4:47   |   all 3% Tue 13:00   |   sonnet 5% Tue 13:00
-```
+<img src="docs/tooltip-screenshot.png" width="495">
 
 Reset times show a countdown (`⏱h:mm`) when less than 24 h away, or a day + time otherwise. Sonnet is omitted from the tooltip when its usage is 0%.
 
