@@ -4,10 +4,11 @@ import cairo, math, json, re, sys
 from pathlib import Path
 from PIL import Image
 
-CACHE_JSON  = Path.home() / '.cache' / 'claude-usage.json'
-CACHE_ICON  = Path.home() / '.cache' / 'claude-usage-icon.png'
-CONFIG_JSON = Path.home() / '.config' / 'claude-usage' / 'config.json'
-DESKTOP     = Path.home() / '.local/share/applications/claude-usage.desktop'
+CACHE_JSON   = Path.home() / '.cache' / 'claude-usage.json'
+CACHE_ICON_A = Path.home() / '.cache' / 'claude-usage-icon-a.png'
+CACHE_ICON_B = Path.home() / '.cache' / 'claude-usage-icon-b.png'
+CONFIG_JSON  = Path.home() / '.config' / 'claude-usage' / 'config.json'
+DESKTOP      = Path.home() / '.local/share/applications/claude-usage.desktop'
 
 # Icon ships with the GNOME extension; check user-install path first, then system path.
 _EXT_REL = Path('gnome-shell/extensions/claude-usage@wbnorris.gmail.com/icons/claude-64.png')
@@ -72,7 +73,7 @@ def draw_ring(cr, cx, cy, radius, thick, pct, color):
                -math.pi / 2 + 2 * math.pi * (pct / 100))
         cr.stroke()
 
-def generate(all_pct, sonnet_pct, cfg):
+def generate(all_pct, sonnet_pct, cfg, dest):
     cx = cy = CANVAS // 2
     THICK_OUTER, THICK_INNER, GAP = 10 * SCALE, 8 * SCALE, 3 * SCALE
     R_INNER = ICON // 2 + GAP + THICK_INNER // 2
@@ -104,15 +105,25 @@ def generate(all_pct, sonnet_pct, cfg):
     surface.flush()
     img = Image.frombytes('RGBA', (CANVAS, CANVAS),
                           bytes(surface.get_data()), 'raw', 'BGRA')
-    img.resize((128, 128), Image.LANCZOS).save(CACHE_ICON)
+    img.resize((128, 128), Image.LANCZOS).save(dest)
 
-def update_desktop(all_pct, sonnet_pct):
+def _next_icon_path():
+    """Alternate between two paths so the .desktop Icon= field always changes,
+    forcing GNOME to reload from disk instead of serving a cached pixbuf."""
+    if DESKTOP.exists():
+        m = re.search(r'^Icon=(.+)$', DESKTOP.read_text(), re.MULTILINE)
+        if m and Path(m.group(1)) == CACHE_ICON_A:
+            return CACHE_ICON_B
+    return CACHE_ICON_A
+
+def update_desktop(all_pct, sonnet_pct, icon_path):
     if not DESKTOP.exists():
         return
     text = DESKTOP.read_text()
     name = f'Claude Usage — {all_pct}% / {sonnet_pct}%'
-    text = re.sub(r'^Name=.*$', f'Name={name}', text, flags=re.MULTILINE)
-    DESKTOP.write_text(text)   # write triggers dock file monitor
+    text = re.sub(r'^Name=.*$',  f'Name={name}',        text, flags=re.MULTILINE)
+    text = re.sub(r'^Icon=.*$',  f'Icon={icon_path}',   text, flags=re.MULTILINE)
+    DESKTOP.write_text(text)
 
 def main():
     cfg    = load_config()
@@ -122,8 +133,9 @@ def main():
         (m['pct'] for m in meters if kw in (m.get('label') or '').lower()), 0)
     all_pct    = find('all')
     sonnet_pct = find('sonnet')
-    generate(all_pct, sonnet_pct, cfg)
-    update_desktop(all_pct, sonnet_pct)
+    dest = _next_icon_path()
+    generate(all_pct, sonnet_pct, cfg, dest)
+    update_desktop(all_pct, sonnet_pct, dest)
     print(f'Icon: All={all_pct}% Sonnet={sonnet_pct}%', flush=True)
 
 if __name__ == '__main__':
