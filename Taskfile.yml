@@ -1,0 +1,38 @@
+version: "3"
+
+vars:
+  VERSION:
+    sh: grep '^Version:' packaging/control | awk '{print $2}'
+  DEB: dist/claude-usage_{{.VERSION}}_all.deb
+
+tasks:
+  build:
+    desc: Build the .deb package
+    cmds:
+      - bash packaging/build-deb.sh
+    generates:
+      - "{{.DEB}}"
+
+  release:
+    desc: Build .deb, tag, and publish a GitHub release (VERSION= to override)
+    deps: [build]
+    vars:
+      TAG: v{{.VERSION}}
+    cmds:
+      - |
+        if git rev-parse "{{.TAG}}" >/dev/null 2>&1; then
+          echo "Tag {{.TAG}} already exists — bump Version in packaging/control first"
+          exit 1
+        fi
+      - git tag "{{.TAG}}"
+      - git push origin "{{.TAG}}"
+      - |
+        gh release create "{{.TAG}}" "{{.DEB}}" \
+          --title "Claude Usage {{.TAG}}" \
+          --generate-notes
+      - echo "Released {{.TAG}} — $(gh release view {{.TAG}} --json url -q .url)"
+
+  md:
+    desc: Preview a markdown file in the browser
+    cmds:
+      - bash ../python-tui-lib/scripts/md-to-pdf.sh {{.CLI_ARGS}}

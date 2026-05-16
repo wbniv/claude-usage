@@ -49,8 +49,10 @@ The icon regenerates automatically on each data fetch.
 
 ### Option A — Debian package
 
+Download the latest `.deb` from the [GitHub releases page](https://github.com/wbniv/claude-usage/releases/latest), then:
+
 ```bash
-sudo dpkg -i claude-usage_1.0_all.deb
+sudo dpkg -i claude-usage_*.deb
 sudo apt-get install -f   # resolves any missing deps
 claude-usage-setup        # run as yourself, not root
 ```
