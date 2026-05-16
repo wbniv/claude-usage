@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Tiny local HTTP server — receives usage JSON from the Chrome extension."""
 from http.server import HTTPServer, BaseHTTPRequestHandler
-import json, os, subprocess, sys
+import json, os, subprocess, sys, time
 from pathlib import Path
 
 OUTPUT        = Path.home() / '.cache' / 'claude-usage.json'
@@ -55,10 +55,11 @@ class Handler(BaseHTTPRequestHandler):
                 print(f"Validation error: {err}", file=sys.stderr, flush=True)
                 status, reply = 422, err.encode()
             else:
-                # Accept _timestamp (epoch-s from extension) or legacy timestamp (epoch-ms)
-                if '_timestamp' not in body:
+                # Accept _timestamp (epoch-s from extension) or legacy timestamp (epoch-ms).
+                # 0 is treated as missing — fall back to server time so stale-data warning never fires spuriously.
+                if not body.get('_timestamp'):
                     ts = body.pop('timestamp', None)
-                    body['_timestamp'] = int(ts / 1000) if ts else 0
+                    body['_timestamp'] = int(ts / 1000) if ts else int(time.time())
                 OUTPUT.parent.mkdir(parents=True, exist_ok=True)
                 OUTPUT.write_text(json.dumps(body, indent=2))
                 os.chmod(OUTPUT, 0o600)

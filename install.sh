@@ -30,7 +30,9 @@ uninstall() {
     rm -rf "$SERVER_DIR"
     rm -rf "$HOME/.config/claude-usage"
     rm -f "$HOME/.cache/claude-usage.json"
-    rm -f "$HOME/.cache/claude-usage-icon.png"
+    rm -f "$HOME/.cache/claude-usage-icon.png" \
+          "$HOME/.cache/claude-usage-icon-a.png" \
+          "$HOME/.cache/claude-usage-icon-b.png"
     rm -f "$HOME/.local/share/applications/claude-usage.desktop"
     update-desktop-database "$HOME/.local/share/applications/" 2>/dev/null || true
     echo "Done. Log out and back in to remove the panel indicator."

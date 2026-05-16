@@ -113,14 +113,11 @@ async function fetchUsage() {
           }
         }
 
-        const addlIdx = lines.findIndex(l => /^Additional features$/i.test(l));
-        return { meters, plan, _timestamp: Math.floor(Date.now() / 1000),
-                 _debug: { addlIdx, addlLines: lines.slice(Math.max(0, addlIdx - 1), addlIdx + 8) } };
+        return { meters, plan, _timestamp: Math.floor(Date.now() / 1000) };
       },
     });
 
     const data = result?.result;
-    if (data?._debug) console.log('Claude Usage debug:', JSON.stringify(data._debug));
     if (!data || !data.meters.length) {
       console.warn('Claude Usage: no meters extracted');
       return;

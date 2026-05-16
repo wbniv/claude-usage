@@ -57,18 +57,22 @@ function pctColor(pct, s) {
 
 function formatRows(meters, barWidth) {
     const maxLen = Math.max(0, ...meters.map(m => (m.label || '').length));
+    const maxCol2 = Math.max(4, ...meters.map(m =>
+        (m.count !== undefined && m.total !== undefined)
+            ? `${m.count}/${m.total}`.length
+            : `${m.pct ?? 0}%`.length));
     const rows = [];
     for (const m of meters) {
         const label = (m.label || '').padEnd(maxLen);
         const isExtra = m.spent !== undefined;
         let text;
         if (m.count !== undefined && m.total !== undefined) {
-            const col2 = `${m.count}/${m.total}`.padStart(4);
+            const col2 = `${m.count}/${m.total}`.padStart(maxCol2);
             const col3 = ' '.repeat(barWidth);
             text = `${label}  ${col2}  ${col3}`;
         } else {
             const pct = m.pct ?? 0;
-            const col2 = `${pct}%`.padStart(4);
+            const col2 = `${pct}%`.padStart(maxCol2);
             const col3 = bar(pct, barWidth);
             const col4 = m.reset ? `  ${formatReset(m.reset)}` : '';
             text = `${label}  ${col2}  ${col3}${col4}`;

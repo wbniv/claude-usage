@@ -4,6 +4,7 @@ vars:
   VERSION:
     sh: grep '^Version:' packaging/control | awk '{print $2}'
   DEB: dist/claude-usage_{{.VERSION}}_all.deb
+  CHROME_ZIP: dist/claude-usage-chrome-{{.VERSION}}.zip
 
 tasks:
   build:
@@ -13,9 +14,16 @@ tasks:
     generates:
       - "{{.DEB}}"
 
+  build-chrome-zip:
+    desc: Build the Chrome extension zip for CWS upload
+    cmds:
+      - bash packaging/build-chrome-zip.sh
+    generates:
+      - "{{.CHROME_ZIP}}"
+
   release:
-    desc: Build .deb, tag, and publish a GitHub release (VERSION= to override)
-    deps: [build]
+    desc: Build .deb + Chrome zip, tag, and publish a GitHub release (VERSION= to override)
+    deps: [build, build-chrome-zip]
     vars:
       TAG: v{{.VERSION}}
     cmds:
@@ -27,7 +35,7 @@ tasks:
       - git tag "{{.TAG}}"
       - git push origin "{{.TAG}}"
       - |
-        gh release create "{{.TAG}}" "{{.DEB}}" \
+        gh release create "{{.TAG}}" "{{.DEB}}" "{{.CHROME_ZIP}}" \
           --title "Claude Usage {{.TAG}}" \
           --generate-notes
       - echo "Released {{.TAG}} — $(gh release view {{.TAG}} --json url -q .url)"

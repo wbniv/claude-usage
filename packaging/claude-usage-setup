@@ -3,23 +3,7 @@ set -euo pipefail
 
 echo "Setting up Claude Usage for $USER..."
 
-# 1. User config (colors)
-mkdir -p "$HOME/.config/claude-usage"
-if [ ! -f "$HOME/.config/claude-usage/config.json" ]; then
-    cat > "$HOME/.config/claude-usage/config.json" <<'EOF'
-{
-  "weekly_color_green": "#8cff8c",
-  "weekly_color_amber": "#ffe033",
-  "weekly_color_red":   "#ff5933",
-  "sonnet_color":       "#4dbfff"
-}
-EOF
-    echo "  ✓ Config created: $HOME/.config/claude-usage/config.json"
-else
-    echo "  ✓ Config already exists (not overwritten)"
-fi
-
-# 2. User-level .desktop file with dynamic icon path
+# 1. User-level .desktop file with dynamic icon path
 mkdir -p "$HOME/.local/share/applications"
 cat > "$HOME/.local/share/applications/claude-usage.desktop" <<EOF
 [Desktop Entry]
@@ -28,7 +12,7 @@ Type=Application
 Name=Claude Usage
 Comment=Claude.ai weekly usage meter
 Exec=xdg-open https://claude.ai/settings/usage
-Icon=$HOME/.cache/claude-usage-icon.png
+Icon=$HOME/.local/share/gnome-shell/extensions/claude-usage@indri.studio/icons/claude-64.png
 StartupWMClass=claude-usage
 Categories=Utility;
 NoDisplay=false
@@ -36,17 +20,17 @@ EOF
 update-desktop-database "$HOME/.local/share/applications/" 2>/dev/null || true
 echo "  ✓ Dock entry installed"
 
-# 3. Systemd user service
+# 2. Systemd user service
 systemctl --user daemon-reload
 systemctl --user enable --now claude-usage-fetch.service
 echo "  ✓ Service enabled"
 
-# 4. GNOME extension
+# 3. GNOME extension
 gnome-extensions enable claude-usage@indri.studio 2>/dev/null \
     && echo "  ✓ GNOME extension enabled" \
     || echo "  ℹ  GNOME extension registered — log out and back in to activate"
 
-# 5. Generate initial icon
+# 4. Generate initial icon
 python3 /usr/share/claude-usage/generate-icon.py 2>/dev/null || true
 
 echo ""
