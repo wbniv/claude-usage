@@ -9,7 +9,7 @@ import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
-const CACHE_FILE = GLib.get_home_dir() + '/.cache/claude-usage.json';
+const CACHE_FILE = GLib.get_home_dir() + '/.cache/claude-usage/usage.json';
 const USAGE_URL  = 'https://claude.ai/settings/usage';
 
 function formatReset(reset) {

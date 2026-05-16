@@ -14,14 +14,14 @@ The data collected is:
 
 ## Where data goes
 
-All data stays on your own machine. It is sent only to `http://127.0.0.1:7331` — a local Python server running on your computer — and written to `~/.cache/claude-usage.json`.
+All data stays on your own machine. It is sent only to `http://127.0.0.1:7331` — a local Python server running on your computer — and written under `~/.cache/claude-usage/`.
 
 **No data is transmitted to any remote server, third party, or the extension developer.**
 
 ## What is stored
 
-- `~/.cache/claude-usage.json` — usage data, updated every 15 minutes
-- `~/.cache/claude-usage-icon.png` — generated dock icon
+- `~/.cache/claude-usage/usage.json` — usage data, updated every 15 minutes
+- `~/.cache/claude-usage/icon-{epoch}.png` — generated dock icon (filename rotates to bust the pixbuf cache)
 - `~/.config/claude-usage/config.json` — user color preferences
 - `chrome.storage.local` — fallback copy of the last fetch, used only when the local server is not running
 

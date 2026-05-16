@@ -4,8 +4,8 @@ import cairo, math, json, re, sys, datetime
 from pathlib import Path
 from PIL import Image
 
-CACHE_JSON   = Path.home() / '.cache' / 'claude-usage.json'
-CACHE_DIR    = Path.home() / '.cache'
+CACHE_DIR    = Path.home() / '.cache' / 'claude-usage'
+CACHE_JSON   = CACHE_DIR / 'usage.json'
 DESKTOP      = Path.home() / '.local/share/applications/claude-usage.desktop'
 
 # Icon ships with the GNOME extension; check user-install path first, then system path.
@@ -134,7 +134,8 @@ def generate(all_pct, sonnet_pct, cfg, dest):
 def _next_icon_path():
     """Return a fresh timestamped path so GNOME never serves a cached pixbuf."""
     import time
-    return CACHE_DIR / f'claude-usage-icon-{int(time.time())}.png'
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    return CACHE_DIR / f'icon-{int(time.time())}.png'
 
 def parse_reset(reset):
     """Returns (is_countdown, display) or None. Countdown shows ⏱h:mm; day shows 'Tue 1:00'."""
@@ -216,7 +217,7 @@ def main():
     sonnet_pct = find('sonnet')
     dest = _next_icon_path()
     generate(all_pct, sonnet_pct, cfg, dest)
-    for old in CACHE_DIR.glob('claude-usage-icon-*.png'):
+    for old in CACHE_DIR.glob('icon-*.png'):
         if old != dest:
             try:
                 old.unlink()

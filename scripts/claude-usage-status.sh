@@ -13,7 +13,7 @@ usage() {
 
 [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]] && usage
 
-CACHE_JSON="$HOME/.cache/claude-usage.json"
+CACHE_JSON="$HOME/.cache/claude-usage/usage.json"
 
 echo "Claude Usage — status check"
 echo ""

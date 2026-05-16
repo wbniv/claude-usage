@@ -4,7 +4,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 import json, os, subprocess, sys, time
 from pathlib import Path
 
-OUTPUT        = Path.home() / '.cache' / 'claude-usage.json'
+OUTPUT        = Path.home() / '.cache' / 'claude-usage' / 'usage.json'
 GENERATE_ICON = Path.home() / '.local/share/claude-usage/generate-icon.py'
 PORT = 7331
 

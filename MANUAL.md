@@ -102,14 +102,14 @@ Nothing to do. Everything starts automatically:
 
 ## Day-to-day use
 
-**Data updates every 15 minutes** — the Chrome extension opens `claude.ai/settings/usage` in a background tab, scrapes the meters, and writes `~/.cache/claude-usage.json`. The panel indicator updates immediately when the file changes.
+**Data updates every 15 minutes** — the Chrome extension opens `claude.ai/settings/usage` in a background tab, scrapes the meters, and writes `~/.cache/claude-usage/usage.json`. The panel indicator updates immediately when the file changes.
 
 **Force an immediate refresh:** click the Claude Usage Tracker icon in the Chrome toolbar.
 
 **Check the raw data:**
 
 ```bash
-cat ~/.cache/claude-usage.json
+cat ~/.cache/claude-usage/usage.json
 ```
 
 **Run the diagnostics tool:**

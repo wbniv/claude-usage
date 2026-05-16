@@ -23,14 +23,20 @@ uninstall() {
     systemctl --user disable claude-usage-fetch.service 2>/dev/null || true
     rm -f "$SYSTEMD_DIR/claude-usage-fetch.service"
     systemctl --user daemon-reload
-    rm -rf "$GNOME_EXT_DIR"
+    # Remove any claude-usage@* extension dir (current and historical UUIDs)
+    rm -rf "$HOME/.local/share/gnome-shell/extensions/"claude-usage@*
     rm -f "$HOME/.local/share/glib-2.0/schemas/org.gnome.shell.extensions.claude-usage.gschema.xml"
     glib-compile-schemas "$HOME/.local/share/glib-2.0/schemas/" 2>/dev/null || true
+    # Drop any claude-usage@* entries from the enabled/disabled lists
+    for key in enabled-extensions disabled-extensions; do
+        current=$(gsettings get org.gnome.shell "$key" 2>/dev/null || echo "@as []")
+        cleaned=$(python3 -c "import ast,sys; v=ast.literal_eval(sys.argv[1].replace('@as ','')); print(str([x for x in v if not x.startswith('claude-usage@')]))" "$current" 2>/dev/null || echo "")
+        [ -n "$cleaned" ] && gsettings set org.gnome.shell "$key" "$cleaned" 2>/dev/null || true
+    done
     rm -f "$HOME/.local/bin/claude-usage-status"
     rm -rf "$SERVER_DIR"
     rm -rf "$HOME/.config/claude-usage"
-    rm -f "$HOME/.cache/claude-usage.json"
-    rm -f "$HOME/.cache/claude-usage-icon"*.png
+    rm -rf "$HOME/.cache/claude-usage"
     rm -f "$HOME/.local/share/applications/claude-usage.desktop"
     update-desktop-database "$HOME/.local/share/applications/" 2>/dev/null || true
     echo "Done. Log out and back in to remove the panel indicator."
