@@ -63,9 +63,22 @@ Given a reset string from the page:
 
 ## Verification
 
-1. Hover dock icon → tooltip shows single-line with correct time format
-2. Session reset < 24 h → shows `⏱h:mm`
-3. Weekly reset ≥ 24 h → shows `Day HH:MM` in 24-hour format
-4. Sonnet pct = 0 → row absent from popup and absent from dock tooltip
-5. Sonnet pct > 0 → row present in popup and in dock tooltip
-6. Open panel popup → reset strings show `Resets ⏱h:mm` or `Resets Day HH:MM`
+1. Hover dock icon → tooltip shows single-line with correct time format — PASS (confirmed by user)
+2. Session reset < 24 h → shows `⏱h:mm` — PASS
+3. Weekly reset ≥ 24 h → shows `Day HH:MM` in 24-hour format — PASS
+4. Sonnet pct = 0 → row absent from popup and absent from dock tooltip — PASS
+5. Sonnet pct > 0 → row present in popup and in dock tooltip — PASS
+6. Open panel popup → reset strings show `Resets ⏱h:mm` or `Resets Day HH:MM` — PASS (requires logout/login to reload ES module)
+
+## Addendum — dock icon ring changes (2026-05-16)
+
+Additional fixes applied after initial implementation:
+
+- **Sonnet ring trough suppressed**: `draw_ring` now accepts `track=True/False`;
+  inner ring is always drawn without a trough (`track=False`) so only the colored
+  arc appears — no grey background circle.
+- **Sonnet ring hidden at 0%**: entire inner `draw_ring` call skipped when
+  `sonnet_pct == 0`; no arc and no trough rendered.
+- **Tooltip separator spacing**: widened from ` | ` to `   |   ` (3 spaces each side).
+- **`sawExtra` bug**: missing `let` declaration caused `ReferenceError` in strict-mode
+  ES module, silently cleared the popup meter section after `removeAll()`.

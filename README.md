@@ -6,10 +6,10 @@ Real-time Claude.ai usage meters in the GNOME top panel and dock.
 
 **Top panel** — star icon + color-coded percentage. Scroll to toggle between All models and Sonnet only.
 
-**Dock icon** — two concentric rings:
+**Dock icon** — concentric rings + one-line hover tooltip:
 - Outer ring: All models weekly usage (green → amber → red)
-- Inner ring: Sonnet only (blue)
-- Hover tooltip: multi-line aligned meter summary
+- Inner ring: Sonnet only (blue); hidden entirely when Sonnet usage is 0%
+- Hover tooltip: `current 2% ⏱4:47   |   all 3% Tue 13:00   |   sonnet 5% Tue 13:00`
 
 Click the panel indicator to expand all meters:
 
