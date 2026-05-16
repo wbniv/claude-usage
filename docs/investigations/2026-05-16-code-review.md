@@ -260,18 +260,34 @@ No PyPI packages. All Python stdlib. Minimal footprint — good for distro packa
 | Critical (blocks release) | 1 | BUG-1: UUID mismatch in .deb | ✓ Fixed |
 | High (crash/data loss) | 2 | BUG-2: missing cache guard; BUG-3: StopIteration | ✓ Fixed |
 | Medium (correctness) | 2 | ~~BUG-4: weekday inconsistency~~ (not a bug); cache file permissions | ✓ Fixed |
-| Low (quality/safety) | 4 | BUG-5: by design (comment added); ~~BUG-6: DOM index~~ (not a bug); bounds-check %; CORS | Partial |
-| Nice-to-have | 6 | See Missing Features table | Open |
+| Low (quality/safety) | 4 | BUG-5: by design (comment added); ~~BUG-6: DOM index~~ (not a bug); bounds-check %; Content-Type | ✓ Fixed |
+| Missing features | 6 | See Missing Features table | ✓ All closed |
 
 ---
 
 ## Overall Assessment
 
-**Grade: B+**
+**Grade: A−**
 
-Architecture is clean and well-separated. Configuration surface via GSettings is solid.
-The loopback-only server, systemd user service, and file-watcher design are all appropriate
-choices. Plans in `docs/plans/` show that recent work was methodical.
+All actionable findings from the initial review have been addressed across three passes:
 
-**Before the next .deb release:** fix BUG-1 (UUID), BUG-2 (crash on first run), and
-set cache file permissions to 0600. The rest can follow.
+**Bugs (all fixed):** UUID mismatch in .deb setup, first-run crash on missing cache, bare
+`next()` raising `StopIteration`, weekday logic (confirmed not a bug), percentage
+bounds-checking in the scraper.
+
+**Code quality (all resolved):** HTTP server now returns 4xx on failure so Chrome's
+fallback triggers correctly; Content-Type validation added; hex color inputs validated
+server-side with defaults fallback; `DEFAULTS` cross-referenced to `gschema.xml`.
+
+**Security:** Cache file permissions set to 0o600; unauthenticated POST mitigated with
+Content-Type check; percentage values clamped at scrape time.
+
+**Missing features:** Stale-data warning (`⚠` in popup after 30 min); chrome.storage
+offline data flushed to server on reconnect; `claude-usage-status` diagnostics tool
+installed to `~/.local/bin/`; Web Store and timezone behaviour documented in MANUAL.md.
+
+**What keeps it from A:** Two low-priority open items remain — full JSON schema validation
+on the POST body (low practical risk given loopback binding), and Chrome Web Store
+publication (external process). The four-component architecture still has no cross-component
+health checks; `claude-usage-status` bridges the gap but doesn't auto-alert. These are
+refinements, not defects.
