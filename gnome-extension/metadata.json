@@ -1,7 +1,7 @@
 {
   "name": "Claude Usage",
   "description": "Shows Claude.ai weekly usage % in the top panel",
-  "uuid": "claude-usage@wbnorris.gmail.com",
+  "uuid": "claude-usage@indri.studio",
   "shell-version": ["45", "46", "47", "48", "49"],
   "settings-schema": "org.gnome.shell.extensions.claude-usage",
   "version": 1,

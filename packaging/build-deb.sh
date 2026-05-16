@@ -15,7 +15,7 @@ PKG="$BUILD_DIR/claude-usage"
 # Directory structure
 mkdir -p \
     "$PKG/DEBIAN" \
-    "$PKG/usr/share/gnome-shell/extensions/claude-usage@wbnorris.gmail.com" \
+    "$PKG/usr/share/gnome-shell/extensions/claude-usage@indri.studio" \
     "$PKG/usr/share/claude-usage" \
     "$PKG/usr/share/applications" \
     "$PKG/usr/share/pixmaps" \
@@ -24,7 +24,7 @@ mkdir -p \
 
 # GNOME extension
 cp -r "$REPO_DIR/gnome-extension/." \
-    "$PKG/usr/share/gnome-shell/extensions/claude-usage@wbnorris.gmail.com/"
+    "$PKG/usr/share/gnome-shell/extensions/claude-usage@indri.studio/"
 
 # Python server
 cp "$REPO_DIR/server/usage-server.py" \

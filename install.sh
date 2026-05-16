@@ -4,7 +4,7 @@ set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Paths
-GNOME_EXT_DIR="$HOME/.local/share/gnome-shell/extensions/claude-usage@wbnorris.gmail.com"
+GNOME_EXT_DIR="$HOME/.local/share/gnome-shell/extensions/claude-usage@indri.studio"
 CHROME_EXT_SRC="$REPO_DIR/chrome-extension"
 SERVER_DIR="$HOME/.local/share/claude-usage"
 SYSTEMD_DIR="$HOME/.config/systemd/user"
@@ -80,7 +80,7 @@ echo "  ✓ Chrome extension files synced to $SERVER_DIR/chrome-extension"
 
 # 3. Generate initial dock icon (0% rings until first data fetch)
 # Settings are stored in GSettings (dconf) with built-in defaults.
-# To customise: gnome-extensions prefs claude-usage@wbnorris.gmail.com
+# To customise: gnome-extensions prefs claude-usage@indri.studio
 python3 "$SERVER_DIR/generate-icon.py" 2>/dev/null || true
 
 # 4. Systemd service
@@ -98,7 +98,7 @@ update-desktop-database "$HOME/.local/share/applications/" 2>/dev/null || true
 echo "  ✓ Dock entry installed — find 'Claude Usage' in the app grid, right-click → Add to Favorites"
 
 # 6. Enable GNOME extension (may fail until after re-login)
-gnome-extensions enable claude-usage@wbnorris.gmail.com 2>/dev/null \
+gnome-extensions enable claude-usage@indri.studio 2>/dev/null \
     && echo "  ✓ GNOME extension enabled" \
     || echo "  ℹ  GNOME extension registered — log out and back in to activate it"
 

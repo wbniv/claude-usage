@@ -10,7 +10,7 @@ CACHE_ICON_B = Path.home() / '.cache' / 'claude-usage-icon-b.png'
 DESKTOP      = Path.home() / '.local/share/applications/claude-usage.desktop'
 
 # Icon ships with the GNOME extension; check user-install path first, then system path.
-_EXT_REL = Path('gnome-shell/extensions/claude-usage@wbnorris.gmail.com/icons/claude-64.png')
+_EXT_REL = Path('gnome-shell/extensions/claude-usage@indri.studio/icons/claude-64.png')
 BASE_ICON = next(
     p for p in [
         Path.home() / '.local/share' / _EXT_REL,

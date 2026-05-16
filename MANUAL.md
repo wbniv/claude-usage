@@ -142,7 +142,7 @@ cat ~/.cache/claude-usage.json
 All settings are stored in GSettings (dconf). Open the preferences UI:
 
 ```bash
-gnome-extensions prefs claude-usage@wbnorris.gmail.com
+gnome-extensions prefs claude-usage@indri.studio
 ```
 
 Changes to colors, thresholds, bar width, and font sizes apply instantly — no restart needed.
@@ -198,7 +198,7 @@ systemctl --user restart claude-usage-fetch.service
 ```bash
 gnome-extensions list --enabled | grep claude-usage
 # If not listed:
-gnome-extensions enable claude-usage@wbnorris.gmail.com
+gnome-extensions enable claude-usage@indri.studio
 ```
 
 ### Dock icon not updating after changing colors

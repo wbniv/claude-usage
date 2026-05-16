@@ -90,7 +90,7 @@ Remove all config file reading. The rest of the script is unchanged.
 
 After copying the schema, run:
 ```sh
-glib-compile-schemas ~/.local/share/gnome-shell/extensions/claude-usage@wbnorris.gmail.com/schemas/
+glib-compile-schemas ~/.local/share/gnome-shell/extensions/claude-usage@indri.studio/schemas/
 ```
 (This is likely already there — verify and add if not.)
 

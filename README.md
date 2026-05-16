@@ -87,7 +87,7 @@ No API keys. No credentials stored. The Chrome extension uses your existing logg
 All settings are stored in GSettings (dconf). Open the preferences UI:
 
 ```bash
-gnome-extensions prefs claude-usage@wbnorris.gmail.com
+gnome-extensions prefs claude-usage@indri.studio
 ```
 
 Or set any value from the command line:
