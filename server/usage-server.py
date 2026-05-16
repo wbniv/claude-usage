@@ -14,6 +14,17 @@ GENERATE_ICON = next(
     None,
 )
 PORT = 7331
+MAX_STR_LEN = 128
+
+
+def _bounded_str(v, field):
+    if v is None:
+        return None
+    if not isinstance(v, str):
+        return f"{field} must be a string or null"
+    if len(v) > MAX_STR_LEN:
+        return f"{field} exceeds {MAX_STR_LEN} chars"
+    return None
 
 
 def _validate(body):
@@ -29,9 +40,13 @@ def _validate(body):
         pct = m.get('pct')
         if not isinstance(pct, int) or not (0 <= pct <= 100):
             return f"meters[{i}].pct must be an integer in [0, 100]"
-        label = m.get('label')
-        if label is not None and not isinstance(label, str):
-            return f"meters[{i}].label must be a string or null"
+        for k in ('label', 'reset', 'spent', 'balance'):
+            err = _bounded_str(m.get(k), f"meters[{i}].{k}")
+            if err:
+                return err
+    err = _bounded_str(body.get('plan'), 'plan')
+    if err:
+        return err
     ts = body.get('_timestamp') or body.get('timestamp')
     if ts is not None and not isinstance(ts, (int, float)):
         return "'_timestamp' must be a number"
