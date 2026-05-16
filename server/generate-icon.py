@@ -66,7 +66,7 @@ def draw_ring(cr, cx, cy, radius, thick, pct, color):
     cr.arc(cx, cy, radius, 0, 2 * math.pi)
     cr.stroke()
     if pct > 0:
-        cr.set_line_cap(cairo.LINE_CAP_ROUND)
+        cr.set_line_cap(cairo.LINE_CAP_BUTT)
         cr.set_source_rgba(*color)
         cr.arc(cx, cy, radius, -math.pi / 2,
                -math.pi / 2 + 2 * math.pi * (pct / 100))
