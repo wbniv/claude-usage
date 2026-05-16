@@ -26,7 +26,8 @@ tasks:
     deps: [build]
     cmds:
       - |
-        # Persistent apt cache via docker named volumes: ~5 min cold → ~30 s warm.
+        # Persistent apt cache via docker named volumes: ~7 min cold → ~4 min warm.
+        # (Cache skips package download; container still unpacks/configures every run.)
         # To bust: docker volume rm claude-usage-apt-archives claude-usage-apt-lists
         docker run --rm \
           -v "$PWD/dist:/dist:ro" \
