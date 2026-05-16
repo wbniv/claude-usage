@@ -68,12 +68,11 @@ async function fetchUsage() {
         const meters = [];
         let plan = null;
 
-        // Plan label (e.g. "Max (5x)", "Pro", "Free")
+        // Plan label (e.g. "Max (5x)", "Pro", "Free", "Team").
+        // Anchor on full-line equality so banners like "Pro tip:" don't hijack the field.
         for (const line of lines) {
-          if (/\b(Max|Pro|Free|Team)\b/.test(line) && line.length < 80) {
-            plan = line;
-            break;
-          }
+          const pm = line.match(/^(?:Plan:\s*)?(Max(?:\s*\([^)]+\))?|Pro|Free|Team)$/);
+          if (pm && line.length < 40) { plan = pm[1]; break; }
         }
 
         // ── Section 1: Plan usage limits ─────────────────────────────────

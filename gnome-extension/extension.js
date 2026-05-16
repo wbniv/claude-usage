@@ -98,11 +98,12 @@ class ClaudeIndicator extends PanelMenu.Button {
             const dir = event.get_scroll_direction();
             if ((dir === Clutter.ScrollDirection.UP ||
                  dir === Clutter.ScrollDirection.DOWN) && this._data) {
-                const eligible = (this._data.meters || []).filter(m => this._isEligible(m));
+                const eligible = (this._data.meters || []).filter(m => this._isSelectable(m));
                 if (eligible.length < 2) return Clutter.EVENT_STOP;
                 const cur = this._settings.get_string('panel-metric');
                 const idx = eligible.findIndex(m => m.label === cur);
-                const next = eligible[(idx + 1) % eligible.length];
+                const delta = dir === Clutter.ScrollDirection.UP ? -1 : 1;
+                const next = eligible[(idx + delta + eligible.length) % eligible.length];
                 this._settings.set_string('panel-metric', next.label);
             }
             return Clutter.EVENT_STOP;
@@ -255,14 +256,22 @@ class ClaudeIndicator extends PanelMenu.Button {
                (m.count !== undefined && m.total !== undefined && m.total > 0);
     }
 
+    // _isSelectable: which meters can be the panel's primary metric. Layers
+    // the Sonnet-0% popup-hide rule on top of structural eligibility so the
+    // panel doesn't show "0%" for a meter the popup has filtered out.
+    _isSelectable(m) {
+        if (m.label?.toLowerCase().includes('sonnet') && (m.pct ?? 0) === 0) return false;
+        return this._isEligible(m);
+    }
+
     _getPrimary(meters) {
         const label = this._settings.get_string('panel-metric');
         if (label) {
-            const found = meters.find(m => m.label === label && this._isEligible(m));
+            const found = meters.find(m => m.label === label && this._isSelectable(m));
             if (found) return found;
         }
-        return meters.find(m => /all/i.test(m.label ?? '') && this._isEligible(m))
-            || meters.find(m => this._isEligible(m))
+        return meters.find(m => /all/i.test(m.label ?? '') && this._isSelectable(m))
+            || meters.find(m => this._isSelectable(m))
             || meters[0]
             || null;
     }

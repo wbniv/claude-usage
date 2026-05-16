@@ -71,7 +71,9 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         length = int(self.headers.get('Content-Length', 0))
-        if length > 256 * 1024:
+        # length <= 0 catches negative values (which would otherwise bypass the
+        # cap via self.rfile.read(-1) = read-until-EOF) and missing bodies.
+        if length <= 0 or length > 256 * 1024:
             self.send_response(413)
             self._cors()
             self.end_headers()
