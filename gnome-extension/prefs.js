@@ -111,8 +111,13 @@ export default class ClaudeUsagePreferences extends ExtensionPreferences {
         // ── Panel ────────────────────────────────────────────────────────────
         const panelGroup = new Adw.PreferencesGroup({title: 'Panel'});
         page.add(panelGroup);
+        addColorRow(panelGroup, settings, 'panel-color-normal',   'Label — normal',   'Label color below warning threshold');
+        addColorRow(panelGroup, settings, 'panel-color-warning',  'Label — warning',  'Label color at or above warning threshold');
+        addColorRow(panelGroup, settings, 'panel-color-critical', 'Label — critical', 'Label color at or above critical threshold');
         addSpinRow(panelGroup, settings, 'panel-font-size',
             'Label font size', 'Panel percentage label font size (px)', 8, 20);
+        addSpinRow(panelGroup, settings, 'panel-label-spacing',
+            'Icon–label gap', 'Pixels between the icon and the percentage label', 0, 20);
         addSpinRow(panelGroup, settings, 'panel-icon-size',
             'Icon size', 'Panel icon pixel size — requires reloading the extension', 8, 32);
 

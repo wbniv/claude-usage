@@ -148,6 +148,7 @@ def parse_reset(reset):
         if mins < 24 * 60:
             return (True, f"{mins // 60}:{mins % 60:02d}")
         return (False, f"{day} {h:02d}:{mn:02d}")
+
     return None
 
 def format_tooltip(meters):

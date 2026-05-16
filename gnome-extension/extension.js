@@ -117,7 +117,7 @@ class ClaudeIndicator extends PanelMenu.Button {
         this._label = new St.Label({
             text: '--',
             y_align: Clutter.ActorAlign.CENTER,
-            style: `font-size: ${this._settings.get_uint('panel-font-size')}px; margin-left: 4px;`,
+            style: `font-size: ${this._settings.get_uint('panel-font-size')}px; margin-left: ${this._settings.get_uint('panel-label-spacing')}px;`,
         });
 
         box.add_child(this._icon);
@@ -183,7 +183,7 @@ class ClaudeIndicator extends PanelMenu.Button {
 
         if (!d || !d.meters || d.meters.length === 0) {
             this._label.set_text('--');
-            this._label.set_style(`font-size: ${fontSize}px; margin-left: 4px;`);
+            this._label.set_style(`font-size: ${fontSize}px; margin-left: ${s.get_uint('panel-label-spacing')}px;`);
             this._statusItem.label.set_text('No data yet');
             this._metersSection.removeAll();
             return;
@@ -196,8 +196,11 @@ class ClaudeIndicator extends PanelMenu.Button {
         const primary = (this._showSonnet && sonnet) ? sonnet : (allModels || d.meters[0]);
         const pct = primary?.pct ?? 0;
 
+        const panelColor = pct >= s.get_uint('threshold-critical') ? s.get_string('panel-color-critical')
+                         : pct >= s.get_uint('threshold-warning')  ? s.get_string('panel-color-warning')
+                         :                                            s.get_string('panel-color-normal');
         this._label.set_text(`${pct}%`);
-        this._label.set_style(`font-size: ${fontSize}px; margin-left: 4px; color: ${pctColor(pct, s)};`);
+        this._label.set_style(`font-size: ${fontSize}px; margin-left: ${s.get_uint('panel-label-spacing')}px; color: ${panelColor};`);
 
         const plan   = d.plan || 'Claude';
         const age    = d._timestamp ? Math.round((Date.now() / 1000 - d._timestamp) / 60) : null;

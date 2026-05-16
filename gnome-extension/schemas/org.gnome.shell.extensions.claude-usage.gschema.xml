@@ -50,10 +50,27 @@
       <summary>Character count of the █░ usage bar</summary>
       <range min="1" max="20"/>
     </key>
+    <key name="panel-color-normal" type="s">
+      <default>'#ffffff'</default>
+      <summary>Panel label color below warning threshold</summary>
+    </key>
+    <key name="panel-color-warning" type="s">
+      <default>'#d07000'</default>
+      <summary>Panel label color at or above warning threshold</summary>
+    </key>
+    <key name="panel-color-critical" type="s">
+      <default>'#e03030'</default>
+      <summary>Panel label color at or above critical threshold</summary>
+    </key>
     <key name="panel-font-size" type="u">
       <default>11</default>
       <summary>Panel label font size in pixels</summary>
       <range min="8" max="20"/>
+    </key>
+    <key name="panel-label-spacing" type="u">
+      <default>6</default>
+      <summary>Gap in pixels between panel icon and label</summary>
+      <range min="0" max="20"/>
     </key>
     <key name="popup-font-size" type="u">
       <default>10</default>
