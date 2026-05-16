@@ -25,10 +25,26 @@ systemctl --user daemon-reload
 systemctl --user enable --now claude-usage-fetch.service
 echo "  ✓ Service enabled"
 
-# 3. GNOME extension
-gnome-extensions enable claude-usage@indri.studio 2>/dev/null \
-    && echo "  ✓ GNOME extension enabled" \
-    || echo "  ℹ  GNOME extension registered — log out and back in to activate"
+# 3. GNOME extension — enable via D-Bus if shell knows about it, else add UUID
+# directly to enabled-extensions so it auto-loads on next login (Wayland can't
+# restart gnome-shell, so a freshly-installed extension is invisible to D-Bus
+# until logout — without this fallback the extension stays disabled forever).
+UUID=claude-usage@indri.studio
+if gnome-extensions enable "$UUID" 2>/dev/null; then
+    echo "  ✓ GNOME extension enabled"
+else
+    current=$(gsettings get org.gnome.shell enabled-extensions)
+    if ! grep -q "'$UUID'" <<<"$current"; then
+        # Strip trailing ] and insert UUID; handle empty list (@as []) too
+        if [[ "$current" == "@as []" || "$current" == "[]" ]]; then
+            new="['$UUID']"
+        else
+            new="${current%]}, '$UUID']"
+        fi
+        gsettings set org.gnome.shell enabled-extensions "$new"
+    fi
+    echo "  ℹ  GNOME extension queued — log out and back in to activate the panel"
+fi
 
 # 4. Generate initial icon
 python3 /usr/share/claude-usage/generate-icon.py 2>/dev/null || true

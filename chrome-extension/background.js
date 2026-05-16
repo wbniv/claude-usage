@@ -23,23 +23,35 @@ async function fetchUsage() {
     } catch (_) {}
   }
 
+  // Defensive sweep: if a previous fetch was interrupted by SW suspension
+  // between tabs.create and the finally's tabs.remove, the orphaned tab is
+  // still open. Clean those up before opening a fresh one.
+  try {
+    const stale = await chrome.tabs.query({ url: USAGE_URL });
+    for (const t of stale) { try { await chrome.tabs.remove(t.id); } catch (_) {} }
+  } catch (_) {}
+
   let tab = null;
   try {
     tab = await chrome.tabs.create({ url: USAGE_URL, active: false });
 
     await new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        chrome.tabs.onUpdated.removeListener(listener);
-        reject(new Error('tab load timeout'));
-      }, 30_000);
-      chrome.tabs.onUpdated.addListener(function listener(tabId, info) {
+      // Lifted to a const so both the timeout and the listener body can
+      // reference it. Named-function-expression scoping rules would otherwise
+      // leave `listener` undefined inside the setTimeout closure.
+      const listener = (tabId, info) => {
         if (tabId !== tab.id) return;
         if (info.status === 'complete') {
           chrome.tabs.onUpdated.removeListener(listener);
           clearTimeout(timeout);
           resolve();
         }
-      });
+      };
+      const timeout = setTimeout(() => {
+        chrome.tabs.onUpdated.removeListener(listener);
+        reject(new Error('tab load timeout'));
+      }, 30_000);
+      chrome.tabs.onUpdated.addListener(listener);
     });
 
     await new Promise(r => setTimeout(r, 3000));

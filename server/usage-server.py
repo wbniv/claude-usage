@@ -5,7 +5,14 @@ import json, os, subprocess, sys, time
 from pathlib import Path
 
 OUTPUT        = Path.home() / '.cache' / 'claude-usage' / 'usage.json'
-GENERATE_ICON = Path.home() / '.local/share/claude-usage/generate-icon.py'
+# Source install puts generate-icon.py under ~/.local/share; .deb under /usr/share.
+GENERATE_ICON = next(
+    (p for p in [
+        Path.home() / '.local/share/claude-usage/generate-icon.py',
+        Path('/usr/share/claude-usage/generate-icon.py'),
+    ] if p.exists()),
+    None,
+)
 PORT = 7331
 
 
@@ -46,9 +53,16 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(b'expected application/json')
             return
 
+        length = int(self.headers.get('Content-Length', 0))
+        if length > 256 * 1024:
+            self.send_response(413)
+            self._cors()
+            self.end_headers()
+            self.wfile.write(b'payload too large')
+            return
+
         status, reply = 200, b'ok'
         try:
-            length = int(self.headers.get('Content-Length', 0))
             body = json.loads(self.rfile.read(length))
             err = _validate(body)
             if err:
@@ -61,10 +75,12 @@ class Handler(BaseHTTPRequestHandler):
                     ts = body.pop('timestamp', None)
                     body['_timestamp'] = int(ts / 1000) if ts else int(time.time())
                 OUTPUT.parent.mkdir(parents=True, exist_ok=True)
-                OUTPUT.write_text(json.dumps(body, indent=2))
-                os.chmod(OUTPUT, 0o600)
+                tmp = OUTPUT.with_suffix(OUTPUT.suffix + '.tmp')
+                tmp.write_text(json.dumps(body, indent=2))
+                os.chmod(tmp, 0o600)
+                tmp.replace(OUTPUT)
                 print(f"Saved {len(body.get('meters', []))} meters → {OUTPUT}", flush=True)
-                if GENERATE_ICON.exists():
+                if GENERATE_ICON:
                     subprocess.Popen([sys.executable, str(GENERATE_ICON)],
                                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         except Exception as e:

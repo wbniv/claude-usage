@@ -91,7 +91,7 @@ def draw_ring(cr, cx, cy, radius, thick, pct, color, track=True):
                -math.pi / 2 + 2 * math.pi * (pct / 100))
         cr.stroke()
 
-def generate(all_pct, sonnet_pct, cfg, dest):
+def generate(all_pct, sonnet_pct, cfg, dest, draw_rings=True):
     cx = cy = CANVAS // 2
     THICK_OUTER, THICK_INNER, GAP = 10 * SCALE, 8 * SCALE, 3 * SCALE
     R_INNER = ICON // 2 + GAP + THICK_INNER // 2
@@ -121,10 +121,11 @@ def generate(all_pct, sonnet_pct, cfg, dest):
     cr.paint()
     cr.restore()
 
-    draw_ring(cr, cx, cy, R_OUTER, THICK_OUTER, all_pct, ring_color(all_pct, cfg))
-    if sonnet_pct > 0:
-        # Sonnet ring intentionally uses a fixed blue — color family distinguishes it from the outer ring.
-        draw_ring(cr, cx, cy, R_INNER, THICK_INNER, sonnet_pct, hex_to_rgba(cfg['sonnet_color']))
+    if draw_rings:
+        draw_ring(cr, cx, cy, R_OUTER, THICK_OUTER, all_pct, ring_color(all_pct, cfg))
+        if sonnet_pct > 0:
+            # Sonnet ring intentionally uses a fixed blue — color family distinguishes it from the outer ring.
+            draw_ring(cr, cx, cy, R_INNER, THICK_INNER, sonnet_pct, hex_to_rgba(cfg['sonnet_color']))
 
     surface.flush()
     img = Image.frombytes('RGBA', (CANVAS, CANVAS),
@@ -135,7 +136,9 @@ def _next_icon_path():
     """Return a fresh timestamped path so GNOME never serves a cached pixbuf."""
     import time
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    return CACHE_DIR / f'icon-{int(time.time())}.png'
+    # Nanosecond precision: two same-second invocations would otherwise collide
+    # on the filename, silently dropping the second icon refresh.
+    return CACHE_DIR / f'icon-{time.time_ns()}.png'
 
 def parse_reset(reset):
     """Returns (is_countdown, display) or None. Countdown shows ⏱h:mm; day shows 'Tue 1:00'."""
@@ -203,7 +206,9 @@ def update_desktop(meters, icon_path):
         elif line.startswith('[') or '=' in line or line == '':
             out.append(line)
         # else: skip orphaned lines from a previous broken write
-    DESKTOP.write_text('\n'.join(out) + '\n')
+    tmp = DESKTOP.with_suffix(DESKTOP.suffix + '.tmp')
+    tmp.write_text('\n'.join(out) + '\n')
+    tmp.replace(DESKTOP)
 
 def main():
     cfg = load_config()
@@ -228,6 +233,15 @@ def main():
 
 if __name__ == '__main__':
     try:
+        # --baseline DEST: render the placeholder tile (rounded-rect + orange + star,
+        # no rings) used as the system icon shipped in the .deb so the dock looks
+        # consistent before any usage data has been fetched.
+        if len(sys.argv) >= 2 and sys.argv[1] == '--baseline':
+            if len(sys.argv) < 3:
+                print('usage: generate-icon.py --baseline DEST', file=sys.stderr)
+                sys.exit(2)
+            generate(0, 0, dict(DEFAULTS), Path(sys.argv[2]), draw_rings=False)
+            sys.exit(0)
         main()
     except Exception as e:
         print(f'generate-icon: {e}', file=sys.stderr, flush=True)

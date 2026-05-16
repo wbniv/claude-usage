@@ -22,7 +22,7 @@ All data stays on your own machine. It is sent only to `http://127.0.0.1:7331` �
 
 - `~/.cache/claude-usage/usage.json` — usage data, updated every 15 minutes
 - `~/.cache/claude-usage/icon-{epoch}.png` — generated dock icon (filename rotates to bust the pixbuf cache)
-- `~/.config/claude-usage/config.json` — user color preferences
+- GSettings (`org.gnome.shell.extensions.claude-usage`) — user color and threshold preferences
 - `chrome.storage.local` — fallback copy of the last fetch, used only when the local server is not running
 
 ## Permissions used
@@ -38,4 +38,4 @@ All data stays on your own machine. It is sent only to `http://127.0.0.1:7331` �
 
 ## Contact
 
-Will Norris — wbnorris@gmail.com
+Will Norris — will@biohack.net

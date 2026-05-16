@@ -49,12 +49,6 @@ function bar(pct, width = 10) {
     return '█'.repeat(Math.max(0, filled)) + '░'.repeat(Math.max(0, width - filled));
 }
 
-function pctColor(pct, s) {
-    if (pct >= s.get_uint('threshold-critical')) return s.get_string('popup-color-critical');
-    if (pct >= s.get_uint('threshold-warning'))  return s.get_string('popup-color-warning');
-    return s.get_string('popup-color-normal');
-}
-
 function formatRows(meters, barWidth) {
     const maxLen = Math.max(0, ...meters.map(m => (m.label || '').length));
     const maxCol2 = Math.max(4, ...meters.map(m =>
@@ -96,7 +90,6 @@ class ClaudeIndicator extends PanelMenu.Button {
         this._ext = ext;
         this._settings = ext.getSettings('org.gnome.shell.extensions.claude-usage');
         this._monitor = null;
-        this._timerId = null;
         this._settingsId = null;
         this._data = null;
         this._wasStale = false;
@@ -151,12 +144,6 @@ class ClaudeIndicator extends PanelMenu.Button {
 
         this._watchFile();
         this._loadData();
-
-        const intervalSecs = this._settings.get_uint('poll-interval') * 60;
-        this._timerId = GLib.timeout_add_seconds(
-            GLib.PRIORITY_DEFAULT, intervalSecs,
-            () => { this._loadData(); return GLib.SOURCE_CONTINUE; }
-        );
     }
 
     _watchFile() {
@@ -189,24 +176,36 @@ class ClaudeIndicator extends PanelMenu.Button {
         const d = this._data;
         const s = this._settings;
         const fontSize = s.get_uint('panel-font-size');
+        const labelGap = s.get_uint('panel-label-spacing');
 
         if (!d || !d.meters || d.meters.length === 0) {
             this._label.set_text('--');
-            this._label.set_style(`font-size: ${fontSize}px; margin-left: ${s.get_uint('panel-label-spacing')}px;`);
+            this._label.set_style(`font-size: ${fontSize}px; margin-left: ${labelGap}px;`);
             this._statusItem.label.set_text('No data yet');
             this._metersSection.removeAll();
             return;
         }
 
+        // Hoist threshold + colour reads so we don't pay 10–20 GSettings IPC
+        // calls per render. They're already invalidated by 'changed' (which
+        // re-runs _updateDisplay), so a per-render snapshot is correct.
+        const tWarn = s.get_uint('threshold-warning');
+        const tCrit = s.get_uint('threshold-critical');
+        const popupNorm = s.get_string('popup-color-normal');
+        const popupWarn = s.get_string('popup-color-warning');
+        const popupCrit = s.get_string('popup-color-critical');
+        const panelNorm = s.get_string('panel-color-normal');
+        const panelWarn = s.get_string('panel-color-warning');
+        const panelCrit = s.get_string('panel-color-critical');
+        const pctColor = p => p >= tCrit ? popupCrit : p >= tWarn ? popupWarn : popupNorm;
+
         const primary = this._getPrimary(d.meters);
         const pct = primary?.pct ?? (primary?.total
             ? Math.round((primary.count / primary.total) * 100) : 0);
 
-        const panelColor = pct >= s.get_uint('threshold-critical') ? s.get_string('panel-color-critical')
-                         : pct >= s.get_uint('threshold-warning')  ? s.get_string('panel-color-warning')
-                         :                                            s.get_string('panel-color-normal');
+        const panelColor = pct >= tCrit ? panelCrit : pct >= tWarn ? panelWarn : panelNorm;
         this._label.set_text(`${pct}%`);
-        this._label.set_style(`font-size: ${fontSize}px; margin-left: ${s.get_uint('panel-label-spacing')}px; color: ${panelColor};`);
+        this._label.set_style(`font-size: ${fontSize}px; margin-left: ${labelGap}px; color: ${panelColor};`);
 
         const plan   = d.plan || 'Claude';
         const age    = d._timestamp ? Math.round((Date.now() / 1000 - d._timestamp) / 60) : null;
@@ -244,9 +243,7 @@ class ClaudeIndicator extends PanelMenu.Button {
                     this._settings.set_string('panel-metric', row.meter.label);
                 });
             }
-            const color = row.isSub
-                ? s.get_string('popup-color-normal')
-                : pctColor(mpct, s);
+            const color = row.isSub ? popupNorm : pctColor(mpct);
             item.label.set_style(`${style} color: ${color};`);
             this._metersSection.addMenuItem(item);
         }
@@ -273,10 +270,6 @@ class ClaudeIndicator extends PanelMenu.Button {
         if (this._settingsId) {
             this._settings.disconnect(this._settingsId);
             this._settingsId = null;
-        }
-        if (this._timerId) {
-            GLib.source_remove(this._timerId);
-            this._timerId = null;
         }
         if (this._monitor) {
             this._monitor.cancel();

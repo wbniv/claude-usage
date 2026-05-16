@@ -9,6 +9,24 @@ case "$1" in
         glib-compile-schemas /usr/share/glib-2.0/schemas/ 2>/dev/null || true
         update-desktop-database -q /usr/share/applications/ || true
         gtk-update-icon-cache -f -t /usr/share/icons/hicolor/ || true
+
+        # Auto-run per-user setup when invoked via sudo with a live user session.
+        # Falls back to printing instructions if we can't tell who/where to run.
+        target_user="${SUDO_USER:-${PKEXEC_UID:+$(getent passwd "$PKEXEC_UID" | cut -d: -f1)}}"
+        if [ -n "$target_user" ] && [ "$target_user" != "root" ]; then
+            uid=$(id -u "$target_user" 2>/dev/null || echo "")
+            runtime="/run/user/$uid"
+            if [ -n "$uid" ] && [ -S "$runtime/bus" ]; then
+                echo ""
+                echo "Running per-user setup for $target_user..."
+                runuser -u "$target_user" -- env \
+                    XDG_RUNTIME_DIR="$runtime" \
+                    DBUS_SESSION_BUS_ADDRESS="unix:path=$runtime/bus" \
+                    /usr/bin/claude-usage-setup || \
+                    echo "  ⚠ per-user setup failed — run 'claude-usage-setup' manually"
+                exit 0
+            fi
+        fi
         echo ""
         echo "Claude Usage installed. Activate for your user account:"
         echo ""

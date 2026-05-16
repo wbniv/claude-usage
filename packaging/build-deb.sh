@@ -54,14 +54,25 @@ Categories=Utility;
 NoDisplay=false
 EOF
 
-# System icon
-cp "$REPO_DIR/gnome-extension/icons/claude-64.png" \
-    "$PKG/usr/share/pixmaps/claude-usage.png"
-cp "$REPO_DIR/gnome-extension/icons/claude-64.png" \
-    "$PKG/usr/share/icons/hicolor/64x64/apps/claude-usage.png"
+# System icon — bake the rounded-rect + orange + star placeholder (no rings)
+# so the dock looks consistent before any usage data has been fetched.
+# Falls back to the raw star PNG if cairo/PIL aren't on the build host.
+BAKED_ICON="$BUILD_DIR/claude-usage-baseline.png"
+if python3 "$REPO_DIR/server/generate-icon.py" --baseline "$BAKED_ICON" 2>/dev/null \
+   && [[ -s "$BAKED_ICON" ]]; then
+    cp "$BAKED_ICON" "$PKG/usr/share/pixmaps/claude-usage.png"
+    cp "$BAKED_ICON" "$PKG/usr/share/icons/hicolor/64x64/apps/claude-usage.png"
+else
+    echo "  ⚠  Baseline icon bake failed; shipping raw star PNG" >&2
+    cp "$REPO_DIR/gnome-extension/icons/claude-64.png" \
+        "$PKG/usr/share/pixmaps/claude-usage.png"
+    cp "$REPO_DIR/gnome-extension/icons/claude-64.png" \
+        "$PKG/usr/share/icons/hicolor/64x64/apps/claude-usage.png"
+fi
 
-# User setup script
+# User setup script + diagnostics script
 cp "$REPO_DIR/packaging/claude-usage-setup" "$PKG/usr/bin/"
+install -m 755 "$REPO_DIR/scripts/claude-usage-status.sh" "$PKG/usr/bin/claude-usage-status"
 
 # DEBIAN control files
 cp "$REPO_DIR/packaging/control"  "$PKG/DEBIAN/"

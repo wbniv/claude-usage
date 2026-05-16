@@ -28,11 +28,17 @@ tasks:
       TAG: v{{.VERSION}}
     cmds:
       - |
+        set -euo pipefail
+        current=$(git rev-parse --abbrev-ref HEAD)
+        if [ "$current" != "main" ]; then
+          echo "Refusing to release from non-main branch: $current"
+          exit 1
+        fi
         if git rev-parse "{{.TAG}}" >/dev/null 2>&1; then
           echo "Tag {{.TAG}} already exists — bump Version in packaging/control first"
           exit 1
         fi
-      - git push origin HEAD
+      - git push origin main
       - git tag "{{.TAG}}"
       - git push origin "{{.TAG}}"
       - |

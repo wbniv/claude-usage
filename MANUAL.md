@@ -144,7 +144,6 @@ gsettings reset org.gnome.shell.extensions.claude-usage popup-color-normal  # re
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `poll-interval` | `5` | Minutes between re-reading the cache file |
 | `weekly-color-green` | ${\color{#8cff8c}■}$ `#8cff8c` | Dock outer ring · below warning threshold |
 | `weekly-color-amber` | ${\color{#ffe033}■}$ `#ffe033` | Dock outer ring · ≥ warning threshold |
 | `weekly-color-red` | ${\color{#ff5933}■}$ `#ff5933` | Dock outer ring · ≥ critical threshold |
@@ -152,10 +151,14 @@ gsettings reset org.gnome.shell.extensions.claude-usage popup-color-normal  # re
 | `popup-color-normal` | ${\color{#2a9a2a}■}$ `#2a9a2a` | Popup text · below warning threshold |
 | `popup-color-warning` | ${\color{#d07000}■}$ `#d07000` | Popup text · ≥ warning threshold |
 | `popup-color-critical` | ${\color{#e03030}■}$ `#e03030` | Popup text · ≥ critical threshold |
+| `panel-color-normal` | ${\color{#ffffff}■}$ `#ffffff` | Panel label · below warning threshold |
+| `panel-color-warning` | ${\color{#d07000}■}$ `#d07000` | Panel label · ≥ warning threshold |
+| `panel-color-critical` | ${\color{#e03030}■}$ `#e03030` | Panel label · ≥ critical threshold |
 | `threshold-warning` | `50` | % at which color flips to warning |
 | `threshold-critical` | `80` | % at which color flips to critical |
 | `bar-width` | `10` | █░ bar character count in popup |
 | `panel-font-size` | `11` | Panel label font size (px) |
+| `panel-label-spacing` | `6` | Pixels between panel icon and label |
 | `popup-font-size` | `10` | Popup meter row font size (px) |
 | `popup-font-family` | `monospace` | Popup meter row font family |
 | `panel-icon-size` | `16` | Panel icon pixel size (requires extension reload) |

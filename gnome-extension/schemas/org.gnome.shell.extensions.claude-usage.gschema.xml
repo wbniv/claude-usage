@@ -2,11 +2,6 @@
 <schemalist>
   <schema id="org.gnome.shell.extensions.claude-usage"
           path="/org/gnome/shell/extensions/claude-usage/">
-    <key name="poll-interval" type="u">
-      <default>5</default>
-      <summary>File re-read interval in minutes (1–60)</summary>
-      <range min="1" max="60"/>
-    </key>
     <key name="weekly-color-green" type="s">
       <default>'#8cff8c'</default>
       <summary>Dock outer ring color below warning threshold</summary>

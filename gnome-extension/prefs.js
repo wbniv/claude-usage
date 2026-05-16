@@ -5,7 +5,15 @@ import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import {ExtensionPreferences} from 'resource:///org/gnome/shell/extensions/prefs.js';
 
-const ICON_SCRIPT = GLib.get_home_dir() + '/.local/share/claude-usage/generate-icon.py';
+// Source install puts generate-icon.py under ~/.local/share; .deb under /usr/share.
+// Mirrors the candidate-list probe in server/generate-icon.py.
+const _ICON_SCRIPT_CANDIDATES = [
+    GLib.get_home_dir() + '/.local/share/claude-usage/generate-icon.py',
+    '/usr/share/claude-usage/generate-icon.py',
+];
+const ICON_SCRIPT = _ICON_SCRIPT_CANDIDATES.find(
+    p => GLib.file_test(p, GLib.FileTest.EXISTS)
+) || _ICON_SCRIPT_CANDIDATES[0];
 
 function regenIcon() {
     try {
@@ -35,10 +43,13 @@ function addColorRow(group, settings, key, title, subtitle, isDockColor = false)
     group.add(row);
 }
 
-function addSpinRow(group, settings, key, title, subtitle, lower, upper) {
+function addSpinRow(group, settings, key, title, subtitle, lower, upper, regen = false) {
     const adj = new Gtk.Adjustment({lower, upper, step_increment: 1, value: settings.get_uint(key)});
     const row = new Adw.SpinRow({title, subtitle, adjustment: adj});
-    adj.connect('value-changed', () => settings.set_uint(key, Math.round(adj.get_value())));
+    adj.connect('value-changed', () => {
+        settings.set_uint(key, Math.round(adj.get_value()));
+        if (regen) regenIcon();
+    });
     group.add(row);
 }
 
@@ -50,15 +61,6 @@ export default class ClaudeUsagePreferences extends ExtensionPreferences {
             title: 'Claude Usage',
             icon_name: 'preferences-system-symbolic',
         });
-
-        // ── Display ──────────────────────────────────────────────────────────
-        const displayGroup = new Adw.PreferencesGroup({
-            title: 'Display',
-            description: 'Data is fetched by the Claude Usage Tracker Chrome extension',
-        });
-        page.add(displayGroup);
-        addSpinRow(displayGroup, settings, 'poll-interval',
-            'File re-read interval', 'Minutes between re-reading the cache file', 1, 60);
 
         // ── Dock Icon Colors ─────────────────────────────────────────────────
         const dockGroup = new Adw.PreferencesGroup({
@@ -92,9 +94,9 @@ export default class ClaudeUsagePreferences extends ExtensionPreferences {
         const popupDisplayGroup = new Adw.PreferencesGroup({title: 'Popup Display'});
         page.add(popupDisplayGroup);
         addSpinRow(popupDisplayGroup, settings, 'threshold-warning',
-            'Warning threshold',  '% at which color flips to warning (must be below Critical)', 1, 99);
+            'Warning threshold',  '% at which color flips to warning (must be below Critical)', 1, 99, true);
         addSpinRow(popupDisplayGroup, settings, 'threshold-critical',
-            'Critical threshold', '% at which color flips to critical (must exceed Warning)', 1, 99);
+            'Critical threshold', '% at which color flips to critical (must exceed Warning)', 1, 99, true);
         addSpinRow(popupDisplayGroup, settings, 'bar-width',
             'Bar width', 'Character count of the █░ usage bar', 1, 20);
         addSpinRow(popupDisplayGroup, settings, 'popup-font-size',
