@@ -117,7 +117,7 @@ def generate(all_pct, sonnet_pct, cfg, dest):
     draw_ring(cr, cx, cy, R_OUTER, THICK_OUTER, all_pct, ring_color(all_pct, cfg))
     if sonnet_pct > 0:
         # Sonnet ring intentionally uses a fixed blue — color family distinguishes it from the outer ring.
-        draw_ring(cr, cx, cy, R_INNER, THICK_INNER, sonnet_pct, hex_to_rgba(cfg['sonnet_color']), track=False)
+        draw_ring(cr, cx, cy, R_INNER, THICK_INNER, sonnet_pct, hex_to_rgba(cfg['sonnet_color']))
 
     surface.flush()
     img = Image.frombytes('RGBA', (CANVAS, CANVAS),

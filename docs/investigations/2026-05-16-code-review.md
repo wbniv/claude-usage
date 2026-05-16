@@ -122,6 +122,18 @@ the JS mapping to the Python calculation.
 rings by color family at a glance. A clarifying comment has been added to the source. No
 behavior change.
 
+### ~~BUG-7 — Low: Sonnet ring invisible at low usage percentages~~ ✓ Fixed
+
+**File:** `server/generate-icon.py:120`  
+**Symptom:** Sonnet ring not visible in dock icon despite non-zero Sonnet usage (confirmed
+`Sonnet=8%` in generator output). Discovered during post-implementation testing.  
+**Cause:** Inner ring drawn with `track=False`, so no background circle is rendered — only
+the filled arc itself. At 8% usage the arc subtends ~29° of the circle; at small icon sizes
+(128 × 128 px scaled to ~48 px in the dock) this tiny sliver disappears against the orange
+background.  
+**Fix:** Remove `track=False` (revert to default `track=True`) so the full ring track circle
+is drawn first as a dark background, making the blue arc visible regardless of percentage.
+
 ### ~~BUG-6 — Low: Chrome scraper DOM index lacks lower-bound guard~~ ✗ Not a bug
 
 **Retracted.** Every `lines[i-1]` access is guarded by `i >= 1` and every `lines[i-2]`
@@ -261,7 +273,7 @@ No PyPI packages. All Python stdlib. Minimal footprint — good for distro packa
 | Critical (blocks release) | 1 | BUG-1: UUID mismatch in .deb | ✓ Fixed |
 | High (crash/data loss) | 2 | BUG-2: missing cache guard; BUG-3: StopIteration | ✓ Fixed |
 | Medium (correctness) | 2 | ~~BUG-4: weekday inconsistency~~ (not a bug); cache file permissions | ✓ Fixed |
-| Low (quality/safety) | 4 | BUG-5: by design (comment added); ~~BUG-6: DOM index~~ (not a bug); bounds-check %; Content-Type | ✓ Fixed |
+| Low (quality/safety) | 5 | BUG-5: by design (comment added); ~~BUG-6: DOM index~~ (not a bug); BUG-7: Sonnet ring invisible; bounds-check %; Content-Type | ✓ Fixed |
 | Missing features | 6 | See Missing Features table | ✓ All closed |
 
 ---
@@ -274,7 +286,7 @@ All actionable findings from the initial review have been addressed across four 
 
 **Bugs (all fixed):** UUID mismatch in .deb setup, first-run crash on missing cache, bare
 `next()` raising `StopIteration`, weekday logic (confirmed not a bug), percentage
-bounds-checking in the scraper.
+bounds-checking in the scraper, Sonnet ring invisible at low usage (track=False → track=True).
 
 **Code quality (all resolved):** HTTP server returns 4xx on failure so Chrome's fallback
 triggers correctly; Content-Type validation; hex color inputs validated server-side with
