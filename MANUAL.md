@@ -112,6 +112,14 @@ Nothing to do. Everything starts automatically:
 cat ~/.cache/claude-usage.json
 ```
 
+**Run the diagnostics tool:**
+
+```bash
+claude-usage-status
+```
+
+Reports service health, cache freshness, meter breakdown, and extension state in one command.
+
 ---
 
 ## Configuration
@@ -159,8 +167,10 @@ gsettings reset org.gnome.shell.extensions.claude-usage popup-color-normal  # re
 ### Panel shows `--`
 The cache file doesn't exist yet. Click the Chrome extension toolbar icon to trigger a fetch.
 
-### Panel shows stale data ("Xm ago" is large)
+### Panel shows stale data ("Xm ago" is large) or ⚠ in the popup
 The Chrome extension may not be running. Open Chrome → `chrome://extensions` → confirm Claude Usage Tracker is enabled. Click its toolbar icon to force a fetch.
+
+> **Reset times** are displayed in your system timezone. Claude.ai returns times in the browser's timezone, which GNOME controls. They will agree unless you have manually overridden the browser timezone.
 
 ### Server not running
 ```bash
@@ -195,6 +205,16 @@ gsettings get org.gnome.shell.extensions.claude-usage popup-color-normal
 gsettings reset org.gnome.shell.extensions.claude-usage popup-color-normal
 gsettings reset-recursively org.gnome.shell.extensions.claude-usage  # restore all defaults
 ```
+
+---
+
+## Publishing the Chrome extension
+
+The extension currently requires loading unpacked. To publish to the Chrome Web Store:
+
+1. Register at [chrome.google.com/webstore/devconsole](https://chrome.google.com/webstore/devconsole) ($5 one-time developer fee)
+2. Build the submission zip: `task build-chrome-zip` → produces `dist/claude-usage-chrome-{VERSION}.zip`
+3. Upload the zip in the developer console
 
 ---
 

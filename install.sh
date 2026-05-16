@@ -26,6 +26,7 @@ uninstall() {
     rm -rf "$GNOME_EXT_DIR"
     rm -f "$HOME/.local/share/glib-2.0/schemas/org.gnome.shell.extensions.claude-usage.gschema.xml"
     glib-compile-schemas "$HOME/.local/share/glib-2.0/schemas/" 2>/dev/null || true
+    rm -f "$HOME/.local/bin/claude-usage-status"
     rm -rf "$SERVER_DIR"
     rm -rf "$HOME/.config/claude-usage"
     rm -f "$HOME/.cache/claude-usage.json"
@@ -66,12 +67,17 @@ cp "$REPO_DIR/gnome-extension/schemas/"*.xml "$GLIB_SCHEMA_DIR/"
 glib-compile-schemas "$GLIB_SCHEMA_DIR/"
 echo "  ✓ GNOME extension installed"
 
-# 2. Local data server
+# 2. Local data server + diagnostics
 mkdir -p "$SERVER_DIR"
 cp "$REPO_DIR/server/usage-server.py" "$SERVER_DIR/"
 cp "$REPO_DIR/server/generate-icon.py" "$SERVER_DIR/"
 chmod +x "$SERVER_DIR/usage-server.py" "$SERVER_DIR/generate-icon.py"
+cp "$REPO_DIR/scripts/claude-usage-status.sh" "$SERVER_DIR/claude-usage-status"
+chmod +x "$SERVER_DIR/claude-usage-status"
+mkdir -p "$HOME/.local/bin"
+ln -sf "$SERVER_DIR/claude-usage-status" "$HOME/.local/bin/claude-usage-status"
 echo "  ✓ Usage server installed"
+echo "  ✓ Diagnostics installed — run 'claude-usage-status' to check service health"
 
 # 2b. Chrome extension install copy (Chrome loads unpacked from this path)
 mkdir -p "$SERVER_DIR/chrome-extension"

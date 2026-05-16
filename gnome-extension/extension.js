@@ -204,8 +204,9 @@ class ClaudeIndicator extends PanelMenu.Button {
 
         const plan   = d.plan || 'Claude';
         const age    = d._timestamp ? Math.round((Date.now() / 1000 - d._timestamp) / 60) : null;
+        const stale  = age !== null && age > 30;
         const ageStr = age !== null ? ` · ${age < 1 ? '<1' : age}m ago` : '';
-        this._statusItem.label.set_text(`${plan}${ageStr}`);
+        this._statusItem.label.set_text(`${stale ? '⚠ ' : ''}${plan}${ageStr}`);
 
         const barWidth  = s.get_uint('bar-width');
         const popupSize = s.get_uint('popup-font-size');

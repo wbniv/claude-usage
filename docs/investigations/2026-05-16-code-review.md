@@ -201,14 +201,14 @@ page can no longer propagate into the cache or display.
 
 ## Missing Features / Implied TODOs
 
-| # | Gap | Notes |
+| # | Gap | Status |
 |---|---|---|
-| 1 | Stale-data warning | Panel shows time-since-update but never warns when > 30 min; user has no indication the scraper is broken |
-| 2 | Chrome storage → GNOME bridge | If the server is down, Chrome falls back to `chrome.storage.local`, but that data is never surfaced in GNOME extension — the fallback is invisible |
-| 3 | Chrome Web Store publication | `build-chrome-zip.sh` exists; extension not yet published; users must load unpacked |
-| 4 | Config validation UI | Preferences UI accepts any string for colors; invalid input crashes the icon generator |
-| 5 | Locale/timezone detection | Reset times assume system timezone == page timezone; not documented or verified |
-| 6 | Diagnostics command | No tool to check service health, cache freshness, or Chrome extension status without manual log inspection |
+| ~~1~~ | ~~Stale-data warning~~ | ✓ Fixed — `⚠` prefix in popup status item when data > 30 min old (`extension.js`) |
+| ~~2~~ | ~~Chrome storage → GNOME bridge~~ | ✓ Fixed — flush `chrome.storage.local` data to server at the start of each fetch cycle (`background.js`) |
+| 3 | Chrome Web Store publication | Documented in MANUAL.md — external process requiring developer account ($5) |
+| ~~4~~ | ~~Config validation UI~~ | ✓ Already resolved — color inputs use `Gtk.ColorDialogButton` (native picker, can't produce invalid hex); server-side validation added in previous pass |
+| 5 | Locale/timezone detection | Documented in MANUAL.md — browser timezone matches system timezone in practice (GNOME controls both); only breaks if browser timezone is manually overridden |
+| ~~6~~ | ~~Diagnostics command~~ | ✓ Fixed — `scripts/claude-usage-status.sh`; installed to `~/.local/bin/claude-usage-status` by `install.sh` |
 
 ---
 
