@@ -66,12 +66,13 @@ def rounded_rect_path(cr, x, y, w, h, r):
     cr.arc(x + r,     y + h - r, r, math.pi/2,   math.pi)
     cr.close_path()
 
-def draw_ring(cr, cx, cy, radius, thick, pct, color):
+def draw_ring(cr, cx, cy, radius, thick, pct, color, track=True):
     cr.set_line_width(thick)
     cr.set_line_cap(cairo.LINE_CAP_BUTT)
-    cr.set_source_rgba(*TRACK)
-    cr.arc(cx, cy, radius, 0, 2 * math.pi)
-    cr.stroke()
+    if track:
+        cr.set_source_rgba(*TRACK)
+        cr.arc(cx, cy, radius, 0, 2 * math.pi)
+        cr.stroke()
     if pct > 0:
         cr.set_line_cap(cairo.LINE_CAP_BUTT)
         cr.set_source_rgba(*color)
@@ -106,7 +107,7 @@ def generate(all_pct, sonnet_pct, cfg, dest):
 
     draw_ring(cr, cx, cy, R_OUTER, THICK_OUTER, all_pct, ring_color(all_pct, cfg))
     if sonnet_pct > 0:
-        draw_ring(cr, cx, cy, R_INNER, THICK_INNER, sonnet_pct, hex_to_rgba(cfg['sonnet_color']))
+        draw_ring(cr, cx, cy, R_INNER, THICK_INNER, sonnet_pct, hex_to_rgba(cfg['sonnet_color']), track=False)
 
     surface.flush()
     img = Image.frombytes('RGBA', (CANVAS, CANVAS),
