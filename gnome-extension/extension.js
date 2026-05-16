@@ -218,7 +218,7 @@ class ClaudeIndicator extends PanelMenu.Button {
 
         // Popup: separator widget before extra section
         this._metersSection.removeAll();
-        sawExtra = false;
+        let sawExtra = false;
         for (const row of rows) {
             if (row.isExtra && !sawExtra) {
                 this._metersSection.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
