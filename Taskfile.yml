@@ -74,7 +74,7 @@ tasks:
 
   release:
     desc: Build .deb + Chrome zip, tag, and publish a GitHub release (VERSION= to override)
-    deps: [build, build-chrome-zip]
+    deps: [build, build-chrome-zip, test-deb]
     vars:
       TAG: v{{.VERSION}}
     cmds:
