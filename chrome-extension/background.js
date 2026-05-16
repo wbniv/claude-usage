@@ -5,10 +5,8 @@ const INTERVAL_MINUTES = 15;
 async function fetchUsage() {
   let tab = null;
   try {
-    // Open the usage page in a non-focused background tab
     tab = await chrome.tabs.create({ url: USAGE_URL, active: false });
 
-    // Wait for the tab to finish loading
     await new Promise((resolve, reject) => {
       const timeout = setTimeout(() => reject(new Error('tab load timeout')), 30_000);
       chrome.tabs.onUpdated.addListener(function listener(tabId, info) {
@@ -21,19 +19,17 @@ async function fetchUsage() {
       });
     });
 
-    // Give React time to render the usage meters
     await new Promise(r => setTimeout(r, 3000));
 
-    // Scrape usage data from the DOM
     const [result] = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
       func: () => {
         const body = document.body.innerText;
-        const lines = body.split('\n').map(l => l.trim());
+        const lines = body.split('\n').map(l => l.trim()).filter(l => l.length > 0);
         const meters = [];
         let plan = null;
 
-        // Find plan label (e.g. "Max (5x)", "Pro", "Free")
+        // Plan label (e.g. "Max (5x)", "Pro", "Free")
         for (const line of lines) {
           if (/\b(Max|Pro|Free|Team)\b/.test(line) && line.length < 80) {
             plan = line;
@@ -41,28 +37,66 @@ async function fetchUsage() {
           }
         }
 
-        // Find start of usage section
-        const startIdx = lines.findIndex(l => l === 'Plan usage limits');
+        // ── Section 1: Plan usage limits ─────────────────────────────────
+        const planStart = lines.findIndex(l => l === 'Plan usage limits');
+        const planEnd   = lines.findIndex((l, i) =>
+          i > planStart && /^(Additional features|Last updated:|Extra usage)/.test(l));
+        const planRange = [planStart >= 0 ? planStart + 1 : 0, planEnd >= 0 ? planEnd : lines.length];
 
-        // Scan forward: each meter is [label, Resets..., N% used] on consecutive lines
-        const endPattern = /^(Additional features|Last updated:|Extra usage)/;
-        for (let i = (startIdx >= 0 ? startIdx : 0) + 1; i < lines.length; i++) {
-          if (endPattern.test(lines[i])) break;
+        for (let i = planRange[0]; i < planRange[1]; i++) {
           const pctMatch = lines[i].match(/^(\d+)%\s*used$/i);
           if (!pctMatch) continue;
-          const pct = parseInt(pctMatch[1]);
-          const reset = i >= 1 ? lines[i - 1] : null;
+          const pct   = parseInt(pctMatch[1]);
+          const reset = i >= 1 && /[Rr]esets?/.test(lines[i - 1]) ? lines[i - 1] : null;
           const label = i >= 2 ? lines[i - 2] : null;
-          // Skip if label looks like a section header or empty
           if (!label || /^(Weekly limits|Plan usage limits|Learn more)/i.test(label)) continue;
-          meters.push({
-            pct,
-            label,
-            reset: reset && /[Rr]esets?/.test(reset) ? reset : null,
-          });
+          meters.push({pct, label, reset});
         }
 
-        return { meters, plan, timestamp: Date.now() };
+        // ── Section 2: Additional features ───────────────────────────────
+        const addlStart = lines.findIndex(l => l === 'Additional features');
+        const addlEnd   = lines.findIndex((l, i) =>
+          i > addlStart && /^(Extra usage|Last updated:)/.test(l));
+        if (addlStart >= 0) {
+          const end = addlEnd >= 0 ? addlEnd : lines.length;
+          for (let i = addlStart + 1; i < end; i++) {
+            const countMatch = lines[i].match(/^(\d+)\s*\/\s*(\d+)$/);
+            if (!countMatch) continue;
+            const count = parseInt(countMatch[1]);
+            const total = parseInt(countMatch[2]);
+            const pct   = total > 0 ? Math.round(count / total * 100) : 0;
+            const label = i >= 2 ? lines[i - 2] : null;
+            if (!label || /^(Additional features|Learn more)/i.test(label)) continue;
+            meters.push({count, total, pct, label, reset: null});
+          }
+        }
+
+        // ── Section 3: Extra usage (only when toggle is on) ───────────────
+        const extraStart   = lines.findIndex(l => l === 'Extra usage');
+        const toggleOff    = lines.some(l => /Turn on extra usage/.test(l));
+        if (extraStart >= 0 && !toggleOff) {
+          let spent = null, balance = null, pct = null, reset = null;
+          for (let i = extraStart + 1; i < lines.length; i++) {
+            if (/^Last updated:/.test(lines[i])) break;
+            const spentMatch = lines[i].match(/^(\$[\d,.]+)\s*spent$/i);
+            if (spentMatch) { spent = spentMatch[1]; continue; }
+            const pctMatch = lines[i].match(/^(\d+)%\s*used$/i);
+            if (pctMatch) {
+              pct   = parseInt(pctMatch[1]);
+              reset = i >= 1 && /[Rr]esets?/.test(lines[i - 1]) ? lines[i - 1] : null;
+              continue;
+            }
+            const balMatch = lines[i].match(/^(\$[\d,.]+)$/);
+            if (balMatch && i + 1 < lines.length && /Current balance/i.test(lines[i + 1])) {
+              balance = balMatch[1];
+            }
+          }
+          if (pct !== null || spent !== null) {
+            meters.push({label: 'Extra usage', pct: pct ?? 0, spent, balance, reset});
+          }
+        }
+
+        return { meters, plan, _timestamp: Math.floor(Date.now() / 1000) };
       },
     });
 
@@ -72,7 +106,6 @@ async function fetchUsage() {
       return;
     }
 
-    // Try the local server first; fall back to chrome.storage
     try {
       const resp = await fetch(LOCAL_SERVER, {
         method: 'POST',
@@ -94,7 +127,6 @@ async function fetchUsage() {
   }
 }
 
-// Schedule: run immediately on install, then every INTERVAL_MINUTES
 chrome.runtime.onInstalled.addListener(() => {
   chrome.alarms.create('fetch-usage', {
     delayInMinutes: 0,
@@ -106,5 +138,4 @@ chrome.alarms.onAlarm.addListener(alarm => {
   if (alarm.name === 'fetch-usage') fetchUsage();
 });
 
-// Also run when the user clicks the toolbar icon
 chrome.action.onClicked.addListener(() => fetchUsage());

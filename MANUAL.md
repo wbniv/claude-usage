@@ -12,7 +12,7 @@ Shows your Claude.ai weekly usage percentage in the GNOME top panel and dock.
   ✳ 74%
 ```
 
-The ✳ is the Anthropic star logo icon. Color-coded: green < 50 % · amber 50–79 % · red ≥ 80 %
+The ✳ is the Anthropic star logo icon. Color-coded: green below the warning threshold · amber at or above it · red at or above the critical threshold (defaults: 50% / 80%).
 
 **Scroll** on the panel label to toggle between **All models** and **Sonnet only**.
 
@@ -20,16 +20,47 @@ The ✳ is the Anthropic star logo icon. Color-coded: green < 50 % · amber 50�
 
 ```
 Max plan · 2m ago
-────────────────────────────────────────────────
-  Current session     29%  ███░░░░░░░  Resets in 3 hr 3 min
-● All models          74%  ████████░░  Resets Tue 12:59 PM
-  Sonnet only          4%  ░░░░░░░░░░  Resets Tue 12:59 PM
-  Claude Design       51%  █████░░░░░  Resets Tue 1:00 PM
-────────────────────────────────────────────────
+──────────────────────────────────────────────────────────────
+● All models                  1%  ░░░░░░░░░░  Resets Tue 1:00 PM
+  Sonnet only                 2%  ░░░░░░░░░░  Resets Tue 1:00 PM
+  Current session             8%  ████░░░░░░  Resets in 2h 50m
+  Claude Design               0%  ░░░░░░░░░░
+  Daily included routine runs  0/15
+──────────────────────────────────────────────────────────────
 Open Usage Page
 ```
 
 The `●` marks the metric shown in the panel label.
+
+With extra usage enabled on your account, a second section appears:
+
+```
+Max plan · 2m ago
+──────────────────────────────────────────────────────────────
+● All models                  1%  ░░░░░░░░░░  Resets Tue 1:00 PM
+  Sonnet only                 2%  ░░░░░░░░░░  Resets Tue 1:00 PM
+  Current session             8%  ████░░░░░░  Resets in 2h 50m
+  Claude Design               0%  ░░░░░░░░░░
+  Daily included routine runs  0/15
+  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·
+  Extra usage                100%  ██████████  Resets Jun 1
+  $4.11 spent · $0.90 balance
+──────────────────────────────────────────────────────────────
+Open Usage Page
+```
+
+**Hover** the panel icon to see a summary tooltip (same data, best-effort alignment):
+
+```
+All models                  1%  ░░░░░░░░░░  Resets Tue 1:00 PM
+Sonnet only                 2%  ░░░░░░░░░░  Resets Tue 1:00 PM
+Current session             8%  ████░░░░░░  Resets in 2h 50m
+Claude Design               0%  ░░░░░░░░░░
+Daily included routine runs  0/15
+
+Extra usage                100%  ██████████  Resets Jun 1
+$4.11 spent · $0.90 balance
+```
 
 **Dock icon** (once pinned — see Installation below):
 
@@ -37,7 +68,6 @@ The `●` marks the metric shown in the panel label.
 
 - **Outer ring** — All models weekly usage (green → amber → red)
 - **Inner ring** — Sonnet only weekly usage (blue by default)
-- **Hover tooltip** — shows `Claude Usage — 77% / 9%`
 
 The icon regenerates automatically on each data fetch.
 
@@ -114,37 +144,41 @@ cat ~/.cache/claude-usage.json
 
 ## Configuration
 
-Ring colors and other settings live in:
-
-```
-~/.config/claude-usage/config.json
-```
-
-Edit by hand, or open the GNOME preferences UI:
+All settings are stored in GSettings (dconf). Open the preferences UI:
 
 ```bash
 gnome-extensions prefs claude-usage@wbnorris.gmail.com
 ```
 
-The prefs window has color pickers for all four ring states. Changes apply immediately — the dock icon regenerates as soon as you close the color dialog.
+Changes to colors, thresholds, bar width, and font sizes apply instantly — no restart needed.
 
-**Default config:**
+You can also set any value from the command line:
 
-```json
-{
-  "weekly_color_green": "#8cff8c",
-  "weekly_color_amber": "#ffe033",
-  "weekly_color_red":   "#ff5933",
-  "sonnet_color":       "#4dbfff"
-}
+```bash
+gsettings set org.gnome.shell.extensions.claude-usage popup-color-normal '#0000ff'
+gsettings set org.gnome.shell.extensions.claude-usage threshold-warning 60
+gsettings reset org.gnome.shell.extensions.claude-usage popup-color-normal  # restore default
 ```
 
-| Key | Ring | When |
-|-----|------|------|
-| `weekly_color_green` | Outer | All models < 50% |
-| `weekly_color_amber` | Outer | All models 50–79% |
-| `weekly_color_red`   | Outer | All models ≥ 80% |
-| `sonnet_color`       | Inner | always |
+**All settings and defaults:**
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `poll-interval` | `5` | Minutes between re-reading the cache file |
+| `weekly-color-green` | `#8cff8c` | Dock outer ring · below warning threshold |
+| `weekly-color-amber` | `#ffe033` | Dock outer ring · ≥ warning threshold |
+| `weekly-color-red` | `#ff5933` | Dock outer ring · ≥ critical threshold |
+| `sonnet-color` | `#4dbfff` | Dock inner ring |
+| `popup-color-normal` | `#2a9a2a` | Popup text · below warning threshold |
+| `popup-color-warning` | `#d07000` | Popup text · ≥ warning threshold |
+| `popup-color-critical` | `#e03030` | Popup text · ≥ critical threshold |
+| `threshold-warning` | `50` | % at which color flips to warning |
+| `threshold-critical` | `80` | % at which color flips to critical |
+| `bar-width` | `10` | █░ bar character count in popup |
+| `panel-font-size` | `11` | Panel label font size (px) |
+| `popup-font-size` | `10` | Popup meter row font size (px) |
+| `popup-font-family` | `monospace` | Popup meter row font family |
+| `panel-icon-size` | `16` | Panel icon pixel size (requires extension reload) |
 
 ---
 
@@ -172,7 +206,7 @@ gnome-extensions list --enabled | grep claude-usage
 gnome-extensions enable claude-usage@wbnorris.gmail.com
 ```
 
-### Dock icon not updating after editing config.json
+### Dock icon not updating after changing colors
 Force a data fetch (Chrome toolbar icon) or re-run the icon generator directly:
 
 ```bash
@@ -180,6 +214,14 @@ Force a data fetch (Chrome toolbar icon) or re-run the icon generator directly:
 python3 ~/.local/share/claude-usage/generate-icon.py
 # .deb install:
 python3 /usr/share/claude-usage/generate-icon.py
+```
+
+### Check or reset a setting
+
+```bash
+gsettings get org.gnome.shell.extensions.claude-usage popup-color-normal
+gsettings reset org.gnome.shell.extensions.claude-usage popup-color-normal
+gsettings reset-recursively org.gnome.shell.extensions.claude-usage  # restore all defaults
 ```
 
 ---

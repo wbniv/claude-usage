@@ -9,20 +9,26 @@ Real-time Claude.ai usage meters in the GNOME top panel and dock.
 **Dock icon** — two concentric rings:
 - Outer ring: All models weekly usage (green → amber → red)
 - Inner ring: Sonnet only (blue)
-- Hover tooltip: `Claude Usage — 77% / 9%`
+- Hover tooltip: multi-line aligned meter summary
 
-Click the panel indicator to expand all four meters:
+Click the panel indicator to expand all meters:
 
 ```
 Max plan · 2m ago
-────────────────────────────────────────────────
-  Current session     29%  ███░░░░░░░  Resets in 3 hr 3 min
-● All models          74%  ████████░░  Resets Tue 12:59 PM
-  Sonnet only          4%  ░░░░░░░░░░  Resets Tue 12:59 PM
-  Claude Design       51%  █████░░░░░  Resets Tue 1:00 PM
-────────────────────────────────────────────────
+──────────────────────────────────────────────────────────────
+● All models                  1%  ░░░░░░░░░░  Resets Tue 1:00 PM
+  Sonnet only                 2%  ░░░░░░░░░░  Resets Tue 1:00 PM
+  Current session             8%  ████░░░░░░  Resets in 2h 50m
+  Claude Design               0%  ░░░░░░░░░░
+  Daily included routine runs  0/15
+  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·
+  Extra usage                100%  ██████████  Resets Jun 1
+  $4.11 spent · $0.90 balance
+──────────────────────────────────────────────────────────────
 Open Usage Page
 ```
+
+The extra usage section only appears when you have extra usage enabled on your account.
 
 ---
 
@@ -78,22 +84,20 @@ No API keys. No credentials stored. The Chrome extension uses your existing logg
 
 ## Configuration
 
-Ring colors and settings live in `~/.config/claude-usage/config.json`:
-
-```json
-{
-  "weekly_color_green": "#8cff8c",
-  "weekly_color_amber": "#ffe033",
-  "weekly_color_red":   "#ff5933",
-  "sonnet_color":       "#4dbfff"
-}
-```
-
-Edit by hand or open the GNOME preferences UI:
+All settings are stored in GSettings (dconf). Open the preferences UI:
 
 ```bash
 gnome-extensions prefs claude-usage@wbnorris.gmail.com
 ```
+
+Or set any value from the command line:
+
+```bash
+gsettings set org.gnome.shell.extensions.claude-usage popup-color-normal '#0000ff'
+gsettings set org.gnome.shell.extensions.claude-usage threshold-warning 60
+```
+
+Changes to colors, thresholds, bar width, and font sizes apply instantly — no restart needed. (`panel-icon-size` requires reloading the extension.)
 
 ## Uninstall
 

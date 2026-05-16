@@ -66,22 +66,9 @@ cp "$REPO_DIR/server/generate-icon.py" "$SERVER_DIR/"
 chmod +x "$SERVER_DIR/usage-server.py" "$SERVER_DIR/generate-icon.py"
 echo "  ✓ Usage server installed"
 
-# 3. User config (colors etc.) — write defaults only if file absent
-mkdir -p "$HOME/.config/claude-usage"
-if [ ! -f "$HOME/.config/claude-usage/config.json" ]; then
-    cat > "$HOME/.config/claude-usage/config.json" <<'ENDCFG'
-{
-  "weekly_color_green": "#8cff8c",
-  "weekly_color_amber": "#ffe033",
-  "weekly_color_red":   "#ff5933",
-  "sonnet_color":       "#4dbfff"
-}
-ENDCFG
-    echo "  ✓ Config file created: $HOME/.config/claude-usage/config.json"
-else
-    echo "  ✓ Config file already exists (not overwritten)"
-fi
-# Generate initial dock icon (0% rings until first data fetch)
+# 3. Generate initial dock icon (0% rings until first data fetch)
+# Settings are stored in GSettings (dconf) with built-in defaults.
+# To customise: gnome-extensions prefs claude-usage@wbnorris.gmail.com
 python3 "$SERVER_DIR/generate-icon.py" 2>/dev/null || true
 
 # 4. Systemd service

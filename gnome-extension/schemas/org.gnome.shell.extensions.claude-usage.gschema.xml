@@ -7,5 +7,67 @@
       <summary>File re-read interval in minutes (1–60)</summary>
       <range min="1" max="60"/>
     </key>
+    <key name="weekly-color-green" type="s">
+      <default>'#8cff8c'</default>
+      <summary>Dock outer ring color below warning threshold</summary>
+    </key>
+    <key name="weekly-color-amber" type="s">
+      <default>'#ffe033'</default>
+      <summary>Dock outer ring color at or above warning threshold</summary>
+    </key>
+    <key name="weekly-color-red" type="s">
+      <default>'#ff5933'</default>
+      <summary>Dock outer ring color at or above critical threshold</summary>
+    </key>
+    <key name="sonnet-color" type="s">
+      <default>'#4dbfff'</default>
+      <summary>Dock inner (Sonnet) ring color</summary>
+    </key>
+    <key name="popup-color-normal" type="s">
+      <default>'#2a9a2a'</default>
+      <summary>Popup meter text color below warning threshold</summary>
+    </key>
+    <key name="popup-color-warning" type="s">
+      <default>'#d07000'</default>
+      <summary>Popup meter text color at or above warning threshold</summary>
+    </key>
+    <key name="popup-color-critical" type="s">
+      <default>'#e03030'</default>
+      <summary>Popup meter text color at or above critical threshold</summary>
+    </key>
+    <key name="threshold-warning" type="u">
+      <default>50</default>
+      <summary>Usage % at which color flips to warning</summary>
+      <range min="1" max="99"/>
+    </key>
+    <key name="threshold-critical" type="u">
+      <default>80</default>
+      <summary>Usage % at which color flips to critical</summary>
+      <range min="1" max="99"/>
+    </key>
+    <key name="bar-width" type="u">
+      <default>10</default>
+      <summary>Character count of the █░ usage bar</summary>
+      <range min="1" max="20"/>
+    </key>
+    <key name="panel-font-size" type="u">
+      <default>11</default>
+      <summary>Panel label font size in pixels</summary>
+      <range min="8" max="20"/>
+    </key>
+    <key name="popup-font-size" type="u">
+      <default>10</default>
+      <summary>Popup meter row font size in pixels</summary>
+      <range min="8" max="20"/>
+    </key>
+    <key name="popup-font-family" type="s">
+      <default>'monospace'</default>
+      <summary>Popup meter row font family</summary>
+    </key>
+    <key name="panel-icon-size" type="u">
+      <default>16</default>
+      <summary>Panel icon pixel size (requires extension reload)</summary>
+      <range min="8" max="32"/>
+    </key>
   </schema>
 </schemalist>

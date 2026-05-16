@@ -10,17 +10,47 @@ import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 const CACHE_FILE = GLib.get_home_dir() + '/.cache/claude-usage.json';
-const USAGE_URL = 'https://claude.ai/settings/usage';
+const USAGE_URL  = 'https://claude.ai/settings/usage';
 
 function bar(pct, width = 10) {
     const filled = Math.round((pct / 100) * width);
     return '█'.repeat(Math.max(0, filled)) + '░'.repeat(Math.max(0, width - filled));
 }
 
-function pctColor(pct) {
-    if (pct >= 80) return '#e03030';
-    if (pct >= 50) return '#d07000';
-    return '#2a9a2a';
+function pctColor(pct, s) {
+    if (pct >= s.get_uint('threshold-critical')) return s.get_string('popup-color-critical');
+    if (pct >= s.get_uint('threshold-warning'))  return s.get_string('popup-color-warning');
+    return s.get_string('popup-color-normal');
+}
+
+function formatRows(meters, barWidth) {
+    const maxLen = Math.max(0, ...meters.map(m => (m.label || '').length));
+    const rows = [];
+    for (const m of meters) {
+        const label = (m.label || '').padEnd(maxLen);
+        const isExtra = m.spent !== undefined;
+        let text;
+        if (m.count !== undefined && m.total !== undefined) {
+            const col2 = `${m.count}/${m.total}`.padStart(4);
+            const col3 = ' '.repeat(barWidth);
+            text = `${label}  ${col2}  ${col3}`;
+        } else {
+            const pct = m.pct ?? 0;
+            const col2 = `${pct}%`.padStart(4);
+            const col3 = bar(pct, barWidth);
+            const col4 = m.reset ? `  ${m.reset}` : '';
+            text = `${label}  ${col2}  ${col3}${col4}`;
+        }
+        rows.push({text, meter: m, isSub: false, isExtra});
+        if (m.spent !== undefined || m.balance !== undefined) {
+            const parts = [];
+            if (m.spent)   parts.push(`${m.spent} spent`);
+            if (m.balance) parts.push(`${m.balance} balance`);
+            if (parts.length)
+                rows.push({text: parts.join(' · '), meter: m, isSub: true, isExtra: true});
+        }
+    }
+    return rows;
 }
 
 const ClaudeIndicator = GObject.registerClass(
@@ -31,10 +61,10 @@ class ClaudeIndicator extends PanelMenu.Button {
         this._settings = ext.getSettings('org.gnome.shell.extensions.claude-usage');
         this._monitor = null;
         this._timerId = null;
+        this._settingsId = null;
         this._data = null;
         this._showSonnet = false;
 
-        // Scroll wheel toggles panel label between All models / Sonnet only
         this.connect('scroll-event', (_actor, event) => {
             const dir = event.get_scroll_direction();
             if (dir === Clutter.ScrollDirection.UP || dir === Clutter.ScrollDirection.DOWN) {
@@ -44,26 +74,24 @@ class ClaudeIndicator extends PanelMenu.Button {
             return Clutter.EVENT_STOP;
         });
 
-        // Panel box: icon + label
         const box = new St.BoxLayout({style_class: 'panel-status-menu-box'});
 
         this._icon = new St.Icon({
             gicon: Gio.icon_new_for_string(ext.path + '/icons/claude-22.png'),
-            icon_size: 16,
+            icon_size: this._settings.get_uint('panel-icon-size'),
             y_align: Clutter.ActorAlign.CENTER,
         });
 
         this._label = new St.Label({
             text: '--',
             y_align: Clutter.ActorAlign.CENTER,
-            style: 'font-size: 11px; margin-left: 4px;',
+            style: `font-size: ${this._settings.get_uint('panel-font-size')}px; margin-left: 4px;`,
         });
 
         box.add_child(this._icon);
         box.add_child(this._label);
         this.add_child(box);
 
-        // Popup menu
         this._statusItem = new PopupMenu.PopupMenuItem('Loading…', {reactive: false});
         this.menu.addMenuItem(this._statusItem);
 
@@ -77,6 +105,8 @@ class ClaudeIndicator extends PanelMenu.Button {
             Gio.AppInfo.launch_default_for_uri(USAGE_URL, null);
         });
         this.menu.addMenuItem(openItem);
+
+        this._settingsId = this._settings.connect('changed', () => this._updateDisplay());
 
         this._watchFile();
         this._loadData();
@@ -111,58 +141,82 @@ class ClaudeIndicator extends PanelMenu.Button {
             const text = new TextDecoder().decode(contents);
             this._data = JSON.parse(text);
             this._updateDisplay();
-        } catch (_e) {
-            // File absent or parse error — stay in current state
-        }
+        } catch (_e) {}
     }
 
     _updateDisplay() {
         const d = this._data;
+        const s = this._settings;
+        const fontSize = s.get_uint('panel-font-size');
+
         if (!d || !d.meters || d.meters.length === 0) {
             this._label.set_text('--');
-            this._label.set_style('font-size: 11px; margin-left: 4px;');
+            this._label.set_style(`font-size: ${fontSize}px; margin-left: 4px;`);
             this._statusItem.label.set_text('No data yet');
             this._metersSection.removeAll();
+            this.set_accessible_name('Claude Usage');
             return;
         }
 
-        const weekly = d.meters.filter(m => m.label && !m.label.toLowerCase().includes('session'));
+        const weekly   = d.meters.filter(m => m.label && !m.label.toLowerCase().includes('session'));
         const allModels = weekly.find(m => m.label?.toLowerCase().includes('all')) || weekly[0];
-        const sonnet   = weekly.find(m => m.label?.toLowerCase().includes('sonnet'));
-        const session  = d.meters.find(m => m.label?.toLowerCase().includes('session'));
+        const sonnet    = weekly.find(m => m.label?.toLowerCase().includes('sonnet'));
 
-        // Toggle: scroll wheel switches panel label between All models / Sonnet only
         const primary = (this._showSonnet && sonnet) ? sonnet : (allModels || d.meters[0]);
-
         const pct = primary?.pct ?? 0;
-        const color = pctColor(pct);
 
         this._label.set_text(`${pct}%`);
-        this._label.set_style(`font-size: 11px; margin-left: 4px; color: ${color};`);
+        this._label.set_style(`font-size: ${fontSize}px; margin-left: 4px; color: ${pctColor(pct, s)};`);
 
-        const plan = d.plan || 'Claude';
-        const age = d._timestamp
-            ? Math.round((Date.now() / 1000 - d._timestamp) / 60)
-            : null;
+        const plan   = d.plan || 'Claude';
+        const age    = d._timestamp ? Math.round((Date.now() / 1000 - d._timestamp) / 60) : null;
         const ageStr = age !== null ? ` · ${age < 1 ? '<1' : age}m ago` : '';
         this._statusItem.label.set_text(`${plan}${ageStr}`);
 
+        const barWidth  = s.get_uint('bar-width');
+        const popupSize = s.get_uint('popup-font-size');
+        const popupFont = s.get_string('popup-font-family');
+        const style     = `font-family: ${popupFont}; font-size: ${popupSize}px;`;
+
+        const rows = formatRows(d.meters, barWidth);
+
+        // Tooltip: blank line before extra section
+        const tooltipLines = [];
+        let sawExtra = false;
+        for (const row of rows) {
+            if (row.isExtra && !sawExtra) {
+                tooltipLines.push('');
+                sawExtra = true;
+            }
+            tooltipLines.push(row.text);
+        }
+        this.set_accessible_name(tooltipLines.join('\n') || 'Claude Usage');
+
+        // Popup: separator widget before extra section
         this._metersSection.removeAll();
-        for (const m of d.meters) {
-            const mpct = m.pct ?? 0;
-            const barStr = bar(mpct);
-            const reset = m.reset ? `  ${m.reset}` : '';
-            const label = m.label || 'Usage';
-            const active = m === primary;
-            const bullet = active ? '●' : ' ';
-            const line = `${bullet} ${label.padEnd(17)} ${String(mpct).padStart(3)}%  ${barStr}${reset}`;
-            const item = new PopupMenu.PopupMenuItem(line, {reactive: false});
-            item.label.set_style(`font-family: monospace; font-size: 10px; color: ${pctColor(mpct)};`);
+        sawExtra = false;
+        for (const row of rows) {
+            if (row.isExtra && !sawExtra) {
+                this._metersSection.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+                sawExtra = true;
+            }
+            const mpct   = row.meter.pct ?? 0;
+            const active = !row.isSub && row.meter === primary;
+            const prefix = active ? '● ' : '  ';
+            const item   = new PopupMenu.PopupMenuItem(prefix + row.text, {reactive: false});
+            const color  = row.isSub
+                ? s.get_string('popup-color-normal')
+                : pctColor(mpct, s);
+            item.label.set_style(`${style} color: ${color};`);
             this._metersSection.addMenuItem(item);
         }
     }
 
     destroy() {
+        if (this._settingsId) {
+            this._settings.disconnect(this._settingsId);
+            this._settingsId = null;
+        }
         if (this._timerId) {
             GLib.source_remove(this._timerId);
             this._timerId = null;

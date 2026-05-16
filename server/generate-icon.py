@@ -7,7 +7,6 @@ from PIL import Image
 CACHE_JSON   = Path.home() / '.cache' / 'claude-usage.json'
 CACHE_ICON_A = Path.home() / '.cache' / 'claude-usage-icon-a.png'
 CACHE_ICON_B = Path.home() / '.cache' / 'claude-usage-icon-b.png'
-CONFIG_JSON  = Path.home() / '.config' / 'claude-usage' / 'config.json'
 DESKTOP      = Path.home() / '.local/share/applications/claude-usage.desktop'
 
 # Icon ships with the GNOME extension; check user-install path first, then system path.
@@ -37,8 +36,14 @@ DEFAULTS = {
 
 def load_config():
     try:
-        cfg = json.loads(CONFIG_JSON.read_text())
-        return {**DEFAULTS, **cfg}
+        from gi.repository import Gio
+        s = Gio.Settings.new('org.gnome.shell.extensions.claude-usage')
+        return {
+            'weekly_color_green': s.get_string('weekly-color-green'),
+            'weekly_color_amber': s.get_string('weekly-color-amber'),
+            'weekly_color_red':   s.get_string('weekly-color-red'),
+            'sonnet_color':       s.get_string('sonnet-color'),
+        }
     except Exception:
         return dict(DEFAULTS)
 
