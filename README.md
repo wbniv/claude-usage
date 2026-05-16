@@ -43,8 +43,10 @@ The extra usage section only appears when you have extra usage enabled on your a
 
 **Option A — Debian package** (recommended):
 
+Download the latest `.deb` from the [releases page](https://github.com/wbniv/claude-usage/releases/latest), then:
+
 ```bash
-sudo dpkg -i claude-usage_1.0_all.deb
+sudo dpkg -i claude-usage_*.deb
 sudo apt-get install -f   # resolves any missing deps
 claude-usage-setup        # per-user activation (run as yourself, not root)
 ```
