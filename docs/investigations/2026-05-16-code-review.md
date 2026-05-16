@@ -185,11 +185,12 @@ OUTPUT.write_text(json.dumps(data, indent=2))
 os.chmod(OUTPUT, 0o600)
 ```
 
-### ~~Unauthenticated local POST endpoint (Low)~~ ✓ Partially fixed
+### ~~Unauthenticated local POST endpoint (Low)~~ ✓ Fixed
 
-Content-Type is now validated — requests without `application/json` receive 415. Full
-schema validation of the JSON body would add more hardening but is not implemented (low
-practical risk given loopback-only binding).
+Content-Type validated (415 on mismatch). `_validate()` in `usage-server.py` checks
+body structure: top-level object, `meters` array, each meter's `pct` is int in [0, 100],
+`label` is string or null, `_timestamp` is a number. Schema violations return 422 with
+the specific field error; malformed JSON returns 400.
 
 ### ~~Percentage values not bounds-checked (Low)~~ ✓ Fixed
 
@@ -267,27 +268,27 @@ No PyPI packages. All Python stdlib. Minimal footprint — good for distro packa
 
 ## Overall Assessment
 
-**Grade: A−**
+**Grade: A**
 
-All actionable findings from the initial review have been addressed across three passes:
+All actionable findings from the initial review have been addressed across four passes:
 
 **Bugs (all fixed):** UUID mismatch in .deb setup, first-run crash on missing cache, bare
 `next()` raising `StopIteration`, weekday logic (confirmed not a bug), percentage
 bounds-checking in the scraper.
 
-**Code quality (all resolved):** HTTP server now returns 4xx on failure so Chrome's
-fallback triggers correctly; Content-Type validation added; hex color inputs validated
-server-side with defaults fallback; `DEFAULTS` cross-referenced to `gschema.xml`.
+**Code quality (all resolved):** HTTP server returns 4xx on failure so Chrome's fallback
+triggers correctly; Content-Type validation; hex color inputs validated server-side with
+defaults fallback; `DEFAULTS` cross-referenced to `gschema.xml`.
 
-**Security:** Cache file permissions set to 0o600; unauthenticated POST mitigated with
-Content-Type check; percentage values clamped at scrape time.
+**Security:** Cache file permissions 0o600; POST body schema validation via `_validate()`
+(415 wrong Content-Type, 422 schema violation with field-level error, 400 malformed JSON);
+percentage values clamped at scrape time.
 
-**Missing features:** Stale-data warning (`⚠` in popup after 30 min); chrome.storage
-offline data flushed to server on reconnect; `claude-usage-status` diagnostics tool
-installed to `~/.local/bin/`; Web Store and timezone behaviour documented in MANUAL.md.
+**Missing features:** Stale-data warning (`⚠` after 30 min); chrome.storage offline flush
+on reconnect; `claude-usage-status` diagnostics installed to `~/.local/bin/`; Web Store
+steps and timezone note added to MANUAL.md.
 
-**What keeps it from A:** Two low-priority open items remain — full JSON schema validation
-on the POST body (low practical risk given loopback binding), and Chrome Web Store
-publication (external process). The four-component architecture still has no cross-component
-health checks; `claude-usage-status` bridges the gap but doesn't auto-alert. These are
-refinements, not defects.
+**What keeps it from A+:** Chrome Web Store publication remains a manual external process.
+The four-component architecture (Chrome, systemd, GNOME Shell, icon generator) has no
+automated cross-component health alerting — `claude-usage-status` covers this on demand
+but doesn't proactively page the user. Both are refinements, not defects.
