@@ -96,6 +96,7 @@ class ClaudeIndicator extends PanelMenu.Button {
         this._settingsId = null;
         this._data = null;
         this._showSonnet = false;
+        this._wasStale   = false;
 
         this.connect('scroll-event', (_actor, event) => {
             const dir = event.get_scroll_direction();
@@ -207,6 +208,9 @@ class ClaudeIndicator extends PanelMenu.Button {
         const stale  = age !== null && age > 30;
         const ageStr = age !== null ? ` · ${age < 1 ? '<1' : age}m ago` : '';
         this._statusItem.label.set_text(`${stale ? '⚠ ' : ''}${plan}${ageStr}`);
+        if (stale && !this._wasStale)
+            Main.notify('Claude Usage', `No update in ${age} min — click the Chrome extension icon to refresh`);
+        this._wasStale = stale;
 
         const barWidth  = s.get_uint('bar-width');
         const popupSize = s.get_uint('popup-font-size');

@@ -289,6 +289,10 @@ on reconnect; `claude-usage-status` diagnostics installed to `~/.local/bin/`; We
 steps and timezone note added to MANUAL.md.
 
 **What keeps it from A+:** Chrome Web Store publication remains a manual external process.
-The four-component architecture (Chrome, systemd, GNOME Shell, icon generator) has no
-automated cross-component health alerting — `claude-usage-status` covers this on demand
-but doesn't proactively page the user. Both are refinements, not defects.
+That is the only remaining open item — a process gap, not a code defect.
+
+Cross-component health alerting is now implemented: `extension.js` fires a GNOME desktop
+notification (`Main.notify`) on the fresh→stale transition (age > 30 min), once per
+incident. Stale data is the observable symptom of all meaningful cross-component failures
+(Chrome stopped, service down, tab-open error). The `claude-usage-status` command provides
+the on-demand breakdown when the user wants to diagnose further.
