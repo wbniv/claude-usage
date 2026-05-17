@@ -40,15 +40,6 @@ When the server's POST handler invokes `generate-icon.py` it does not pass `--ti
 
 ---
 
-## CQ8 — `update_desktop` `Name=` overwrites GNOME Activities search title
-
-**Source:** [pass-5 review](investigations/2026-05-16-code-review-pass5.md), [pass-7 review](investigations/2026-05-17-code-review-pass7.md)  
-**Verdict:** Won't fix — live tooltip preferred
-
-`server/tooltip.py:update_desktop()` overwrites `Name=` in the `.desktop` file with live usage data (e.g. `current 72%  ⏱1:23`). This `Name=` value also populates the GNOME Activities search result, so the app appears as `current 72% ⏱1:23` rather than `Claude Usage`. The fix would require writing a static `Name=Claude Usage` and moving live data to `Comment=` — but `Comment=` is not displayed on the dock hover tooltip (confirmed by screenshot). Since the live tooltip is the primary value, and Activities search still finds the app via substring match on `claude`, the current behaviour is kept.
-
----
-
 ## Won't Fix — Not a Bug
 
 ### BUG‑4 — Weekday numbering inconsistency (Python vs JavaScript)
