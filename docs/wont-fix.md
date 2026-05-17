@@ -78,3 +78,37 @@ Python's `WD_MAP` uses Mon=0…Sun=6, matching `datetime.weekday()`. The JavaScr
 **Source:** [pass-1 review](investigations/2026-05-16-code-review.md)
 
 Every `lines[i-1]` access in `chrome-extension/background.js` is guarded by `i >= 1`; every `lines[i-2]` access is guarded by `i >= 2`. Guards were already consistently applied at all call sites.
+
+---
+
+## Won't Fix — Not a Bug (Comprehensive Review, 2026-05-18)
+
+### CP‑1 — `pacingPct()` division by zero when `period === 0`
+
+**Source:** [2026-05-18 comprehensive review](investigations/2026-05-18-code-review-comprehensive.md)
+
+`extension.js` L64 has `if (rm == null || !period) return pct;` — `!period` is truthy for `0`, so division by zero is already guarded. Pass 10 explicitly confirmed as non-issue.
+
+### CP‑2 — `critMeter` null dereference in notification
+
+**Source:** [2026-05-18 comprehensive review](investigations/2026-05-18-code-review-comprehensive.md)
+
+`critMeter` is only accessed inside the `else if (!this._anyCrit)` branch, which is only entered when `anyCrit` (computed by `some()` on the same array) is `true`, guaranteeing `find()` succeeds. Pass 10 explicitly confirmed as non-issue.
+
+### CP‑3 — GSettings IPC per render (6 D-Bus calls)
+
+**Source:** [2026-05-18 comprehensive review](investigations/2026-05-18-code-review-comprehensive.md)
+
+Reads are intentionally hoisted to the top of `_updateDisplay()` (comment at L277); GSettings also has an in-process cache that batches D-Bus round-trips. No actual per-render IPC cost.
+
+### CP‑4 — `claude-usage-status.py` fragile `systemctl` parsing
+
+**Source:** [2026-05-18 comprehensive review](investigations/2026-05-18-code-review-comprehensive.md)
+
+Service check uses `systemctl show --property=MainPID --value` (clean single-value output, not subject to localization or format variation); extension check parses `gnome-extensions show` with `split(':', 1)` on stable output lines. No fragility.
+
+### CP‑5 — `tooltip.py` silent no-op when `Name=` missing
+
+**Source:** [2026-05-18 comprehensive review](investigations/2026-05-18-code-review-comprehensive.md)
+
+`re.sub` returns `text` unchanged when no match → `new_text == text` → early return is the correct fallback behavior, not a silent bug. Acceptable by design.

@@ -14,8 +14,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Validate tag matches package version
+        run: |
+          set -euo pipefail
+          pkg_ver=$(grep '^Version:' packaging/control | awk '{print $2}')
+          tag_ver="${GITHUB_REF_NAME#v}"
+          if [ "$pkg_ver" != "$tag_ver" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match packaging/control version $pkg_ver" >&2
+            exit 1
+          fi
+
       - name: Install go-task
         uses: arduino/setup-task@v2
+
+      - name: Test Chrome extension
+        run: task test-scraper
 
       - name: Cache test Docker image
         uses: actions/cache@v4

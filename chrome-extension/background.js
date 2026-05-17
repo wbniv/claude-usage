@@ -61,6 +61,7 @@ function parseResetMinutes(reset) {
     else if (ap === 'AM' && h === 12) h = 0;
     const now = new Date();
     const wdMap = {Sun:0, Mon:1, Tue:2, Wed:3, Thu:4, Fri:5, Sat:6};
+    if (!(day in wdMap)) return null;
     let ahead = (wdMap[day] - now.getDay() + 7) % 7;
     if (ahead === 0) {
       const candidate = new Date(now);
@@ -153,7 +154,7 @@ async function scrapeAndPost(tabId) {
               reset = i >= 1 && /[Rr]esets?/.test(lines[i - 1]) ? lines[i - 1] : null;
               continue;
             }
-            const balMatch = lines[i].match(/^(\$[\d,.]+)$/);
+            const balMatch = lines[i].match(/^(\$\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?)$/);
             if (balMatch && i + 1 < lines.length && /Current balance/i.test(lines[i + 1])) {
               balance = balMatch[1];
             }
@@ -204,6 +205,8 @@ async function scrapeAndPost(tabId) {
     } catch (_) {}
     return;
   }
+
+  if (!data.plan) console.warn('Claude Usage: plan tier not recognized; status bar will show "Claude"');
 
   // Enrich meters with parsed reset_minutes so the server (which doesn't
   // parse strings) can track per-meter period lengths for pacing colors

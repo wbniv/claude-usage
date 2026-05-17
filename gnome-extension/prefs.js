@@ -24,6 +24,8 @@ function regenIcon() {
     } catch (_) {}
 }
 
+let _regenTimer = null;
+
 function addColorRow(group, settings, key, title, subtitle, isDockColor = false) {
     const row = new Adw.ActionRow({title, subtitle});
     const dialog = new Gtk.ColorDialog({title, modal: true});
@@ -48,7 +50,10 @@ function addSpinRow(group, settings, key, title, subtitle, lower, upper, regen =
     const row = new Adw.SpinRow({title, subtitle, adjustment: adj});
     adj.connect('value-changed', () => {
         settings.set_uint(key, Math.round(adj.get_value()));
-        if (regen) regenIcon();
+        if (regen) {
+            clearTimeout(_regenTimer);
+            _regenTimer = setTimeout(() => { _regenTimer = null; regenIcon(); }, 300);
+        }
     });
     group.add(row);
     return adj;

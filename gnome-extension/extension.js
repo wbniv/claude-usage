@@ -29,6 +29,7 @@ function formatReset(reset) {
         else if (ap === 'AM' && h === 12) h = 0;
         const now = new Date();
         const wdMap = {Sun:0, Mon:1, Tue:2, Wed:3, Thu:4, Fri:5, Sat:6};
+        if (!(day in wdMap)) return reset;
         let ahead = (wdMap[day] - now.getDay() + 7) % 7;
         if (ahead === 0) {
             const candidate = new Date(now);
