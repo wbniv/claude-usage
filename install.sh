@@ -3,11 +3,16 @@ set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# XDG base directories (with spec defaults)
+XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
+XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
+XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+
 # Paths
-GNOME_EXT_DIR="$HOME/.local/share/gnome-shell/extensions/claude-usage@indri.studio"
+GNOME_EXT_DIR="$XDG_DATA_HOME/gnome-shell/extensions/claude-usage@indri.studio"
 CHROME_EXT_SRC="$REPO_DIR/chrome-extension"
-SERVER_DIR="$HOME/.local/share/claude-usage"
-SYSTEMD_DIR="$HOME/.config/systemd/user"
+SERVER_DIR="$XDG_DATA_HOME/claude-usage"
+SYSTEMD_DIR="$XDG_CONFIG_HOME/systemd/user"
 
 usage() {
     echo "Usage: $0 [--uninstall]"
@@ -24,9 +29,9 @@ uninstall() {
     rm -f "$SYSTEMD_DIR/claude-usage-fetch.service"
     systemctl --user daemon-reload
     # Remove any claude-usage@* extension dir (current and historical UUIDs)
-    rm -rf "$HOME/.local/share/gnome-shell/extensions/"claude-usage@*
-    rm -f "$HOME/.local/share/glib-2.0/schemas/org.gnome.shell.extensions.claude-usage.gschema.xml"
-    glib-compile-schemas "$HOME/.local/share/glib-2.0/schemas/" 2>/dev/null || true
+    rm -rf "$XDG_DATA_HOME/gnome-shell/extensions/"claude-usage@*
+    rm -f "$XDG_DATA_HOME/glib-2.0/schemas/org.gnome.shell.extensions.claude-usage.gschema.xml"
+    glib-compile-schemas "$XDG_DATA_HOME/glib-2.0/schemas/" 2>/dev/null || true
     # Drop any claude-usage@* entries from the enabled/disabled lists
     for key in enabled-extensions disabled-extensions; do
         current=$(gsettings get org.gnome.shell "$key" 2>/dev/null || echo "@as []")
@@ -35,10 +40,10 @@ uninstall() {
     done
     rm -f "$HOME/.local/bin/claude-usage-status"
     rm -rf "$SERVER_DIR"
-    rm -rf "$HOME/.config/claude-usage"
-    rm -rf "$HOME/.cache/claude-usage"
-    rm -f "$HOME/.local/share/applications/claude-usage.desktop"
-    update-desktop-database "$HOME/.local/share/applications/" 2>/dev/null || true
+    rm -rf "$XDG_CONFIG_HOME/claude-usage"
+    rm -rf "$XDG_CACHE_HOME/claude-usage"
+    rm -f "$XDG_DATA_HOME/applications/claude-usage.desktop"
+    update-desktop-database "$XDG_DATA_HOME/applications/" 2>/dev/null || true
     echo "Done. Log out and back in to remove the panel indicator."
     exit 0
 }
@@ -67,7 +72,7 @@ cp "$REPO_DIR/gnome-extension/schemas/"*.xml "$GNOME_EXT_DIR/schemas/"
 cp "$REPO_DIR/gnome-extension/icons/"* "$GNOME_EXT_DIR/icons/" 2>/dev/null || true
 glib-compile-schemas "$GNOME_EXT_DIR/schemas/"
 # Also install schema to user glib path so plain `gsettings` works without GSETTINGS_SCHEMA_DIR
-GLIB_SCHEMA_DIR="$HOME/.local/share/glib-2.0/schemas"
+GLIB_SCHEMA_DIR="$XDG_DATA_HOME/glib-2.0/schemas"
 mkdir -p "$GLIB_SCHEMA_DIR"
 cp "$REPO_DIR/gnome-extension/schemas/"*.xml "$GLIB_SCHEMA_DIR/"
 glib-compile-schemas "$GLIB_SCHEMA_DIR/"
@@ -104,10 +109,10 @@ systemctl --user enable --now claude-usage-fetch.service
 echo "  ✓ Systemd service enabled and started"
 
 # 5. Dock launcher entry
-mkdir -p "$HOME/.local/share/applications"
+mkdir -p "$XDG_DATA_HOME/applications"
 sed "s|%HOME%|$HOME|g" "$REPO_DIR/desktop/claude-usage.desktop" \
-    > "$HOME/.local/share/applications/claude-usage.desktop"
-update-desktop-database "$HOME/.local/share/applications/" 2>/dev/null || true
+    > "$XDG_DATA_HOME/applications/claude-usage.desktop"
+update-desktop-database "$XDG_DATA_HOME/applications/" 2>/dev/null || true
 echo "  ✓ Dock entry installed — find 'Claude Usage' in the app grid, right-click → Add to Favorites"
 
 # 6. Enable GNOME extension (may fail until after re-login)
@@ -121,5 +126,5 @@ echo "  1. Open chrome://extensions"
 echo "  2. Enable Developer mode"
 echo "  3. Click 'Load unpacked' and select: $CHROME_EXT_SRC"
 echo ""
-echo "The Chrome extension fetches usage data every 15 minutes."
+echo "The Chrome extension fetches usage data every 7 minutes."
 echo "Click its toolbar icon to force an immediate refresh."

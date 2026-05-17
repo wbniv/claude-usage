@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Claude Usage Tracker",
-  "version": "0.10.7",
+  "version": "0.11.0",
   "description": "Opens claude.ai/settings/usage in a background tab every 7 minutes, reads your usage meters, and forwards them to the local Claude Usage panel indicator.",
   "permissions": ["tabs", "scripting", "alarms", "storage", "webNavigation"],
   "host_permissions": [

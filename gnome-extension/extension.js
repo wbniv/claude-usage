@@ -9,9 +9,10 @@ import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
-const CACHE_FILE         = GLib.get_home_dir() + '/.cache/claude-usage/usage.json';
-const NOTIF_TS_FILE      = GLib.get_home_dir() + '/.cache/claude-usage/notif-ts';
-const NOTIF_CRIT_TS_FILE = GLib.get_home_dir() + '/.cache/claude-usage/notif-crit-ts';
+const CACHE_DIR          = GLib.get_user_cache_dir() + '/claude-usage';
+const CACHE_FILE         = CACHE_DIR + '/usage.json';
+const NOTIF_TS_FILE      = CACHE_DIR + '/notif-ts';
+const NOTIF_CRIT_TS_FILE = CACHE_DIR + '/notif-crit-ts';
 const USAGE_URL          = 'https://claude.ai/settings/usage';
 
 function formatReset(reset) {
@@ -24,7 +25,7 @@ function formatReset(reset) {
     m = reset.match(/[Rr]esets? (\w{3}) (\d+):(\d+) (AM|PM)/);
     if (m) {
         const [, day, hStr, mnStr, ap] = m;
-        let h = parseInt(hStr), mn = parseInt(mnStr);
+        let h = parseInt(hStr, 10), mn = parseInt(mnStr, 10);
         if (ap === 'PM' && h !== 12) h += 12;
         else if (ap === 'AM' && h === 12) h = 0;
         const now = new Date();
@@ -182,13 +183,13 @@ class ClaudeIndicator extends PanelMenu.Button {
         this._flashSuppressed = false;
         try {
             const [ok, bytes] = GLib.file_get_contents(NOTIF_TS_FILE);
-            this._lastNotifyTs = ok ? (parseInt(new TextDecoder().decode(bytes)) || 0) : 0;
+            this._lastNotifyTs = ok ? (parseInt(new TextDecoder().decode(bytes), 10) || 0) : 0;
         } catch (_) {
             this._lastNotifyTs = 0;
         }
         try {
             const [ok, bytes] = GLib.file_get_contents(NOTIF_CRIT_TS_FILE);
-            this._lastCritNotifyTs = ok ? (parseInt(new TextDecoder().decode(bytes)) || 0) : 0;
+            this._lastCritNotifyTs = ok ? (parseInt(new TextDecoder().decode(bytes), 10) || 0) : 0;
         } catch (_) {
             this._lastCritNotifyTs = 0;
         }

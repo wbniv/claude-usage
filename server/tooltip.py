@@ -1,9 +1,10 @@
 """Tooltip rendering shared between usage-server.py (60 s tick) and
-generate-icon.py (15 min full POST regen)."""
+generate-icon.py (full POST regen on each scrape)."""
 import datetime, os, re, sys, time
 from pathlib import Path
 
-DESKTOP = Path.home() / '.local/share/applications/claude-usage.desktop'
+_DATA_HOME = Path(os.environ.get('XDG_DATA_HOME') or Path.home() / '.local' / 'share')
+DESKTOP = _DATA_HOME / 'applications' / 'claude-usage.desktop'
 
 WD_MAP = {'Mon': 0, 'Tue': 1, 'Wed': 2, 'Thu': 3, 'Fri': 4, 'Sat': 5, 'Sun': 6}
 

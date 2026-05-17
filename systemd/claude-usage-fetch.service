@@ -1,6 +1,8 @@
 [Unit]
 Description=Claude Usage local data server (receives from Chrome extension)
 After=network.target
+StartLimitBurst=5
+StartLimitIntervalSec=60
 
 [Service]
 Type=simple
@@ -8,17 +10,18 @@ ExecStart=/usr/bin/python3 %h/.local/share/claude-usage/usage-server.py
 Restart=always
 RestartSec=5
 
-# Hardening — service only writes to ~/.cache/claude-usage/ and
-# ~/.local/share/applications/; everything else can be locked down.
+# Hardening — seccomp/limits set that works in user services without CAP_SETPCAP.
+# Namespace/mount-based directives (PrivateTmp, ProtectSystem, ProtectControlGroups,
+# ProtectKernelModules, ProtectKernelTunables) were dropped: on systemd >= 256 they
+# trigger PR_CAPBSET_DROP which user-mode systemd cannot satisfy, so the service
+# exited 218/CAPABILITIES before Python ran. If reintroducing any of them, add
+# ReadWritePaths=%h/.cache/claude-usage %h/.local/share/applications and re-test
+# live on the target systemd version (systemd-analyze verify is syntax-only).
 NoNewPrivileges=yes
-PrivateTmp=yes
-ProtectSystem=strict
-ProtectControlGroups=yes
-ProtectKernelModules=yes
-ProtectKernelTunables=yes
 RestrictAddressFamilies=AF_INET AF_UNIX
 RestrictNamespaces=yes
 LockPersonality=yes
+SystemCallArchitectures=native
 
 [Install]
 WantedBy=default.target

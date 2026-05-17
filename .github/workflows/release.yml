@@ -7,7 +7,7 @@ on:
 
 jobs:
   release:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
 
@@ -30,22 +30,45 @@ jobs:
       - name: Test Chrome extension
         run: task test-scraper
 
-      - name: Cache test Docker image
+      - name: Cache 24.04 test image
         uses: actions/cache@v4
-        id: docker-cache
+        id: docker-cache-2404
         with:
-          path: /tmp/test-image.tar
-          key: deb-test-image-${{ hashFiles('packaging/control', 'packaging/test-deb.Dockerfile') }}
+          path: /tmp/test-image-2404.tar
+          key: deb-test-image-2404-${{ hashFiles('packaging/control', 'packaging/test-deb.Dockerfile') }}
 
-      - name: Load cached test image
-        if: steps.docker-cache.outputs.cache-hit == 'true'
-        run: docker load -i /tmp/test-image.tar
+      - name: Load cached 24.04 image
+        if: steps.docker-cache-2404.outputs.cache-hit == 'true'
+        run: docker load -i /tmp/test-image-2404.tar
 
-      - name: Build test image (cache miss)
-        if: steps.docker-cache.outputs.cache-hit != 'true'
+      - name: Build 24.04 test image (cache miss)
+        if: steps.docker-cache-2404.outputs.cache-hit != 'true'
         run: |
-          task build-test-image
-          docker save claude-usage-test:latest -o /tmp/test-image.tar
+          set -euo pipefail
+          deps=$(grep '^Depends:' packaging/control | sed 's/^Depends: //; s/([^)]*)//g; s/,//g')
+          docker build --build-arg BASE=ubuntu:24.04 --build-arg DEPS="$deps" \
+            -f packaging/test-deb.Dockerfile -t claude-usage-test:24.04 packaging/
+          docker save claude-usage-test:24.04 -o /tmp/test-image-2404.tar
+
+      - name: Cache 25.10 test image
+        uses: actions/cache@v4
+        id: docker-cache-2510
+        with:
+          path: /tmp/test-image-2510.tar
+          key: deb-test-image-2510-${{ hashFiles('packaging/control', 'packaging/test-deb.Dockerfile') }}
+
+      - name: Load cached 25.10 image
+        if: steps.docker-cache-2510.outputs.cache-hit == 'true'
+        run: docker load -i /tmp/test-image-2510.tar
+
+      - name: Build 25.10 test image (cache miss)
+        if: steps.docker-cache-2510.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          deps=$(grep '^Depends:' packaging/control | sed 's/^Depends: //; s/([^)]*)//g; s/,//g')
+          docker build --build-arg BASE=ubuntu:25.10 --build-arg DEPS="$deps" \
+            -f packaging/test-deb.Dockerfile -t claude-usage-test:25.10 packaging/
+          docker save claude-usage-test:25.10 -o /tmp/test-image-2510.tar
 
       - name: Build .deb
         run: task build
@@ -54,16 +77,40 @@ jobs:
         id: version
         run: echo "version=$(grep '^Version:' packaging/control | awk '{print $2}')" >> "$GITHUB_OUTPUT"
 
-      - name: Test .deb
+      - name: Static test .deb on 24.04
         run: |
           docker run --rm \
             -v "$PWD/dist:/dist:ro" \
             -v "$PWD/packaging/test-deb-verify.sh:/usr/local/bin/verify:ro" \
-            claude-usage-test:latest bash -c "
+            claude-usage-test:24.04 bash -c "
             set -euo pipefail
             dpkg -i /dist/claude-usage_${{ steps.version.outputs.version }}_all.deb
             /usr/local/bin/verify
           "
+
+      - name: Static test .deb on 25.10
+        run: |
+          docker run --rm \
+            -v "$PWD/dist:/dist:ro" \
+            -v "$PWD/packaging/test-deb-verify.sh:/usr/local/bin/verify:ro" \
+            claude-usage-test:25.10 bash -c "
+            set -euo pipefail
+            dpkg -i /dist/claude-usage_${{ steps.version.outputs.version }}_all.deb
+            /usr/local/bin/verify
+          "
+
+      # Live smoke test: install the .deb directly on the bare runner (which
+      # has real systemd as PID 1), create a fresh user, start the service,
+      # POST a probe payload, verify the cache write. This is the gate that
+      # would have caught R-1 (218/CAPABILITIES regression from commit 0db082c).
+      # Runs on 24.04 only — GH Actions does not yet offer a 25.10 runner, so
+      # 25.10 systemd capability behavior is verified locally before tag push.
+      - name: Live smoke test on bare 24.04 runner
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y "$PWD/dist/claude-usage_${{ steps.version.outputs.version }}_all.deb"
+          sudo bash packaging/test-deb-live.sh cu-smoke
 
       - name: Build Chrome extension zip
         run: task build-chrome-zip

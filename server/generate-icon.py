@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Generate dock icon PNG with two concentric rings from cached usage data."""
-import cairo, math, json, sys, time
+import cairo, math, json, os, sys, time
 from pathlib import Path
 from PIL import Image, ImageOps
 
@@ -10,14 +10,16 @@ RESAMPLE = getattr(Image, 'Resampling', Image).LANCZOS
 
 from tooltip import update_desktop  # parse_reset, format_tooltip used via update_desktop
 
-CACHE_DIR    = Path.home() / '.cache' / 'claude-usage'
+_CACHE_HOME  = Path(os.environ.get('XDG_CACHE_HOME') or Path.home() / '.cache')
+_DATA_HOME   = Path(os.environ.get('XDG_DATA_HOME')  or Path.home() / '.local' / 'share')
+CACHE_DIR    = _CACHE_HOME / 'claude-usage'
 CACHE_JSON   = CACHE_DIR / 'usage.json'
 
 # Icon ships with the GNOME extension; check user-install path first, then system path.
 _EXT_REL = Path('gnome-shell/extensions/claude-usage@indri.studio/icons/claude-64.png')
 BASE_ICON = next(
     (p for p in [
-        Path.home() / '.local/share' / _EXT_REL,
+        _DATA_HOME / _EXT_REL,
         Path('/usr/share') / _EXT_REL,
     ] if p.exists()),
     None,

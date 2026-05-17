@@ -4,7 +4,11 @@
 # `dpkg -i` the package itself (~10 s vs ~4 min for the full apt-install path).
 #
 # Rebuild trigger: packaging/control changes (Task's `sources:` field tracks it).
-FROM ubuntu:24.04
+#
+# BASE arg selects the Ubuntu version — CI matrix exercises 24.04 + 25.10 so
+# systemd/dependency drift between releases is caught at release time.
+ARG BASE=ubuntu:24.04
+FROM ${BASE}
 
 ARG DEPS
 ENV DEBIAN_FRONTEND=noninteractive

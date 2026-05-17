@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Health check for the Claude Usage indicator."""
-import json, subprocess, sys, time
+import json, os, subprocess, sys, time
 from pathlib import Path
 
-CACHE_JSON = Path.home() / '.cache' / 'claude-usage' / 'usage.json'
+_CACHE_HOME = Path(os.environ.get('XDG_CACHE_HOME') or Path.home() / '.cache')
+CACHE_JSON = _CACHE_HOME / 'claude-usage' / 'usage.json'
 EXT_ID = 'claude-usage@indri.studio'
 
 

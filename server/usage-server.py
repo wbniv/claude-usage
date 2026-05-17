@@ -11,11 +11,13 @@ import tooltip
 # kernel keeps zombies around until the next subprocess._cleanup() sweep.
 signal.signal(signal.SIGCHLD, signal.SIG_IGN)
 
-OUTPUT        = Path.home() / '.cache' / 'claude-usage' / 'usage.json'
-# Source install puts generate-icon.py under ~/.local/share; .deb under /usr/share.
+_CACHE_HOME = Path(os.environ.get('XDG_CACHE_HOME') or Path.home() / '.cache')
+_DATA_HOME  = Path(os.environ.get('XDG_DATA_HOME')  or Path.home() / '.local' / 'share')
+OUTPUT        = _CACHE_HOME / 'claude-usage' / 'usage.json'
+# Source install puts generate-icon.py under XDG_DATA_HOME; .deb under /usr/share.
 GENERATE_ICON = next(
     (p for p in [
-        Path.home() / '.local/share/claude-usage/generate-icon.py',
+        _DATA_HOME / 'claude-usage' / 'generate-icon.py',
         Path('/usr/share/claude-usage/generate-icon.py'),
     ] if p.exists()),
     None,
@@ -247,7 +249,7 @@ class Handler(BaseHTTPRequestHandler):
 
 def _tooltip_tick():
     """Refresh the dock launcher tooltip every 60 s so the countdown
-    timer stays current between 15-min scrape POSTs. In-process call
+    timer stays current between scrape POSTs. In-process call
     via tooltip.update_desktop — no subprocess fork/exec."""
     while True:
         time.sleep(60)
