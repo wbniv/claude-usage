@@ -274,6 +274,12 @@ def _sweep_orphan_tmps():
         return
     for orphan in apps.glob('claude-usage.desktop.tmp.*'):
         try:
+            pid = int(orphan.name.split('.')[-2])
+            if Path(f'/proc/{pid}').exists():
+                continue  # process still alive — not an orphan
+        except (ValueError, IndexError):
+            pass
+        try:
             orphan.unlink()
         except OSError:
             pass

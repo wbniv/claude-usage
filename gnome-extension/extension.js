@@ -234,7 +234,11 @@ class ClaudeIndicator extends PanelMenu.Button {
                 }
             });
         } catch (e) {
-            console.error('ClaudeUsage: file monitor failed', e);
+            console.error('ClaudeUsage: file monitor failed, retrying in 30 s', e);
+            GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 30, () => {
+                this._watchFile();
+                return GLib.SOURCE_REMOVE;
+            });
         }
     }
 

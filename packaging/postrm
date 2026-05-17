@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 case "$1" in
     remove|purge)
         update-desktop-database -q /usr/share/applications/ || true

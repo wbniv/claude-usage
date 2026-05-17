@@ -12,13 +12,13 @@ export function parseResetMinutes(reset) {
   if (!reset) return null;
   let m;
   m = reset.match(/[Rr]esets? in (\d+) hr (\d+) min/);
-  if (m) return parseInt(m[1]) * 60 + parseInt(m[2]);
+  if (m) return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
   m = reset.match(/[Rr]esets? in (\d+) min/);
-  if (m) return parseInt(m[1]);
+  if (m) return parseInt(m[1], 10);
   m = reset.match(/[Rr]esets? (\w{3}) (\d+):(\d+) (AM|PM)/);
   if (m) {
     const [, day, hStr, mnStr, ap] = m;
-    let h = parseInt(hStr), mn = parseInt(mnStr);
+    let h = parseInt(hStr, 10), mn = parseInt(mnStr, 10);
     if (h < 1 || h > 12 || mn < 0 || mn > 59) return null;
     if (ap === 'PM' && h !== 12) h += 12;
     else if (ap === 'AM' && h === 12) h = 0;
@@ -62,7 +62,7 @@ export function doScrape(textContent, extraToggleChecked = false) {
   for (let i = planRange[0]; i < planRange[1]; i++) {
     const pctMatch = lines[i].match(/^(\d+)%\s*used$/i);
     if (!pctMatch) continue;
-    const pct   = Math.min(100, Math.max(0, parseInt(pctMatch[1])));
+    const pct   = Math.min(100, Math.max(0, parseInt(pctMatch[1], 10)));
     const reset = i >= 1 && /[Rr]esets?/.test(lines[i - 1]) ? lines[i - 1] : null;
     const label = i >= 2 ? lines[i - 2] : null;
     if (!label || /^(Weekly limits|Plan usage limits|Learn more)/i.test(label)) continue;
@@ -78,8 +78,8 @@ export function doScrape(textContent, extraToggleChecked = false) {
     for (let i = addlStart + 1; i < end; i++) {
       const countMatch = lines[i].match(/^(\d+)\s*\/\s*(\d+)$/);
       if (!countMatch) continue;
-      const count = parseInt(countMatch[1]);
-      const total = parseInt(countMatch[2]);
+      const count = parseInt(countMatch[1], 10);
+      const total = parseInt(countMatch[2], 10);
       const pct   = Math.min(100, total > 0 ? Math.round(count / total * 100) : 0);
       const label = i >= 2 ? lines[i - 2] : null;
       if (!label || /^(Additional features|Learn more)/i.test(label)) continue;
@@ -97,7 +97,7 @@ export function doScrape(textContent, extraToggleChecked = false) {
       if (spentMatch) { spent = spentMatch[1]; continue; }
       const pctMatch = lines[i].match(/^(\d+)%\s*used$/i);
       if (pctMatch) {
-        pct   = Math.min(100, Math.max(0, parseInt(pctMatch[1])));
+        pct   = Math.min(100, Math.max(0, parseInt(pctMatch[1], 10)));
         reset = i >= 1 && /[Rr]esets?/.test(lines[i - 1]) ? lines[i - 1] : null;
         continue;
       }

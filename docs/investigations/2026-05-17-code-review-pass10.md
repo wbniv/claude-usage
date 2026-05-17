@@ -203,11 +203,11 @@ for orphan in apps.glob('claude-usage.desktop.tmp.*'):
 | ~~E-7~~ | ~~High~~ | ~~XS~~ | ~~extension.js~~ | ~~`_lastCritNotifyTs` not persisted (E-6 missed this field)~~ |
 | ~~E-8~~ | ~~Med~~ | ~~XS~~ | ~~extension.js~~ | ~~CSS injection via `popup-font-family` GSettings value~~ |
 | ~~K-1~~ | ~~Med~~ | ~~XS~~ | ~~build-chrome-zip.sh~~ | ~~`test/` dir bundled in CWS zip~~ |
-| B-5 | Low | XS | background.js, scraper.js | `parseInt` missing radix 10 |
-| M-2 | Low | XS | manifest.json | `host_permissions` broader than needed |
-| K-2 | Low | XS | postinst, postrm | `set -e` only — missing `-uo pipefail` |
-| E-9 | Low | S | extension.js | `_watchFile` failure not retried |
-| S-4 | Low | S | usage-server.py | Orphan sweep races with live `.tmp.*` writer |
+| ~~B-5~~ | ~~Low~~ | ~~XS~~ | ~~background.js, scraper.js~~ | ~~`parseInt` missing radix 10~~ |
+| ~~M-2~~ | ~~Low~~ | ~~XS~~ | ~~manifest.json~~ | ~~`host_permissions` broader than needed~~ |
+| ~~K-2~~ | ~~Low~~ | ~~XS~~ | ~~postinst, postrm~~ | ~~`set -e` only — missing `-uo pipefail`~~ |
+| ~~E-9~~ | ~~Low~~ | ~~S~~ | ~~extension.js~~ | ~~`_watchFile` failure not retried~~ |
+| ~~S-4~~ | ~~Low~~ | ~~S~~ | ~~usage-server.py~~ | ~~Orphan sweep races with live `.tmp.*` writer~~ |
 
 **Effort key:** XS = 1–5 min, S = 15–30 min
 
