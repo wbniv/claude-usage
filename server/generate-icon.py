@@ -212,10 +212,23 @@ def main(tier_override=None):
     tier = tier_override or derive_tier(data)
     dest = _next_icon_path()
     generate(all_pct, sonnet_pct, cfg, dest, tier=tier)
-    for old in CACHE_DIR.glob('icon-*.png'):
-        if old != dest:
+    # Cleanup by mtime, not name equality: when the GNOME extension and the
+    # server POST handler both spawn generate-icon.py near-simultaneously
+    # (e.g. on tier-recovery transitions), each process has a distinct `dest`
+    # and a name-equality check would have them delete each other's icons.
+    # The 1 s grace window tolerates concurrent writers; the next solo regen
+    # cleans up whatever's left over.
+    try:
+        dest_mtime = dest.stat().st_mtime
+    except OSError:
+        dest_mtime = None
+    if dest_mtime is not None:
+        for old in CACHE_DIR.glob('icon-*.png'):
+            if old == dest:
+                continue
             try:
-                old.unlink()
+                if old.stat().st_mtime < dest_mtime - 1.0:
+                    old.unlink()
             except OSError:
                 pass
     update_desktop(meters, dest, scrape_ts=data.get('_timestamp'))

@@ -94,6 +94,15 @@ tasks:
           echo "Tag {{.TAG}} already exists — bump Version in packaging/control first"
           exit 1
         fi
+        # packaging/control and chrome-extension/manifest.json must agree on
+        # the version string — they ship in the same release and a drift
+        # produces a .deb labelled X and a Chrome zip labelled Y.
+        ctl_ver=$(grep '^Version:' packaging/control | awk '{print $2}')
+        ext_ver=$(python3 -c 'import json; print(json.load(open("chrome-extension/manifest.json"))["version"])')
+        if [ "$ctl_ver" != "$ext_ver" ]; then
+          echo "Version mismatch: packaging/control=$ctl_ver, chrome-extension/manifest.json=$ext_ver" >&2
+          exit 1
+        fi
       - git push origin main
       - git tag "{{.TAG}}"
       - git push origin "{{.TAG}}"

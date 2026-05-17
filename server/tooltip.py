@@ -1,6 +1,6 @@
 """Tooltip rendering shared between usage-server.py (60 s tick) and
 generate-icon.py (15 min full POST regen)."""
-import datetime, re, time
+import datetime, os, re, time
 from pathlib import Path
 
 DESKTOP = Path.home() / '.local/share/applications/claude-usage.desktop'
@@ -107,6 +107,11 @@ def update_desktop(meters, icon_path=None, scrape_ts=None):
         elif line.startswith('[') or '=' in line or line == '':
             out.append(line)
         # else: skip orphaned lines from a previous broken write
-    tmp = DESKTOP.with_suffix(DESKTOP.suffix + '.tmp')
+    # Unique per-writer tmp name. Multiple writers can race on this path
+    # (60 s tooltip tick from usage-server.py + generate-icon.py invocations
+    # from both the server's POST handler and the GNOME extension's tier
+    # transitions). A shared `.tmp` filename would let one writer's open()
+    # truncate another's in-flight write.
+    tmp = DESKTOP.with_suffix(f'.desktop.tmp.{os.getpid()}.{time.time_ns()}')
     tmp.write_text('\n'.join(out) + '\n')
     tmp.replace(DESKTOP)

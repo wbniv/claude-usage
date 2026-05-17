@@ -9,9 +9,13 @@ let _fetching = false;
 // Poll Anthropic's public Statuspage. JSON, no auth, doesn't burn tokens.
 // Returns the compact subset the GNOME extension uses to compute the broken
 // tier; null on network/parse failure (treated as "no signal", not "no outage").
+// 5 s timeout via AbortController — a slow statuspage during a co-incident
+// outage shouldn't hold `_fetching` open and block the next scrape cycle.
 async function fetchAnthropicStatus() {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 5000);
     try {
-        const resp = await fetch(STATUS_URL);
+        const resp = await fetch(STATUS_URL, { signal: ctl.signal });
         if (!resp.ok) return null;
         const j = await resp.json();
         const claudeAi = (j.components || []).find(c => c.name === 'claude.ai');
@@ -22,6 +26,8 @@ async function fetchAnthropicStatus() {
         };
     } catch (_) {
         return null;
+    } finally {
+        clearTimeout(timer);
     }
 }
 
@@ -166,11 +172,12 @@ async function scrapeAndPost(tabId) {
     console.warn('Claude Usage: no meters extracted');
     // Partial update: increment scrape-fail counter, push the new count
     // and the status-page result to the server. Server's merge logic
-    // preserves last-known meters/plan/_timestamp.
+    // preserves last-known meters/plan/_timestamp. Always include
+    // _anthropic_status (even when null) so the cache clears a stale
+    // outage flag once the incident resolves.
     const fails = (await getFailCount()) + 1;
     await setFailCount(fails);
-    const partial = { _scrape_fail_count: fails };
-    if (anthropic_status) partial._anthropic_status = anthropic_status;
+    const partial = { _scrape_fail_count: fails, _anthropic_status: anthropic_status };
     try {
       await fetch(LOCAL_SERVER, {
         method: 'POST',
@@ -189,9 +196,12 @@ async function scrapeAndPost(tabId) {
   }
 
   // Successful scrape — reset the fail counter, attach status-page result.
+  // _anthropic_status may be null (statuspage fetch failed or timed out);
+  // include it anyway so the server's merge clears any stale outage flag
+  // that would otherwise outlive its incident.
   await setFailCount(0);
   data._scrape_fail_count = 0;
-  if (anthropic_status) data._anthropic_status = anthropic_status;
+  data._anthropic_status = anthropic_status;
 
   try {
     const resp = await fetch(LOCAL_SERVER, {
@@ -280,8 +290,9 @@ async function fetchUsage() {
       const fails = (await getFailCount()) + 1;
       await setFailCount(fails);
       const anthropic_status = await fetchAnthropicStatus();
-      const partial = { _scrape_fail_count: fails };
-      if (anthropic_status) partial._anthropic_status = anthropic_status;
+      // Always include _anthropic_status (may be null) so the server clears
+      // any stale outage flag from a prior cycle.
+      const partial = { _scrape_fail_count: fails, _anthropic_status: anthropic_status };
       await fetch(LOCAL_SERVER, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -303,7 +314,11 @@ async function fetchUsage() {
 // so a page reload or a second usage tab doesn't double-fire.
 chrome.tabs.onUpdated.addListener(async (tabId, info, tab) => {
   if (info.status !== 'complete') return;
-  if (!tab.url || !tab.url.startsWith(USAGE_URL)) return;
+  if (!tab.url) return;
+  // Exact match on the path, ignoring query string / fragment. `startsWith`
+  // would also match hypothetical siblings like `/settings/usage-policy`.
+  const stripped = tab.url.split(/[?#]/, 1)[0];
+  if (stripped !== USAGE_URL) return;
   // Skip while toolbar/alarm scrape is running — that path includes its
   // own tabs.create which would otherwise fire this listener.
   if (_fetching) return;

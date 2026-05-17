@@ -60,10 +60,13 @@ def _validate(body):
                 if err:
                     return err
             rm = m.get('reset_minutes')
+            # Upper bound = 31 days. Longest plausible period is the 7-day weekly
+            # meter; 31 days has headroom for any hypothetical monthly meter and
+            # caps poisoned `_period_lengths` accumulation from huge inputs.
             if rm is not None and (
-                isinstance(rm, bool) or not isinstance(rm, int) or rm < 0
+                isinstance(rm, bool) or not isinstance(rm, int) or rm < 0 or rm > 60 * 24 * 31
             ):
-                return f"meters[{i}].reset_minutes must be a non-negative integer or null"
+                return f"meters[{i}].reset_minutes must be in [0, 44640] or null"
     err = _bounded_str(body.get('plan'), 'plan')
     if err:
         return err
@@ -81,8 +84,20 @@ def _validate(body):
             err = _bounded_str(astat.get(k), f"_anthropic_status.{k}")
             if err:
                 return err
+    pl = body.get('_period_lengths')
+    if pl is not None:
+        if not isinstance(pl, dict):
+            return "'_period_lengths' must be an object"
+        for k, v in pl.items():
+            if not isinstance(k, str) or len(k) > MAX_STR_LEN:
+                return f"'_period_lengths' keys must be strings ≤ {MAX_STR_LEN} chars"
+            # Same upper bound as reset_minutes (31 days). bool ⊂ int — reject first.
+            if isinstance(v, bool) or not isinstance(v, int) or v < 0 or v > 60 * 24 * 31:
+                return f"'_period_lengths[{k!r}]' must be a non-negative integer ≤ 44640"
     ts = body.get('_timestamp') or body.get('timestamp')
-    if ts is not None and not isinstance(ts, (int, float)):
+    # bool ⊂ int — reject first so {"_timestamp": true} doesn't pass and end
+    # up as anchor_ts=True downstream (time.time() - True = epoch - 1).
+    if ts is not None and (isinstance(ts, bool) or not isinstance(ts, (int, float))):
         return "'_timestamp' must be a number"
     return None
 
@@ -171,9 +186,15 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(reply)
 
     def _cors(self):
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'POST, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        # The Chrome extension uses host_permissions for 127.0.0.1, so its
+        # fetches bypass CORS entirely — Origin is absent on the happy path.
+        # Drive-by web pages send their real Origin; only emit Allow-Origin
+        # for extension-style origins so browsers reject the rest.
+        origin = self.headers.get('Origin', '')
+        if origin.startswith('chrome-extension://'):
+            self.send_header('Access-Control-Allow-Origin', origin)
+            self.send_header('Access-Control-Allow-Methods', 'POST, OPTIONS')
+            self.send_header('Access-Control-Allow-Headers', 'Content-Type')
 
     def log_message(self, *_):  # silence access log
         pass
