@@ -154,7 +154,10 @@ def _tooltip_tick():
         try:
             if OUTPUT.exists():
                 data = json.loads(OUTPUT.read_text())
-                tooltip.update_desktop(data.get('meters', []))
+                tooltip.update_desktop(
+                    data.get('meters', []),
+                    scrape_ts=data.get('_timestamp'),
+                )
         except Exception as e:
             print(f"tooltip tick: {e}", file=sys.stderr, flush=True)
 

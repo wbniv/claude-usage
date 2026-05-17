@@ -1,15 +1,35 @@
 """Tooltip rendering shared between usage-server.py (60 s tick) and
 generate-icon.py (15 min full POST regen)."""
-import datetime, re
+import datetime, re, time
 from pathlib import Path
 
 DESKTOP = Path.home() / '.local/share/applications/claude-usage.desktop'
 
 
-def parse_reset(reset):
-    """Returns (is_countdown, display) or None. Countdown shows ⏱h:mm; day shows 'Tue 1:00'."""
+def parse_reset(reset, reset_minutes=None, anchor_ts=None):
+    """Returns (is_countdown, display) or None. Countdown shows ⏱h:mm; day shows 'Tue 1:00'.
+
+    When reset_minutes (the snapshot value at scrape time) and anchor_ts
+    (the cache's _timestamp) are both supplied, the "Resets in …"
+    countdown forms are recomputed as `reset_minutes - minutes_elapsed`
+    so the tooltip ticks down minute-by-minute between scrapes. The
+    "Resets Tue 5 PM" day/time form below uses datetime.now() and is
+    already live regardless of these args."""
     if not reset:
         return None
+
+    # Live countdown: prefer snapshot + elapsed over re-parsing the
+    # frozen literal in `reset`. Only applies to "Resets in …" forms;
+    # the day/time form has its own live-recomputation path below.
+    if reset_minutes is not None and anchor_ts is not None \
+            and re.match(r'[Rr]esets? in \d+', reset):
+        # Floor-divide elapsed seconds by 60 so the countdown only ticks
+        # down after a full minute passes (i.e., at scrape time + 0 s
+        # shows the scraped value, not value-1 from FP drift).
+        elapsed_min = max(0, int((time.time() - anchor_ts) // 60))
+        remaining = max(0, reset_minutes - elapsed_min)
+        return (True, f"{remaining // 60}:{remaining % 60:02d}")
+
     m = re.match(r'[Rr]esets? in (\d+) hr (\d+) min', reset)
     if m:
         return (True, f"{m.group(1)}:{int(m.group(2)):02d}")
@@ -37,7 +57,7 @@ def parse_reset(reset):
     return None
 
 
-def format_tooltip(meters):
+def format_tooltip(meters, anchor_ts=None):
     find = lambda kw: next((m for m in meters if kw in (m.get('label') or '').lower()), None)
     current = find('session') or find('current')
     all_m   = find('all')
@@ -50,7 +70,11 @@ def format_tooltip(meters):
         if key == 'sonnet' and pct == 0:
             continue
         part = f"{key} {pct}%"
-        reset_info = parse_reset(meter.get('reset'))
+        reset_info = parse_reset(
+            meter.get('reset'),
+            reset_minutes=meter.get('reset_minutes'),
+            anchor_ts=anchor_ts,
+        )
         if reset_info:
             is_countdown, display = reset_info
             part += f" ⏱{display}" if is_countdown else f" {display}"
@@ -58,15 +82,19 @@ def format_tooltip(meters):
     return '   |   '.join(parts) if parts else 'Claude Usage'
 
 
-def update_desktop(meters, icon_path=None):
+def update_desktop(meters, icon_path=None, scrape_ts=None):
     """Rewrite the .desktop launcher's Name= line with a fresh tooltip.
 
     If icon_path is None, preserve the existing Icon= line — that's the
     path the 60 s tick takes from usage-server.py; the 15 min regen
-    from generate-icon.py passes a fresh timestamped path."""
+    from generate-icon.py passes a fresh timestamped path.
+
+    scrape_ts is the cache's _timestamp (epoch seconds when the scrape
+    landed); when supplied, countdown-form resets are recomputed live
+    in parse_reset so the tooltip ticks down between scrapes."""
     if not DESKTOP.exists():
         return
-    name = format_tooltip(meters).replace('\n', r'\n')
+    name = format_tooltip(meters, anchor_ts=scrape_ts).replace('\n', r'\n')
     lines = DESKTOP.read_text().splitlines()
     out = []
     for line in lines:

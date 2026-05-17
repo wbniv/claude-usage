@@ -180,7 +180,7 @@ def main():
                 old.unlink()
             except OSError:
                 pass
-    update_desktop(meters, dest)
+    update_desktop(meters, dest, scrape_ts=data.get('_timestamp'))
     print(f'Icon: All={all_pct:.0f}% Sonnet={sonnet_pct:.0f}% (pacing)', flush=True)
 
 if __name__ == '__main__':

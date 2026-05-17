@@ -323,7 +323,43 @@ it's a tiny inference artifact. Update the storage list under
    (per project convention — extension.js changes need gnome-shell
    reload which is disruptive on Wayland).
 
-## Post-implementation
+## Post-implementation: tooltip refresh + countdown live-recompute
+
+(Captured here because the tooltip refresh built on the `reset_minutes`
+field this plan introduced — they share the same scrape→cache→consumer
+data path.)
+
+Shipped as `feat(tooltip): 60 s dock-launcher tooltip refresh` at
+0.10.1: `server/tooltip.py` (new) hosts `parse_reset` / `format_tooltip`
+/ `update_desktop` shared between `generate-icon.py` (15 min full
+regen) and a new 60 s daemon thread in `usage-server.py` (in-process
+tooltip rewrite, no subprocess). Verified end-to-end: after restart
+the `.desktop` mtime updated exactly 60 s later.
+
+**Post-deploy discovery + fix (0.10.2):** the 60 s tick updated the
+file mtime but the **countdown digits didn't change** — `parse_reset`
+for the `"Resets in X hr Y min"` form just re-parsed the literal
+numbers from the frozen scrape string, producing the same output
+forever. The day/time form (`"Resets Tue 5 PM"`) ticked down correctly
+because it uses `datetime.now()` live.
+
+Fix: extend `parse_reset(reset, reset_minutes=None, anchor_ts=None)`.
+When both kwargs are supplied (and the form is countdown-style),
+recompute as `reset_minutes - floor((now - anchor_ts) / 60)`. Floor-
+divide so the countdown only decrements after a full minute passes
+(scrape-time + 0 s shows the scraped value, not value-1 from FP drift).
+Threaded `anchor_ts` through `format_tooltip(meters, anchor_ts=None)`
+and `update_desktop(meters, icon_path=None, scrape_ts=None)`. Callers
+in `usage-server.py` (tick) and `generate-icon.py` (15 min regen)
+both pass `data.get('_timestamp')`.
+
+This is why this fix belongs in the same plan as
+`_period_lengths`/`reset_minutes`: it reuses `reset_minutes` (added
+here for pacing) as the snapshot value that the live-countdown
+recompute subtracts from. Without `reset_minutes` in the cache the
+tooltip would have had to re-parse the string each tick — same bug.
+
+
 
 `MANUAL.md` and `PRIVACY.md` updates are part of the implementation
 commit, not a separate pass — see the corresponding sections above.
