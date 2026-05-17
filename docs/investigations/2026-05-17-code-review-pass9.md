@@ -46,7 +46,7 @@ This is a heuristic to wait for React hydration. On a slow machine the page may 
 
 After `chrome.tabs.create`, the tab ID is written to `_scrape_tabs` to survive a service-worker crash. However, between `chrome.tabs.create` and the `chrome.storage.local.set`, a crash would leave the tab open with no record of it. On restart, the cleanup loop finds `_scrape_tabs: []` and skips it. The leaked tab requires a manual browser restart to remove.
 
-This is an inherently small window and not security-relevant, but worth noting in the crash-recovery story.
+**Verdict: won't fix — gap is negligible.** Flipping the order (storage write before tab load) doesn't help because `tabs.create` must return before we have an ID to store. The gap is a single microtask turn between `tabs.create` resolving and `storage.set` completing. Chrome service workers can only be suspended at `await` boundaries when no tasks are queued; since `tabs.create` just resolved, the engine is still active and suspension cannot occur here in practice. Added to `docs/wont-fix.md`.
 
 #### B-4 · Outer catch in `fetchUsage` reports to local server — which may also fail (Low)
 

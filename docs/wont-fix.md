@@ -40,6 +40,17 @@ When the server's POST handler invokes `generate-icon.py` it does not pass `--ti
 
 ---
 
+## B‑3 — `_scrape_tabs` tab leak between `tabs.create` and `storage.set`
+
+**Source:** [pass-9 review](investigations/2026-05-17-code-review-pass9.md)  
+**Verdict:** Won't fix — gap is negligible in practice
+
+The concern: if the service worker is suspended in the single microtask turn between `chrome.tabs.create` resolving and `chrome.storage.local.set` completing, the tab ID is never persisted and the orphan-cleanup loop on next wake-up won't find it.
+
+Why it doesn't matter: Chrome service workers can only be suspended at `await` boundaries when the task queue is empty. `tabs.create` just resolved, so the engine is still processing that microtask checkpoint — suspension cannot fire here. The window is real in theory but unreachable in Chrome's scheduler. The alternative (persist before create) is impossible because the ID doesn't exist until after `tabs.create` returns. No fix available that reduces risk meaningfully.
+
+---
+
 ## Won't Fix — Not a Bug
 
 ### BUG‑4 — Weekday numbering inconsistency (Python vs JavaScript)
