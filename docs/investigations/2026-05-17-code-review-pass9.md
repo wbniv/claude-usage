@@ -351,17 +351,17 @@ The scraper (`background.js:scrapeAndPost`) relies on line-by-line text layout o
 | ~~E-2~~ | ~~Medium~~ | ~~XS~~ | ~~extension.js~~ | ~~`logError` deprecated in GNOME 48+~~ |
 | ~~E-3~~ | ~~Medium~~ | ~~M~~ | ~~extension.js~~ | ~~Synchronous file I/O on GNOME Shell main thread~~ |
 | ~~P-1~~ | ~~Medium~~ | ~~S~~ | ~~prefs.js~~ | ~~Warning/critical thresholds not constrained relative to each other~~ |
-| T-2 | Low | XS | tooltip.py | Unrecognised .desktop lines silently dropped |
-| T-3 | Low | XS | tooltip.py | Meter keyword match fragile for future label changes |
-| E-4 | Low | XS | extension.js | Stale `panel-metric` preference never cleared |
-| E-5 | Low | XS | extension.js | `_anyCrit`/`_flashSuppressed` not initialised in `_init` |
+| ~~T-2~~ | ~~Low~~ | ~~XS~~ | ~~tooltip.py~~ | ~~Unrecognised .desktop lines silently dropped~~ |
+| ~~T-3~~ | ~~Low~~ | ~~XS~~ | ~~tooltip.py~~ | ~~Meter keyword match fragile for future label changes~~ |
+| ~~E-4~~ | ~~Low~~ | ~~XS~~ | ~~extension.js~~ | ~~Stale `panel-metric` preference never cleared~~ |
+| ~~E-5~~ | ~~Low~~ | ~~XS~~ | ~~extension.js~~ | ~~`_anyCrit`/`_flashSuppressed` not initialised in `_init`~~ |
 | E-6 | Low | — | extension.js | Notification cooldown resets on extension reload |
-| B-1 | Low | XS | background.js | `reset_minutes` return not capped at parse site |
+| ~~B-1~~ | ~~Low~~ | ~~XS~~ | ~~background.js~~ | ~~`reset_minutes` return not capped at parse site~~ |
 | ~~B-2~~ | ~~Low~~ | ~~—~~ | ~~background.js~~ | ~~3-second scrape delay is a heuristic~~ |
 | B-3 | Low | S | background.js | Tab leak window between create and storage write |
-| B-4 | Low | XS | background.js | Error-report fetch failure fully silenced |
-| G-2 | Low | — | generate-icon.py | Substring `find_meter` vulnerable to label prefix collisions |
-| G-3 | Low | XS | generate-icon.py | Silent color-fallback gives no journal entry |
+| ~~B-4~~ | ~~Low~~ | ~~XS~~ | ~~background.js~~ | ~~Error-report fetch failure fully silenced~~ |
+| ~~G-2~~ | ~~Low~~ | ~~—~~ | ~~generate-icon.py~~ | ~~Substring `find_meter` vulnerable to label prefix collisions~~ |
+| ~~G-3~~ | ~~Low~~ | ~~XS~~ | ~~generate-icon.py~~ | ~~Silent color-fallback gives no journal entry~~ |
 | M-1 | Low | XS | manifest.json | Version mismatch with README |
 | I-1 | Low | XS | install.sh | `set -euo pipefail` not confirmed |
 

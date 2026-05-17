@@ -59,6 +59,7 @@ def load_config():
             try:
                 hex_to_rgba(cfg[key])
             except Exception:
+                print(f"warning: invalid color for {key!r}, using default", file=sys.stderr, flush=True)
                 cfg[key] = DEFAULTS[key]
         return cfg
     except Exception:
@@ -202,6 +203,7 @@ def main(tier_override=None):
     data   = json.loads(CACHE_JSON.read_text())
     meters = data.get('meters', [])
     period_lens = data.get('_period_lengths', {}) or {}
+    # substring match — works for current labels; revisit if Anthropic adds "overall" etc.
     find_meter = lambda kw: next(
         (m for m in meters if kw in (m.get('label') or '').lower()), None)
     all_m    = find_meter('all')

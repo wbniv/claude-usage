@@ -70,7 +70,7 @@ function parseResetMinutes(reset) {
     const target = new Date(now);
     target.setDate(now.getDate() + ahead);
     target.setHours(h, mn, 0, 0);
-    return Math.floor((target - now) / 60000);
+    return Math.min(Math.floor((target - now) / 60000), 60 * 24 * 31);
   }
   return null;
 }
@@ -324,6 +324,7 @@ async function fetchUsage() {
       // Always include _anthropic_status (may be null) so the server clears
       // any stale outage flag from a prior cycle.
       const partial = { _scrape_fail_count: fails, _anthropic_status: anthropic_status };
+      console.warn('Claude Usage: reporting error to local server');
       await fetch(LOCAL_SERVER, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

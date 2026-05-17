@@ -175,6 +175,8 @@ class ClaudeIndicator extends PanelMenu.Button {
             }
         });
 
+        this._anyCrit = false;
+        this._flashSuppressed = false;
         this._watchFile();
         this._loadData();
 
@@ -437,6 +439,7 @@ class ClaudeIndicator extends PanelMenu.Button {
         if (label) {
             const found = meters.find(m => m.label === label && this._isSelectable(m));
             if (found) return found;
+            this._settings.set_string('panel-metric', '');  // stale — clear it
         }
         return meters.find(m => /all/i.test(m.label ?? '') && this._isSelectable(m))
             || meters.find(m => this._isSelectable(m))

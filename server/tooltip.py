@@ -1,6 +1,6 @@
 """Tooltip rendering shared between usage-server.py (60 s tick) and
 generate-icon.py (15 min full POST regen)."""
-import datetime, os, re, time
+import datetime, os, re, sys, time
 from pathlib import Path
 
 DESKTOP = Path.home() / '.local/share/applications/claude-usage.desktop'
@@ -69,6 +69,9 @@ def format_tooltip(meters, anchor_ts=None):
     current = find('session') or find('current')
     all_m   = find('all')
     sonnet  = find('sonnet')
+    if meters and not (current or all_m):
+        print("warning: no recognisable meter labels found; tooltip may be empty",
+              file=sys.stderr, flush=True)
     parts = []
     for key, meter in [('current', current), ('all', all_m), ('sonnet', sonnet)]:
         if not meter:
@@ -121,6 +124,7 @@ def update_desktop(meters, icon_path=None, scrape_ts=None):
                 out.append(line)
             elif line.startswith('[') or '=' in line or line == '':
                 out.append(line)
-            # else: skip orphaned lines from a previous broken write
+            else:
+                out.append(line)
         tmp.write_text('\n'.join(out) + '\n')
     tmp.replace(DESKTOP)

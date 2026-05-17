@@ -68,6 +68,16 @@ describe('parseResetMinutes', () => {
     assert.ok(result !== null && result >= 1 && result <= WEEK_MINS);
   });
 
+  // 31-day cap — any weekday result must be ≤ 60 * 24 * 31
+  const MONTH_MINS = 60 * 24 * 31;
+  it('weekday result is always ≤ 31-day cap', () => {
+    for (const str of ['Resets Mon 12:00 AM', 'Resets Sun 11:59 PM', 'Resets Sat 6:00 PM']) {
+      const result = parseResetMinutes(str);
+      assert.ok(result !== null && result <= MONTH_MINS,
+        `expected ≤ ${MONTH_MINS}, got ${result}`);
+    }
+  });
+
   // Invalid ranges
   it('"Resets Tue 13:00 PM" → null (hour > 12)', () => {
     assert.equal(parseResetMinutes('Resets Tue 13:00 PM'), null);

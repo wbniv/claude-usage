@@ -33,7 +33,7 @@ export function parseResetMinutes(reset) {
     const target = new Date(now);
     target.setDate(now.getDate() + ahead);
     target.setHours(h, mn, 0, 0);
-    return Math.floor((target - now) / 60000);
+    return Math.min(Math.floor((target - now) / 60000), 60 * 24 * 31);
   }
   return null;
 }
