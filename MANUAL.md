@@ -83,6 +83,8 @@ cd claude-usage
 
 `install.sh` installs Python deps (`python3-cairo`, `python3-pil`) via apt automatically if missing.
 
+> **Pick one install method.** Running the `.deb` and source installs simultaneously creates a systemd unit conflict: `install.sh` registers a user-level `claude-usage-fetch.service` that takes precedence over the system-level unit from the `.deb`, so one service silently never runs. If switching methods, uninstall the old one first (see [Uninstall](#uninstall)).
+
 ### Both paths — complete setup
 
 **Load the Chrome extension:**
