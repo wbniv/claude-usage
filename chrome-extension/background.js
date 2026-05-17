@@ -87,7 +87,7 @@ async function scrapeAndPost(tabId) {
   const [result] = await chrome.scripting.executeScript({
     target: { tabId },
     func: () => {
-      const body = document.body.innerText;
+      const body = document.body.textContent;
       const lines = body.split('\n').map(l => l.trim()).filter(l => l.length > 0);
       const meters = [];
       let plan = null;

@@ -13,7 +13,7 @@ const CACHE_FILE = GLib.get_home_dir() + '/.cache/claude-usage/usage.json';
 const USAGE_URL  = 'https://claude.ai/settings/usage';
 
 function formatReset(reset) {
-    if (!reset) return '';
+    if (!reset || typeof reset !== 'string') return '';
     let m;
     m = reset.match(/[Rr]esets? in (\d+) hr (\d+) min/);
     if (m) return `resets in ⏱${m[1]}:${m[2].padStart(2, '0')}`;
@@ -290,9 +290,14 @@ class ClaudeIndicator extends PanelMenu.Button {
         } else if (!this._anyCrit) {
             const now = Date.now();
             if (now - (this._lastCritNotifyTs || 0) > 5 * 60 * 1000) {
-                const critMeter = d.meters.find(m => pacingPct(m, periodLens) >= tCrit);
+                let critPacing = 0;
+                const critMeter = d.meters.find(m => {
+                    const p = pacingPct(m, periodLens);
+                    if (p >= tCrit) { critPacing = p; return true; }
+                    return false;
+                });
                 Main.notify('Claude Usage',
-                    `⚠ ${critMeter?.label ?? 'A meter'} is at ${Math.round(pacingPct(critMeter, periodLens))}% pacing`);
+                    `⚠ ${critMeter.label} is at ${Math.round(critPacing)}% pacing`);
                 this._lastCritNotifyTs = now;
             }
             if (!this._flashSuppressed) this._startFlash();

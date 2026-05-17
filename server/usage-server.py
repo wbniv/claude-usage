@@ -20,6 +20,8 @@ GENERATE_ICON = next(
     ] if p.exists()),
     None,
 )
+if GENERATE_ICON is None:
+    print("warning: generate-icon.py not found; dock icon updates disabled", file=sys.stderr, flush=True)
 PORT = 7331
 MAX_STR_LEN = 128
 

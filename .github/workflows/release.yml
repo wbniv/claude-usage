@@ -37,15 +37,18 @@ jobs:
       - name: Build .deb
         run: task build
 
+      - name: Extract version
+        id: version
+        run: echo "version=$(grep '^Version:' packaging/control | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+
       - name: Test .deb
         run: |
-          VERSION=$(grep '^Version:' packaging/control | awk '{print $2}')
           docker run --rm \
             -v "$PWD/dist:/dist:ro" \
             -v "$PWD/packaging/test-deb-verify.sh:/usr/local/bin/verify:ro" \
             claude-usage-test:latest bash -c "
             set -euo pipefail
-            dpkg -i /dist/claude-usage_${VERSION}_all.deb
+            dpkg -i /dist/claude-usage_${{ steps.version.outputs.version }}_all.deb
             /usr/local/bin/verify
           "
 
@@ -56,9 +59,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION=$(grep '^Version:' packaging/control | awk '{print $2}')
           gh release create "${{ github.ref_name }}" \
-            "dist/claude-usage_${VERSION}_all.deb" \
-            "dist/claude-usage-chrome-${VERSION}.zip" \
+            "dist/claude-usage_${{ steps.version.outputs.version }}_all.deb" \
+            "dist/claude-usage-chrome-${{ steps.version.outputs.version }}.zip" \
             --title "Claude Usage ${{ github.ref_name }}" \
             --generate-notes
