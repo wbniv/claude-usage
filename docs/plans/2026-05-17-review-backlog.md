@@ -69,7 +69,7 @@ Omitted: `ProtectHome=` (breaks home-dir writes), `PrivateNetwork=yes` (breaks H
 
 | Item | Status |
 |------|--------|
-| CQ8 (pass 5) — `Name=` overwrite in `update_desktop` affects Activities search | Deferred — needs live GNOME session test |
+| CQ8 (pass 5) — `Name=` overwrite in `update_desktop` affects Activities search | Won't fix — live dock hover tooltip is more valuable than clean Activities search title; search still works via substring match |
 | A2 — `metadata.json` has `version: 1` | Deferred — only relevant for EGO (extensions.gnome.org) submission |
 | A5 — `dist/` accumulates old `.deb` versions | Deferred — cosmetic |
 | CQ6-6 — server-spawned generate-icon missing `--tier` | Won't fix — asymmetry by design |

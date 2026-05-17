@@ -209,7 +209,7 @@ These were noted in pass 6 and remain open (intentionally deferred or out of sco
 - **CQ6-7** — `_period_lengths` accumulates labels forever. Bounded by label universe.
 - **CQ6-13** — SPA navigation auto-scrape gap. `webNavigation` permission would close it; not worth the manifest addition.
 - **CQ6-14** — MANUAL.md status example text drift. Cosmetic.
-- **CQ8** (pass 5) — `update_desktop`'s `Name=` overwrite affects Activities search. Needs live GNOME test; deferred.
+- **CQ8** (pass 5) — `update_desktop`'s `Name=` overwrite affects Activities search. Tested live: won't fix — live dock hover tooltip is more valuable than clean Activities search title; search still works via substring match.
 - **A1–A5** — No CI, `metadata.json` version=1, source/.deb install conflict, version sync (closed by A4), dist/ cleanup. Backlog.
 
 ---
@@ -283,7 +283,7 @@ The remaining surface for future passes is dominated by **architecture and opera
 
 Same recipe as pass 6:
 1. GitHub Actions on tag push (parked since pass 4).
-2. Activities-search `Name=` fix (CQ8 from pass 5 — needs live GNOME test).
+2. ~~Activities-search `Name=` fix (CQ8 from pass 5)~~ — won't fix; live tooltip preferred.
 3. `webNavigation` permission for SPA auto-scrape (CQ6-13).
 4. systemd hardening directives (defense in depth).
 5. Single Python diagnostics binary instead of the bash-+-heredoc claude-usage-status (cosmetic now that the heredoc is one block).
