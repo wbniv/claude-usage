@@ -315,19 +315,11 @@ async function fetchUsage() {
   }
 }
 
-// Auto-scrape when the user opens claude.ai/settings/usage in any tab
-// (popup "Open Usage Page" item, bookmark, link, address bar). Skips
-// our own scrape tab and debounces against the last successful scrape
-// so a page reload or a second usage tab doesn't double-fire.
-chrome.tabs.onUpdated.addListener(async (tabId, info, tab) => {
-  if (info.status !== 'complete') return;
-  if (!tab.url) return;
-  // Exact match on the path, ignoring query string / fragment. `startsWith`
-  // would also match hypothetical siblings like `/settings/usage-policy`.
-  const stripped = tab.url.split(/[?#]/, 1)[0];
-  if (stripped !== USAGE_URL) return;
-  // Skip while toolbar/alarm scrape is running — that path includes its
-  // own tabs.create which would otherwise fire this listener.
+// Shared guard for both auto-scrape paths below. Checks URL, debounce,
+// and in-flight state before handing off to scrapeAndPost.
+async function _autoScrapeIfEligible(tabId, url) {
+  // Exact match on path, ignoring query string / fragment.
+  if (url.split(/[?#]/, 1)[0] !== USAGE_URL) return;
   if (_fetching) return;
   const { _scrape_tabs = [], _last_scrape_ts = 0 } =
       await chrome.storage.local.get(['_scrape_tabs', '_last_scrape_ts']);
@@ -341,7 +333,22 @@ chrome.tabs.onUpdated.addListener(async (tabId, info, tab) => {
   } finally {
     _fetching = false;
   }
+}
+
+// Auto-scrape on hard navigation (address bar, bookmark, new tab, page reload).
+chrome.tabs.onUpdated.addListener(async (tabId, info, tab) => {
+  if (info.status !== 'complete') return;
+  if (!tab.url) return;
+  await _autoScrapeIfEligible(tabId, tab.url);
 });
+
+// Auto-scrape on SPA navigation (claude.ai sidebar → Settings → Usage).
+// tabs.onUpdated never fires `status: complete` for history.pushState;
+// webNavigation.onHistoryStateUpdated covers that path.
+chrome.webNavigation.onHistoryStateUpdated.addListener(
+  async ({ tabId, url }) => { await _autoScrapeIfEligible(tabId, url); },
+  { url: [{ hostEquals: 'claude.ai' }] }
+);
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.alarms.create('fetch-usage', {
