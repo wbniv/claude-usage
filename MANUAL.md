@@ -20,7 +20,7 @@ The ✳ is the Anthropic star logo icon. Color-coded: green below the warning th
 
 <img src="docs/popup-screenshot.png" width="564">
 
-The `✳` marks the metric shown in the panel label.
+The `✴` marks the metric shown in the panel label.
 
 With extra usage enabled on your account, a second section appears:
 

@@ -255,7 +255,7 @@ class ClaudeIndicator extends PanelMenu.Button {
                 sawExtra = true;
             }
             const active = !row.isSub && row.meter === primary;
-            const prefix = active ? '✳ ' : '  ';
+            const prefix = active ? '✴ ' : '  ';
             const eligible = !row.isSub && this._isEligible(row.meter);
             const item     = new PopupMenu.PopupMenuItem(prefix + row.text, {reactive: eligible});
             if (eligible) {
