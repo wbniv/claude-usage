@@ -70,7 +70,7 @@ Omitted: `ProtectHome=` (breaks home-dir writes), `PrivateNetwork=yes` (breaks H
 | Item | Status |
 |------|--------|
 | CQ8 (pass 5) — `Name=` overwrite in `update_desktop` affects Activities search | Deferred — needs live GNOME session test |
-| A2 — `metadata.json` has `version: 1` | Deferred — only relevant for EGO submission |
+| A2 — `metadata.json` has `version: 1` | Deferred — only relevant for EGO (extensions.gnome.org) submission |
 | A5 — `dist/` accumulates old `.deb` versions | Deferred — cosmetic |
 | CQ6-6 — server-spawned generate-icon missing `--tier` | Won't fix — asymmetry by design |
 | CQ6-7 — `_period_lengths` accumulates labels forever | Won't fix — bounded by label universe |

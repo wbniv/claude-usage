@@ -218,7 +218,7 @@ These were noted in pass 6 and remain open (intentionally deferred or out of sco
 
 The same set as pass 6:
 1. **No GitHub Actions on tag push** — pass 4+ recurring observation.
-2. **`metadata.json` version=1** — only blocks EGO submission.
+2. **`metadata.json` version=1** — only blocks EGO (extensions.gnome.org) submission.
 3. **Source + `.deb` install precedence conflict** — doc-note-only fix.
 4. **`dist/` accumulates old `.deb`s** — 0.9.1 → 0.10.6, ~13 versions, ~1 MB total. Cosmetic.
 
