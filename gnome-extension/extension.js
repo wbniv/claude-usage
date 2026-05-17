@@ -49,6 +49,22 @@ function bar(pct, width = 10) {
     return '█'.repeat(Math.max(0, filled)) + '░'.repeat(Math.max(0, width - filled));
 }
 
+// pacing_pct = pct / fraction_elapsed — "% you'd hit by reset at this
+// burn rate" with no cap. 100 = on pace, > 100 = over pace. Falls back
+// to raw pct when reset_minutes/period unknown or fraction_elapsed is
+// too small to trust (early in the period). Used only for color
+// decisions; displayed numbers stay raw.
+function pacingPct(meter, periodLens) {
+    const pct = meter.pct;
+    if (typeof pct !== 'number' || pct === 0) return pct ?? 0;
+    const rm = meter.reset_minutes;
+    const period = periodLens?.[meter.label];
+    if (rm == null || !period) return pct;
+    const fraction = 1 - rm / period;
+    if (fraction <= 0.01) return pct;
+    return pct / fraction;
+}
+
 function formatRows(meters, barWidth) {
     const maxLen = Math.max(0, ...meters.map(m => (m.label || '').length));
     const maxCol2 = Math.max(4, ...meters.map(m =>
@@ -199,12 +215,15 @@ class ClaudeIndicator extends PanelMenu.Button {
         const panelWarn = s.get_string('panel-color-warning');
         const panelCrit = s.get_string('panel-color-critical');
         const pctColor = p => p >= tCrit ? popupCrit : p >= tWarn ? popupWarn : popupNorm;
+        const periodLens = d._period_lengths || {};
 
         const primary = this._getPrimary(d.meters);
         const pct = primary?.pct ?? (primary?.total
             ? Math.round((primary.count / primary.total) * 100) : 0);
 
-        const panelColor = pct >= tCrit ? panelCrit : pct >= tWarn ? panelWarn : panelNorm;
+        // pacing drives the COLOR; raw `pct` still drives the displayed text.
+        const panelPacing = primary ? pacingPct(primary, periodLens) : pct;
+        const panelColor = panelPacing >= tCrit ? panelCrit : panelPacing >= tWarn ? panelWarn : panelNorm;
         this._label.set_text(`${pct}%`);
         this._label.set_style(`font-size: ${fontSize}px; margin-left: ${labelGap}px; color: ${panelColor};`);
 
@@ -235,7 +254,6 @@ class ClaudeIndicator extends PanelMenu.Button {
                 this._metersSection.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
                 sawExtra = true;
             }
-            const mpct   = row.meter.pct ?? 0;
             const active = !row.isSub && row.meter === primary;
             const prefix = active ? '● ' : '  ';
             const eligible = !row.isSub && this._isEligible(row.meter);
@@ -245,7 +263,7 @@ class ClaudeIndicator extends PanelMenu.Button {
                     this._settings.set_string('panel-metric', row.meter.label);
                 });
             }
-            const color = row.isSub ? popupNorm : pctColor(mpct);
+            const color = row.isSub ? popupNorm : pctColor(pacingPct(row.meter, periodLens));
             item.label.set_style(`${style} color: ${color};`);
             this._metersSection.addMenuItem(item);
         }

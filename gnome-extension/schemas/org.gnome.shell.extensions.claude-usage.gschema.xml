@@ -31,13 +31,13 @@
       <summary>Popup meter text color at or above critical threshold</summary>
     </key>
     <key name="threshold-warning" type="u">
-      <default>50</default>
-      <summary>Usage % at which color flips to warning</summary>
+      <default>70</default>
+      <summary>Pacing % (pct ÷ fraction-of-period-elapsed) at which color flips to warning</summary>
       <range min="1" max="99"/>
     </key>
     <key name="threshold-critical" type="u">
-      <default>80</default>
-      <summary>Usage % at which color flips to critical</summary>
+      <default>90</default>
+      <summary>Pacing % (pct ÷ fraction-of-period-elapsed) at which color flips to critical</summary>
       <range min="1" max="99"/>
     </key>
     <key name="bar-width" type="u">

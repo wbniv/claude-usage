@@ -69,6 +69,24 @@ def ring_color(pct, cfg):
     if pct >= cfg.get('threshold_warning',  50): return hex_to_rgba(cfg['weekly_color_amber'])
     return                                             hex_to_rgba(cfg['weekly_color_green'])
 
+def pacing_pct(meter, period_lens):
+    """pct / fraction_elapsed — uncapped. 100 = on pace, > 100 = over pace.
+    Falls back to raw pct when reset_minutes/period unknown or
+    fraction_elapsed is too small to trust."""
+    if not meter:
+        return 0
+    pct = meter.get('pct')
+    if not isinstance(pct, int) or pct == 0:
+        return pct or 0
+    rm = meter.get('reset_minutes')
+    period = period_lens.get(meter.get('label'))
+    if rm is None or not period:
+        return pct
+    fraction = 1 - rm / period
+    if fraction <= 0.01:
+        return pct
+    return pct / fraction
+
 def rounded_rect_path(cr, x, y, w, h, r):
     cr.new_sub_path()
     cr.arc(x + r,     y + r,     r, math.pi,     3*math.pi/2)
@@ -216,10 +234,13 @@ def main():
         sys.exit(0)  # no data yet — not an error
     data   = json.loads(CACHE_JSON.read_text())
     meters = data.get('meters', [])
-    find   = lambda kw: next(
-        (m['pct'] for m in meters if kw in (m.get('label') or '').lower()), 0)
-    all_pct    = find('all')
-    sonnet_pct = find('sonnet')
+    period_lens = data.get('_period_lengths', {}) or {}
+    find_meter = lambda kw: next(
+        (m for m in meters if kw in (m.get('label') or '').lower()), None)
+    all_m    = find_meter('all')
+    sonnet_m = find_meter('sonnet')
+    all_pct    = pacing_pct(all_m,    period_lens)
+    sonnet_pct = pacing_pct(sonnet_m, period_lens)
     dest = _next_icon_path()
     generate(all_pct, sonnet_pct, cfg, dest)
     for old in CACHE_DIR.glob('icon-*.png'):
@@ -229,7 +250,7 @@ def main():
             except OSError:
                 pass
     update_desktop(meters, dest)
-    print(f'Icon: All={all_pct}% Sonnet={sonnet_pct}%', flush=True)
+    print(f'Icon: All={all_pct:.0f}% Sonnet={sonnet_pct:.0f}% (pacing)', flush=True)
 
 if __name__ == '__main__':
     try:

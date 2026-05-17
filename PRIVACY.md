@@ -20,7 +20,7 @@ All data stays on your own machine. It is sent only to `http://127.0.0.1:7331` �
 
 ## What is stored
 
-- `~/.cache/claude-usage/usage.json` — usage data, updated every 15 minutes
+- `~/.cache/claude-usage/usage.json` — usage data + inferred per-meter period lengths (`_period_lengths`: integer minutes-per-meter-label, used for pacing-based color thresholds), updated every 15 minutes
 - `~/.cache/claude-usage/icon-{epoch}.png` — generated dock icon (filename rotates to bust the pixbuf cache)
 - GSettings (`org.gnome.shell.extensions.claude-usage`) — user color and threshold preferences
 - `chrome.storage.local` — fallback copy of the last fetch, used only when the local server is not running

@@ -140,6 +140,8 @@ gsettings set org.gnome.shell.extensions.claude-usage threshold-warning 60
 gsettings reset org.gnome.shell.extensions.claude-usage popup-color-normal  # restore default
 ```
 
+**Color semantics:** colors reflect your current *pacing*, not raw % used. The driver is `pct ÷ fraction-of-period-elapsed` — so 50% used halfway through a week is "on pace for 100%" and shows red, while 80% used near the end of a week is "on pace for ~90%" and shows amber. Per-meter period lengths are inferred over time from observed reset distances; until enough history accumulates, colors fall back to raw % used.
+
 **All settings and defaults:**
 
 | Setting | Default | Description |
@@ -154,8 +156,8 @@ gsettings reset org.gnome.shell.extensions.claude-usage popup-color-normal  # re
 | `panel-color-normal` | ${\color{#ffffff}■}$ `#ffffff` | Panel label · below warning threshold |
 | `panel-color-warning` | ${\color{#d07000}■}$ `#d07000` | Panel label · ≥ warning threshold |
 | `panel-color-critical` | ${\color{#e03030}■}$ `#e03030` | Panel label · ≥ critical threshold |
-| `threshold-warning` | `50` | % at which color flips to warning |
-| `threshold-critical` | `80` | % at which color flips to critical |
+| `threshold-warning` | `70` | Pacing % at which color flips to warning (see *Color semantics* below) |
+| `threshold-critical` | `90` | Pacing % at which color flips to critical |
 | `bar-width` | `10` | █░ bar character count in popup |
 | `panel-font-size` | `11` | Panel label font size (px) |
 | `panel-label-spacing` | `6` | Pixels between panel icon and label |

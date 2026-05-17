@@ -46,6 +46,11 @@ def _validate(body):
             err = _bounded_str(m.get(k), f"meters[{i}].{k}")
             if err:
                 return err
+        rm = m.get('reset_minutes')
+        if rm is not None and (
+            isinstance(rm, bool) or not isinstance(rm, int) or rm < 0
+        ):
+            return f"meters[{i}].reset_minutes must be a non-negative integer or null"
     err = _bounded_str(body.get('plan'), 'plan')
     if err:
         return err
@@ -93,6 +98,24 @@ class Handler(BaseHTTPRequestHandler):
                 if not body.get('_timestamp'):
                     ts = body.pop('timestamp', None)
                     body['_timestamp'] = int(ts / 1000) if ts else int(time.time())
+                # Accumulate per-meter period lengths from observed reset_minutes.
+                # The max ever seen per label converges to the true period
+                # (~5 h for session meters, ~7 d for weekly). Used downstream
+                # to compute pacing-based colors.
+                period_lengths = {}
+                if OUTPUT.exists():
+                    try:
+                        prev = json.loads(OUTPUT.read_text())
+                        period_lengths = prev.get('_period_lengths', {}) or {}
+                    except Exception:
+                        pass
+                for meter in body.get('meters', []):
+                    rm = meter.get('reset_minutes')
+                    label = meter.get('label')
+                    if rm is None or not label:
+                        continue
+                    period_lengths[label] = max(period_lengths.get(label, 0), rm)
+                body['_period_lengths'] = period_lengths
                 OUTPUT.parent.mkdir(parents=True, exist_ok=True)
                 tmp = OUTPUT.with_suffix(OUTPUT.suffix + '.tmp')
                 tmp.write_text(json.dumps(body, indent=2))

@@ -4,6 +4,40 @@ const INTERVAL_MINUTES = 15;
 
 let _fetching = false;
 
+// Parse "Resets in X hr Y min" / "Resets in X min" / "Resets Tue 5:00 PM"
+// into minutes-from-now. Returns null when the string doesn't match a
+// known shape. Mirrors the parsing logic in gnome-extension/extension.js
+// formatReset(); we run it server-side here so the cache file carries
+// reset_minutes alongside the raw string for downstream consumers.
+function parseResetMinutes(reset) {
+  if (!reset) return null;
+  let m;
+  m = reset.match(/[Rr]esets? in (\d+) hr (\d+) min/);
+  if (m) return parseInt(m[1]) * 60 + parseInt(m[2]);
+  m = reset.match(/[Rr]esets? in (\d+) min/);
+  if (m) return parseInt(m[1]);
+  m = reset.match(/[Rr]esets? (\w{3}) (\d+):(\d+) (AM|PM)/);
+  if (m) {
+    const [, day, hStr, mnStr, ap] = m;
+    let h = parseInt(hStr), mn = parseInt(mnStr);
+    if (ap === 'PM' && h !== 12) h += 12;
+    else if (ap === 'AM' && h === 12) h = 0;
+    const now = new Date();
+    const wdMap = {Sun:0, Mon:1, Tue:2, Wed:3, Thu:4, Fri:5, Sat:6};
+    let ahead = (wdMap[day] - now.getDay() + 7) % 7;
+    if (ahead === 0) {
+      const candidate = new Date(now);
+      candidate.setHours(h, mn, 0, 0);
+      if (candidate <= now) ahead = 7;
+    }
+    const target = new Date(now);
+    target.setDate(now.getDate() + ahead);
+    target.setHours(h, mn, 0, 0);
+    return Math.floor((target - now) / 60000);
+  }
+  return null;
+}
+
 async function fetchUsage() {
   if (_fetching) return;
   _fetching = true;
@@ -148,6 +182,12 @@ async function fetchUsage() {
     if (!data || !data.meters.length) {
       console.warn('Claude Usage: no meters extracted');
       return;
+    }
+
+    // Enrich meters with parsed reset_minutes so the server (which doesn't
+    // parse strings) can track per-meter period lengths for pacing colors.
+    for (const m of data.meters) {
+      if (m.reset) m.reset_minutes = parseResetMinutes(m.reset);
     }
 
     try {
