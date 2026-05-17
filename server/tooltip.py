@@ -86,7 +86,7 @@ def format_tooltip(meters, anchor_ts=None):
             is_countdown, display = reset_info
             part += f" ⏱{display}" if is_countdown else f" {display}"
         parts.append(part)
-    return ('Claude Usage: ' + '   |   '.join(parts)) if parts else 'Claude Usage'
+    return ('Claude Usage  ✳  ' + '   |   '.join(parts)) if parts else 'Claude Usage'
 
 
 def update_desktop(meters, icon_path=None, scrape_ts=None):
