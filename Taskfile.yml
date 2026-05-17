@@ -12,6 +12,17 @@ tasks:
     cmds:
       - node --test chrome-extension/test/scraper.test.js
 
+  test-validate:
+    desc: Run server-side validator pytest suite (input contract for usage-server.py)
+    cmds:
+      - python3 -m pytest server/tests/ -v
+
+  test:
+    desc: Run all unit tests (scraper + validator)
+    cmds:
+      - task: test-scraper
+      - task: test-validate
+
   build:
     desc: Build the .deb package
     cmds:

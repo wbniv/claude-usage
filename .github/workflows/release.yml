@@ -30,6 +30,12 @@ jobs:
       - name: Test Chrome extension
         run: task test-scraper
 
+      - name: Install pytest
+        run: python3 -m pip install --user pytest
+
+      - name: Test server validator
+        run: task test-validate
+
       - name: Cache 24.04 test image
         uses: actions/cache@v4
         id: docker-cache-2404

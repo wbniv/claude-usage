@@ -15,6 +15,22 @@ const NOTIF_TS_FILE      = CACHE_DIR + '/notif-ts';
 const NOTIF_CRIT_TS_FILE = CACHE_DIR + '/notif-crit-ts';
 const USAGE_URL          = 'https://claude.ai/settings/usage';
 
+// Source install puts generate-icon.py under ~/.local/share; .deb under /usr/share.
+// Resolve once at module load — the script location doesn't change at runtime.
+// Mirrors the candidate-list probe in prefs.js + server/generate-icon.py.
+const _ICON_SCRIPT_CANDIDATES = [
+    GLib.get_home_dir() + '/.local/share/claude-usage/generate-icon.py',
+    '/usr/share/claude-usage/generate-icon.py',
+];
+const ICON_SCRIPT = _ICON_SCRIPT_CANDIDATES.find(
+    p => GLib.file_test(p, GLib.FileTest.EXISTS)
+) || null;
+
+// Cache schema version this build understands. A future bump to the on-disk
+// shape should also bump this; readers log a warning on unknown versions so
+// half-state bugs from old-reader/new-writer combos are visible.
+const CACHE_SCHEMA = 1;
+
 function formatReset(reset) {
     if (!reset || typeof reset !== 'string') return '';
     let m;
@@ -210,16 +226,10 @@ class ClaudeIndicator extends PanelMenu.Button {
         // Spawn generate-icon.py with an explicit tier override so the dock
         // icon reflects the GNOME extension's time-based tier (the script
         // itself only sees the cache and can't know how stale it is).
-        const candidates = [
-            GLib.get_home_dir() + '/.local/share/claude-usage/generate-icon.py',
-            '/usr/share/claude-usage/generate-icon.py',
-        ];
-        const script = candidates.find(p =>
-            Gio.File.new_for_path(p).query_exists(null));
-        if (!script) return;
+        if (!ICON_SCRIPT) return;
         try {
             Gio.Subprocess.new(
-                ['python3', script, '--tier', tier],
+                ['python3', ICON_SCRIPT, '--tier', tier],
                 Gio.SubprocessFlags.STDOUT_SILENCE | Gio.SubprocessFlags.STDERR_SILENCE
             );
         } catch (_) {}
@@ -237,7 +247,11 @@ class ClaudeIndicator extends PanelMenu.Button {
             });
         } catch (e) {
             console.error('ClaudeUsage: file monitor failed, retrying in 30 s', e);
-            GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 30, () => {
+            // Store the source ID so destroy() can cancel a pending retry —
+            // otherwise the callback fires on a torn-down wrapper, leaking a
+            // GFileMonitor and throwing on set_text against a disposed St.Label.
+            this._retryId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 30, () => {
+                this._retryId = null;
                 this._watchFile();
                 return GLib.SOURCE_REMOVE;
             });
@@ -252,6 +266,14 @@ class ClaudeIndicator extends PanelMenu.Button {
                 if (!ok) return;
                 const text = new TextDecoder().decode(contents);
                 this._data = JSON.parse(text);
+                // Warn once per session if the cache was written by a writer with
+                // a schema version this reader doesn't understand. Older writers
+                // omit _schema entirely — treat absence as v0, which we accept.
+                const sv = this._data._schema;
+                if (sv !== undefined && sv !== CACHE_SCHEMA && !this._schemaWarned) {
+                    console.warn(`ClaudeUsage: cache _schema=${sv} but extension expects ${CACHE_SCHEMA}; fields may be misread`);
+                    this._schemaWarned = true;
+                }
                 this._updateDisplay();
             } catch (e) {
                 console.error('ClaudeUsage: failed to read cache', e);
@@ -462,7 +484,18 @@ class ClaudeIndicator extends PanelMenu.Button {
         if (label) {
             const found = meters.find(m => m.label === label && this._isSelectable(m));
             if (found) return found;
-            this._settings.set_string('panel-metric', '');  // stale — clear it
+            // Defer the clear via idle_add — GSettings dispatches the 'changed'
+            // signal synchronously inside set_string(), which would re-enter
+            // _updateDisplay() and trigger a duplicate render in the same tick.
+            // Guarded so a clear in flight doesn't queue a second clear.
+            if (!this._clearingMetric) {
+                this._clearingMetric = true;
+                GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                    this._clearingMetric = false;
+                    this._settings.set_string('panel-metric', '');
+                    return GLib.SOURCE_REMOVE;
+                });
+            }
         }
         return meters.find(m => /all/i.test(m.label ?? '') && this._isSelectable(m))
             || meters.find(m => this._isSelectable(m))
@@ -486,6 +519,10 @@ class ClaudeIndicator extends PanelMenu.Button {
         if (this._flashId) {
             GLib.source_remove(this._flashId);
             this._flashId = null;
+        }
+        if (this._retryId) {
+            GLib.source_remove(this._retryId);
+            this._retryId = null;
         }
         if (this._menuOpenId) {
             this.menu.disconnect(this._menuOpenId);

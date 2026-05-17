@@ -70,10 +70,19 @@ if ! run_as systemctl --user is-active --quiet claude-usage-fetch.service; then
     exit 1
 fi
 
-echo "==> POSTing probe payload to 127.0.0.1:$PORT/update"
+echo "==> POSTing current-shape probe payload to 127.0.0.1:$PORT/update"
 run_as curl -sf -X POST "http://127.0.0.1:$PORT/update" \
     -H 'Content-Type: application/json' \
-    -d '{"meters":[{"pct":42,"label":"live-smoke","reset":null}]}' >/dev/null
+    -d '{"meters":[{"pct":42,"label":"live-smoke","reset":null,"reset_minutes":120}],"_ext_version":"0.11.1"}' >/dev/null
+
+# Backcompat probe (C-3): a pre-V-1 Chrome extension would not include
+# _ext_version, reset_minutes, or _period_lengths. The server's validator
+# must remain permissive of older shapes so users on stale extensions
+# don't have their POSTs silently rejected mid-upgrade.
+echo "==> POSTing old-shape probe payload (no _ext_version, no reset_minutes)"
+run_as curl -sf -X POST "http://127.0.0.1:$PORT/update" \
+    -H 'Content-Type: application/json' \
+    -d '{"meters":[{"pct":50,"label":"live-smoke-old","reset":"Resets in 1 hr 0 min"}],"plan":"Max plan"}' >/dev/null
 
 echo "==> Verifying cache write"
 CACHE="/home/$TESTUSER/.cache/claude-usage/usage.json"
@@ -82,8 +91,15 @@ if [ ! -f "$CACHE" ]; then
     exit 1
 fi
 
-if ! grep -q '"live-smoke"' "$CACHE"; then
-    echo "FAIL: $CACHE missing probe label" >&2
+if ! grep -q '"live-smoke-old"' "$CACHE"; then
+    echo "FAIL: $CACHE missing probe label (second POST didn't take)" >&2
+    cat "$CACHE" >&2
+    exit 1
+fi
+
+# A-1: every write must stamp _schema; the second POST should have written 1.
+if ! grep -q '"_schema": 1' "$CACHE"; then
+    echo "FAIL: $CACHE missing _schema:1 — A-1 regression" >&2
     cat "$CACHE" >&2
     exit 1
 fi

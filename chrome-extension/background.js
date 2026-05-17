@@ -4,6 +4,11 @@ const STATUS_URL   = 'https://status.claude.com/api/v2/summary.json';
 const INTERVAL_MINUTES = 7;
 const AUTO_DEBOUNCE_MS = 30_000;
 
+// Stamped on every POST so the server can detect version skew. Chrome does
+// not auto-reload unpacked extensions on .deb upgrade — without this, a user
+// can sit on a stale extension forever with no visible signal.
+const EXT_VERSION = chrome.runtime.getManifest().version;
+
 let _fetching = false;
 
 // Poll Anthropic's public Statuspage. JSON, no auth, doesn't burn tokens.
@@ -195,7 +200,11 @@ async function scrapeAndPost(tabId) {
     // outage flag once the incident resolves.
     const fails = (await getFailCount()) + 1;
     await setFailCount(fails);
-    const partial = { _scrape_fail_count: fails, _anthropic_status: anthropic_status };
+    const partial = {
+      _scrape_fail_count: fails,
+      _anthropic_status: anthropic_status,
+      _ext_version: EXT_VERSION,
+    };
     try {
       await fetch(LOCAL_SERVER, {
         method: 'POST',
@@ -222,6 +231,7 @@ async function scrapeAndPost(tabId) {
   await setFailCount(0);
   data._scrape_fail_count = 0;
   data._anthropic_status = anthropic_status;
+  data._ext_version = EXT_VERSION;
 
   try {
     const resp = await fetch(LOCAL_SERVER, {
@@ -326,7 +336,11 @@ async function fetchUsage() {
       const anthropic_status = await fetchAnthropicStatus();
       // Always include _anthropic_status (may be null) so the server clears
       // any stale outage flag from a prior cycle.
-      const partial = { _scrape_fail_count: fails, _anthropic_status: anthropic_status };
+      const partial = {
+        _scrape_fail_count: fails,
+        _anthropic_status: anthropic_status,
+        _ext_version: EXT_VERSION,
+      };
       console.warn('Claude Usage: reporting error to local server');
       await fetch(LOCAL_SERVER, {
         method: 'POST',

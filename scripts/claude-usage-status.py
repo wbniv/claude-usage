@@ -60,6 +60,11 @@ def _check_cache():
     if component and component != 'operational':
         print(f'  Anthropic:  ⚠ claude.ai component: {component}')
 
+    if d.get('_ext_version_mismatch'):
+        ev = d.get('_ext_version') or '?'
+        print(f'  Chrome ext: ⚠ v{ev} differs from server-expected version')
+        print('              Fix: chrome://extensions → Claude Usage Tracker → Reload')
+
     for m in d.get('meters', []):
         label = (m.get('label') or '?')[:40]
         pct = m.get('pct', 0)

@@ -53,13 +53,37 @@ uninstall() {
 
 echo "Installing Claude Usage..."
 
-# 0. Python dependencies (pycairo, pillow — used by the dock icon generator)
-_missing=()
-python3 -c "import cairo" 2>/dev/null || _missing+=(python3-cairo)
-python3 -c "import PIL"   2>/dev/null || _missing+=(python3-pil)
-if [ ${#_missing[@]} -gt 0 ]; then
-    echo "  Installing Python dependencies: ${_missing[*]}"
-    sudo apt-get install -y "${_missing[@]}"
+# 0. Python dependencies (pycairo, pillow — used by the dock icon generator).
+# Per-distro package names differ; detect the host's package manager and use
+# the matching ones, or print actionable instructions and abort.
+_need_cairo=0; _need_pil=0
+python3 -c "import cairo" 2>/dev/null || _need_cairo=1
+python3 -c "import PIL"   2>/dev/null || _need_pil=1
+if [ $_need_cairo -eq 1 ] || [ $_need_pil -eq 1 ]; then
+    if command -v apt-get >/dev/null; then
+        _pkgs=()
+        [ $_need_cairo -eq 1 ] && _pkgs+=(python3-cairo)
+        [ $_need_pil -eq 1 ]   && _pkgs+=(python3-pil)
+        echo "  Installing Python dependencies via apt: ${_pkgs[*]}"
+        sudo apt-get install -y "${_pkgs[@]}"
+    elif command -v dnf >/dev/null; then
+        _pkgs=()
+        [ $_need_cairo -eq 1 ] && _pkgs+=(python3-cairo)
+        [ $_need_pil -eq 1 ]   && _pkgs+=(python3-pillow)
+        echo "  Installing Python dependencies via dnf: ${_pkgs[*]}"
+        sudo dnf install -y "${_pkgs[@]}"
+    elif command -v pacman >/dev/null; then
+        _pkgs=()
+        [ $_need_cairo -eq 1 ] && _pkgs+=(python-cairo)
+        [ $_need_pil -eq 1 ]   && _pkgs+=(python-pillow)
+        echo "  Installing Python dependencies via pacman: ${_pkgs[*]}"
+        sudo pacman -S --noconfirm "${_pkgs[@]}"
+    else
+        echo "  ✗ Unknown package manager — install the Python pycairo and pillow bindings manually:" >&2
+        [ $_need_cairo -eq 1 ] && echo "      pycairo  (Debian/Ubuntu: python3-cairo · Fedora: python3-cairo · Arch: python-cairo)" >&2
+        [ $_need_pil -eq 1 ]   && echo "      pillow   (Debian/Ubuntu: python3-pil · Fedora: python3-pillow · Arch: python-pillow)" >&2
+        exit 1
+    fi
 fi
 echo "  ✓ Python dependencies OK"
 
@@ -91,9 +115,13 @@ ln -sf "$SERVER_DIR/claude-usage-status" "$HOME/.local/bin/claude-usage-status"
 echo "  ✓ Usage server installed"
 echo "  ✓ Diagnostics installed — run 'claude-usage-status' to check service health"
 
-# 2b. Chrome extension install copy (Chrome loads unpacked from this path)
+# 2b. Chrome extension install copy (Chrome loads unpacked from this path).
+# Use `cp -r` so the manifest, scripts, and icons all land — but explicitly
+# drop the test/ subdirectory afterwards so dev-only artifacts don't ship to
+# end-users (the CWS zip already excludes test/ via build-chrome-zip.sh).
 mkdir -p "$SERVER_DIR/chrome-extension"
-cp "$REPO_DIR/chrome-extension/"* "$SERVER_DIR/chrome-extension/"
+cp -r "$REPO_DIR/chrome-extension/." "$SERVER_DIR/chrome-extension/"
+rm -rf "$SERVER_DIR/chrome-extension/test"
 echo "  ✓ Chrome extension files synced to $SERVER_DIR/chrome-extension"
 
 # 3. Generate initial dock icon (0% rings until first data fetch)
@@ -105,6 +133,10 @@ python3 "$SERVER_DIR/generate-icon.py" 2>/dev/null || true
 mkdir -p "$SYSTEMD_DIR"
 cp "$REPO_DIR/systemd/claude-usage-fetch.service" "$SYSTEMD_DIR/"
 systemctl --user daemon-reload
+# Clear any failed/auto-restart state from a previous broken version so
+# `enable --now` actually starts the service on upgrade rather than
+# refusing because StartLimitBurst was already exhausted.
+systemctl --user reset-failed claude-usage-fetch.service 2>/dev/null || true
 systemctl --user enable --now claude-usage-fetch.service
 echo "  ✓ Systemd service enabled and started"
 

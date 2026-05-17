@@ -33,8 +33,11 @@ cp "$REPO_DIR/server/usage-server.py" \
    "$REPO_DIR/server/tooltip.py" \
    "$PKG/usr/share/claude-usage/"
 
-# Chrome extension (for load-unpacked until CWS listing is live)
+# Chrome extension (for load-unpacked until CWS listing is live).
+# Drop test/ — dev-only fixture, irrelevant once installed and Chrome would
+# silently include it as an extension resource. CWS zip excludes it too.
 cp -r "$REPO_DIR/chrome-extension" "$PKG/usr/share/claude-usage/"
+rm -rf "$PKG/usr/share/claude-usage/chrome-extension/test"
 
 # Systemd user unit — rewrite path from %h/.local/share to /usr/share
 sed 's|%h/.local/share/claude-usage|/usr/share/claude-usage|g' \

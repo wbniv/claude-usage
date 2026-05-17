@@ -35,6 +35,33 @@ if not _EXTENSION_ID:
           file=sys.stderr, flush=True)
 MAX_STR_LEN = 128
 
+# Cache schema version this build writes. Readers (GNOME extension, status
+# script) check the field on load and warn on mismatch so half-state bugs
+# from old-reader/new-writer or new-reader/old-writer combos are visible.
+CACHE_SCHEMA = 1
+
+# Chrome extension version expected by this server build. Drift produces a
+# stderr log + an _ext_version_mismatch flag persisted into usage.json so
+# claude-usage-status can surface it. Sourced from the sibling .deb's
+# packaging/control or the chrome-extension manifest at build time — keep
+# both in sync (Taskfile's release gate enforces this). Best-effort read so
+# a stripped-down install without packaging/ still starts up.
+def _read_expected_ext_version():
+    for p in (
+        Path(__file__).resolve().parent / 'chrome-extension' / 'manifest.json',
+        Path('/usr/share/claude-usage/chrome-extension/manifest.json'),
+        Path.home() / '.local/share/claude-usage/chrome-extension/manifest.json',
+    ):
+        try:
+            if p.exists():
+                return json.loads(p.read_text()).get('version')
+        except Exception:
+            pass
+    return None
+EXPECTED_EXT_VERSION = _read_expected_ext_version()
+
+_VALID_ANTHROPIC_KEYS = ('indicator', 'description', 'claude_ai_component_status')
+
 
 def _bounded_str(v, field):
     if v is None:
@@ -101,7 +128,7 @@ def _validate(body):
     if astat is not None:
         if not isinstance(astat, dict):
             return "'_anthropic_status' must be an object"
-        for k in ('indicator', 'description', 'claude_ai_component_status'):
+        for k in _VALID_ANTHROPIC_KEYS:
             err = _bounded_str(astat.get(k), f"_anthropic_status.{k}")
             if err:
                 return err
@@ -126,6 +153,19 @@ def _validate(body):
     # up as anchor_ts=True downstream (time.time() - True = epoch - 1).
     if ts is not None and (isinstance(ts, bool) or not isinstance(ts, (int, float))):
         return "'_timestamp' must be a number"
+    # _ext_version — stamped by the Chrome extension on every POST so the server
+    # can detect version skew between Chrome (which doesn't auto-reload on .deb
+    # upgrade) and the server. Bounded string; presence optional for backcompat
+    # with older extensions that don't include it.
+    err = _bounded_str(body.get('_ext_version'), '_ext_version')
+    if err:
+        return err
+    # _schema — written by the server on every POST. Validated as a small int
+    # so a malicious POST can't poison the cache with junk that downstream
+    # readers might misinterpret.
+    sv = body.get('_schema')
+    if sv is not None and (isinstance(sv, bool) or not isinstance(sv, int) or sv < 0 or sv > 1000):
+        return "'_schema' must be a non-negative integer ≤ 1000"
     return None
 
 
@@ -169,6 +209,15 @@ class Handler(BaseHTTPRequestHandler):
                 print(f"Validation error: {err}", file=sys.stderr, flush=True)
                 status, reply = 422, err.encode()
             else:
+                # Drop unknown keys from _anthropic_status so a forward-compat
+                # field from Anthropic's statuspage (or a malicious POST) can't
+                # silently accumulate in the cache. The three known keys are the
+                # only ones any downstream consumer reads.
+                astat = body.get('_anthropic_status')
+                if isinstance(astat, dict):
+                    body['_anthropic_status'] = {
+                        k: astat[k] for k in _VALID_ANTHROPIC_KEYS if k in astat
+                    }
                 # Read previous cache so partial updates (status-only POSTs
                 # with no `meters` key) preserve last-known meters/plan, and
                 # so period_lengths accumulates over time.
@@ -178,6 +227,18 @@ class Handler(BaseHTTPRequestHandler):
                         prev = json.loads(OUTPUT.read_text())
                     except Exception:
                         pass
+
+                # Period-lengths merge: start from prev's accumulated dict and
+                # dict-update with body's _period_lengths if present, NEVER
+                # replace with an empty/missing one. A naive {**prev, **body}
+                # spread would clobber the accumulator if a POST included
+                # `_period_lengths: {}` (current Chrome ext never does, but
+                # the validator accepts the field).
+                prev_pl = prev.get('_period_lengths') or {}
+                incoming_pl = body.get('_period_lengths') or {}
+                period_lengths = dict(prev_pl)
+                period_lengths.update(incoming_pl)
+
                 # Merge: dict-spread keeps prev keys not present in body,
                 # body keys override prev keys. Full scrape updates carry
                 # meters/plan/_timestamp and replace those; status-only
@@ -193,7 +254,6 @@ class Handler(BaseHTTPRequestHandler):
                 # The max ever seen per label converges to the true period
                 # (~5 h for session meters, ~7 d for weekly). Used downstream
                 # to compute pacing-based colors.
-                period_lengths = body.get('_period_lengths', {}) or {}
                 for meter in body.get('meters', []) or []:
                     rm = meter.get('reset_minutes')
                     label = meter.get('label')
@@ -206,6 +266,24 @@ class Handler(BaseHTTPRequestHandler):
                 if current_labels:
                     period_lengths = {k: v for k, v in period_lengths.items() if k in current_labels}
                 body['_period_lengths'] = period_lengths
+
+                # Chrome-extension version handshake. Chrome doesn't auto-reload
+                # unpacked extensions on .deb upgrade, so the user can run an
+                # old extension against a new server indefinitely. Log a stderr
+                # warning + persist a flag so claude-usage-status surfaces it.
+                ev = body.get('_ext_version')
+                if ev and EXPECTED_EXT_VERSION and ev != EXPECTED_EXT_VERSION:
+                    print(f"warning: Chrome extension v{ev} differs from server-expected v{EXPECTED_EXT_VERSION}; reload chrome://extensions",
+                          file=sys.stderr, flush=True)
+                    body['_ext_version_mismatch'] = True
+                else:
+                    body.pop('_ext_version_mismatch', None)
+
+                # Stamp the schema version on every write. Old readers that
+                # don't know about _schema ignore it; new readers that see a
+                # mismatch log a warning instead of silently misinterpreting.
+                body['_schema'] = CACHE_SCHEMA
+
                 OUTPUT.parent.mkdir(parents=True, exist_ok=True)
                 tmp = OUTPUT.with_suffix(OUTPUT.suffix + '.tmp')
                 tmp.write_text(json.dumps(body, indent=2))
