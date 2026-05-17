@@ -9,9 +9,10 @@ import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
-const CACHE_FILE    = GLib.get_home_dir() + '/.cache/claude-usage/usage.json';
-const NOTIF_TS_FILE = GLib.get_home_dir() + '/.cache/claude-usage/notif-ts';
-const USAGE_URL     = 'https://claude.ai/settings/usage';
+const CACHE_FILE         = GLib.get_home_dir() + '/.cache/claude-usage/usage.json';
+const NOTIF_TS_FILE      = GLib.get_home_dir() + '/.cache/claude-usage/notif-ts';
+const NOTIF_CRIT_TS_FILE = GLib.get_home_dir() + '/.cache/claude-usage/notif-crit-ts';
+const USAGE_URL          = 'https://claude.ai/settings/usage';
 
 function formatReset(reset) {
     if (!reset || typeof reset !== 'string') return '';
@@ -184,6 +185,12 @@ class ClaudeIndicator extends PanelMenu.Button {
         } catch (_) {
             this._lastNotifyTs = 0;
         }
+        try {
+            const [ok, bytes] = GLib.file_get_contents(NOTIF_CRIT_TS_FILE);
+            this._lastCritNotifyTs = ok ? (parseInt(new TextDecoder().decode(bytes)) || 0) : 0;
+        } catch (_) {
+            this._lastCritNotifyTs = 0;
+        }
         this._watchFile();
         this._loadData();
 
@@ -310,6 +317,7 @@ class ClaudeIndicator extends PanelMenu.Button {
                 Main.notify('Claude Usage',
                     `⚠ ${critMeter.label} is at ${Math.round(critPacing)}% pacing`);
                 this._lastCritNotifyTs = now;
+                try { GLib.file_set_contents(NOTIF_CRIT_TS_FILE, String(now)); } catch (_) {}
             }
             if (!this._flashSuppressed) this._startFlash();
         }
@@ -381,7 +389,8 @@ class ClaudeIndicator extends PanelMenu.Button {
 
         const barWidth  = s.get_uint('bar-width');
         const popupSize = s.get_uint('popup-font-size');
-        const popupFont = s.get_string('popup-font-family');
+        const rawFont   = s.get_string('popup-font-family');
+        const popupFont = /^[\w\s,'"-]+$/.test(rawFont) ? rawFont : 'monospace';
         const style     = `font-family: ${popupFont}; font-size: ${popupSize}px;`;
 
         const visibleMeters = d.meters.filter(m =>
