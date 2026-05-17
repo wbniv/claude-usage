@@ -93,6 +93,10 @@ def _validate(body):
             err = _bounded_str(astat.get(k), f"_anthropic_status.{k}")
             if err:
                 return err
+        ind = astat.get('indicator')
+        _VALID_INDICATORS = (None, 'none', 'minor', 'major', 'critical', 'maintenance')
+        if ind not in _VALID_INDICATORS:
+            return f"_anthropic_status.indicator must be one of {_VALID_INDICATORS}"
     pl = body.get('_period_lengths')
     if pl is not None:
         if not isinstance(pl, dict):
@@ -138,7 +142,14 @@ class Handler(BaseHTTPRequestHandler):
 
         status, reply = 200, b'ok'
         try:
-            body = json.loads(self.rfile.read(length))
+            try:
+                body = json.loads(self.rfile.read(length))
+            except (json.JSONDecodeError, UnicodeDecodeError) as e:
+                self.send_response(400)
+                self._cors()
+                self.end_headers()
+                self.wfile.write(f'bad request: {e}'.encode())
+                return
             err = _validate(body)
             if err:
                 print(f"Validation error: {err}", file=sys.stderr, flush=True)

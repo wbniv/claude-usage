@@ -45,8 +45,8 @@ function formatReset(reset) {
 }
 
 function bar(pct, width = 10) {
-    const filled = Math.round((pct / 100) * width);
-    return '█'.repeat(Math.max(0, filled)) + '░'.repeat(Math.max(0, width - filled));
+    const filled = Math.max(0, Math.min(width, Math.round((pct / 100) * width)));
+    return '█'.repeat(filled) + '░'.repeat(width - filled);
 }
 
 // pacing_pct = pct / fraction_elapsed — "% you'd hit by reset at this

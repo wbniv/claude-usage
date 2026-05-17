@@ -56,6 +56,7 @@ function parseResetMinutes(reset) {
   if (m) {
     const [, day, hStr, mnStr, ap] = m;
     let h = parseInt(hStr), mn = parseInt(mnStr);
+    if (h < 1 || h > 12 || mn < 0 || mn > 59) return null;
     if (ap === 'PM' && h !== 12) h += 12;
     else if (ap === 'AM' && h === 12) h = 0;
     const now = new Date();
@@ -213,7 +214,7 @@ async function scrapeAndPost(tabId) {
     console.log(`Claude Usage: sent ${data.meters.length} meters to local server`);
   } catch (e) {
     console.warn('Claude Usage: local server unavailable, using chrome.storage', e.message);
-    await chrome.storage.local.set({ claude_usage: data });
+    await chrome.storage.local.set({ claude_usage: { ...data, _buffered_at: Date.now() } });
   }
 
   // Record successful scrape time so the auto-scrape listener can
@@ -233,24 +234,31 @@ async function fetchUsage() {
     // Flush any data stored offline while the server was unavailable
     const { claude_usage: stored } = await chrome.storage.local.get('claude_usage');
     if (stored) {
-      try {
-        const r = await fetch(LOCAL_SERVER, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(stored),
-        });
-        if (r.ok) {
-          await chrome.storage.local.remove('claude_usage');
-          console.log('Claude Usage: flushed offline data to server');
-        } else if (r.status >= 400 && r.status < 500) {
-          // 4xx means the buffered payload is malformed (e.g. validator
-          // rejected it after a server update tightened the schema).
-          // Discard so we stop retrying forever; the next fresh scrape
-          // will write valid data.
-          console.warn('Claude Usage: discarding malformed offline buffer:', r.status);
-          await chrome.storage.local.remove('claude_usage');
-        }
-      } catch (_) {}
+      // Discard buffered data older than 24 h — it's stale and not worth
+      // sending; the next live scrape will produce fresh data.
+      if (Date.now() - (stored._buffered_at || 0) > 86_400_000) {
+        console.warn('Claude Usage: discarding expired offline buffer');
+        await chrome.storage.local.remove('claude_usage');
+      } else {
+        try {
+          const r = await fetch(LOCAL_SERVER, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(stored),
+          });
+          if (r.ok) {
+            await chrome.storage.local.remove('claude_usage');
+            console.log('Claude Usage: flushed offline data to server');
+          } else if (r.status >= 400 && r.status < 500) {
+            // 4xx means the buffered payload is malformed (e.g. validator
+            // rejected it after a server update tightened the schema).
+            // Discard so we stop retrying forever; the next fresh scrape
+            // will write valid data.
+            console.warn('Claude Usage: discarding malformed offline buffer:', r.status);
+            await chrome.storage.local.remove('claude_usage');
+          }
+        } catch (_) {}
+      }
     }
 
     // Recover any orphan scrape tab from a previous fetch killed mid-scrape
