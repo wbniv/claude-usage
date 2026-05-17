@@ -59,6 +59,15 @@ def _validate(body):
                 err = _bounded_str(m.get(k), f"meters[{i}].{k}")
                 if err:
                     return err
+            # Additional-features meters carry count/total instead of a meaningful
+            # pct. Bound them so a malicious POST can't widen the popup column to
+            # an absurd width via `${count}/${total}`.padStart in extension.js.
+            for k in ('count', 'total'):
+                v = m.get(k)
+                if v is not None and (
+                    isinstance(v, bool) or not isinstance(v, int) or v < 0 or v > 10**9
+                ):
+                    return f"meters[{i}].{k} must be a non-negative integer ≤ 10^9 or null"
             rm = m.get('reset_minutes')
             # Upper bound = 31 days. Longest plausible period is the 7-day weekly
             # meter; 31 days has headroom for any hypothetical monthly meter and
@@ -174,8 +183,12 @@ class Handler(BaseHTTPRequestHandler):
                 tmp.replace(OUTPUT)
                 print(f"Saved {len(body.get('meters', []))} meters → {OUTPUT}", flush=True)
                 if GENERATE_ICON:
+                    # stderr inherits from the server (→ systemd journal under
+                    # claude-usage-fetch.service) so generate-icon.py crashes
+                    # are debuggable via `journalctl --user-unit=...`. stdout
+                    # is silenced because the script's success line is noisy.
                     subprocess.Popen([sys.executable, str(GENERATE_ICON)],
-                                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                                     stdout=subprocess.DEVNULL)
         except Exception as e:
             print(f"Error: {e}", file=sys.stderr, flush=True)
             status, reply = 400, b'error'
@@ -217,7 +230,25 @@ def _tooltip_tick():
             print(f"tooltip tick: {e}", file=sys.stderr, flush=True)
 
 
+def _sweep_orphan_tmps():
+    """Prune leftover update_desktop tmp files from crashed writes.
+
+    The unique-tmp scheme (tooltip.py uses .tmp.PID.NS to avoid concurrent
+    writers truncating each other) means a crash between write_text and
+    replace leaks one tmp per crash. Run-once at server startup.
+    """
+    apps = Path.home() / '.local/share/applications'
+    if not apps.is_dir():
+        return
+    for orphan in apps.glob('claude-usage.desktop.tmp.*'):
+        try:
+            orphan.unlink()
+        except OSError:
+            pass
+
+
 if __name__ == '__main__':
+    _sweep_orphan_tmps()
     server = HTTPServer(('127.0.0.1', PORT), Handler)
     print(f"Claude Usage server listening on 127.0.0.1:{PORT}", flush=True)
     threading.Thread(target=_tooltip_tick, daemon=True).start()

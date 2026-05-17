@@ -242,6 +242,13 @@ async function fetchUsage() {
         if (r.ok) {
           await chrome.storage.local.remove('claude_usage');
           console.log('Claude Usage: flushed offline data to server');
+        } else if (r.status >= 400 && r.status < 500) {
+          // 4xx means the buffered payload is malformed (e.g. validator
+          // rejected it after a server update tightened the schema).
+          // Discard so we stop retrying forever; the next fresh scrape
+          // will write valid data.
+          console.warn('Claude Usage: discarding malformed offline buffer:', r.status);
+          await chrome.storage.local.remove('claude_usage');
         }
       } catch (_) {}
     }
