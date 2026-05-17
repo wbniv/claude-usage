@@ -22,6 +22,10 @@ echo "  ✓ Dock entry installed"
 
 # 2. Systemd user service
 systemctl --user daemon-reload
+# Clear any failed/auto-restart state from a previous broken version so
+# `enable --now` actually starts the service on upgrade rather than
+# refusing because StartLimitBurst was already exhausted.
+systemctl --user reset-failed claude-usage-fetch.service 2>/dev/null || true
 systemctl --user enable --now claude-usage-fetch.service
 echo "  ✓ Service enabled"
 
