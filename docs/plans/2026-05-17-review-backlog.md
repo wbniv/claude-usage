@@ -69,8 +69,8 @@ Omitted: `ProtectHome=` (breaks home-dir writes), `PrivateNetwork=yes` (breaks H
 
 | Item | Status |
 |------|--------|
-| CQ8 (pass 5) — `Name=` overwrite in `update_desktop` affects Activities search | Won't fix — live dock hover tooltip is more valuable than clean Activities search title; search still works via substring match |
-| A2 — `metadata.json` has `version: 1` | Deferred — only relevant for EGO (extensions.gnome.org) submission |
-| A5 — `dist/` accumulates old `.deb` versions | Deferred — cosmetic |
+| CQ8 (pass 5) — `Name=` overwrite in `update_desktop` affects Activities search | Fixed — prepend `'Claude Usage  ✴  '`; see [2026-05-17-cq8-tooltip-prefix.md](2026-05-17-cq8-tooltip-prefix.md) |
+| A2 — `metadata.json` has `version: 1` | Done — `task release` auto-increments via python one-liner; version starts at 1 and ticks up each release |
+| A5 — `dist/` accumulates old `.deb` versions | Fixed — `task release` prunes `dist/*.deb` and `dist/*.zip` after tag push; see [2026-05-17-dist-cleanup.md](2026-05-17-dist-cleanup.md) |
 | CQ6-6 — server-spawned generate-icon missing `--tier` | Won't fix — asymmetry by design |
 | CQ6-7 — `_period_lengths` accumulates labels forever | Won't fix — bounded by label universe |
