@@ -9,8 +9,9 @@ import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
-const CACHE_FILE = GLib.get_home_dir() + '/.cache/claude-usage/usage.json';
-const USAGE_URL  = 'https://claude.ai/settings/usage';
+const CACHE_FILE    = GLib.get_home_dir() + '/.cache/claude-usage/usage.json';
+const NOTIF_TS_FILE = GLib.get_home_dir() + '/.cache/claude-usage/notif-ts';
+const USAGE_URL     = 'https://claude.ai/settings/usage';
 
 function formatReset(reset) {
     if (!reset || typeof reset !== 'string') return '';
@@ -177,6 +178,12 @@ class ClaudeIndicator extends PanelMenu.Button {
 
         this._anyCrit = false;
         this._flashSuppressed = false;
+        try {
+            const [ok, bytes] = GLib.file_get_contents(NOTIF_TS_FILE);
+            this._lastNotifyTs = ok ? (parseInt(new TextDecoder().decode(bytes)) || 0) : 0;
+        } catch (_) {
+            this._lastNotifyTs = 0;
+        }
         this._watchFile();
         this._loadData();
 
@@ -363,6 +370,7 @@ class ClaudeIndicator extends PanelMenu.Button {
                 if (now - (this._lastNotifyTs || 0) > 5 * 60 * 1000) {
                     Main.notify('Claude Usage', reason || `Status: ${tier}`);
                     this._lastNotifyTs = now;
+                    try { GLib.file_set_contents(NOTIF_TS_FILE, String(now)); } catch (_) {}
                 }
                 this._spawnIconRegen(tier);
             } else if (this._lastTier === 'stale' || this._lastTier === 'broken') {

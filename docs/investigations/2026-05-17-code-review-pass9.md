@@ -355,7 +355,7 @@ The scraper (`background.js:scrapeAndPost`) relies on line-by-line text layout o
 | ~~T-3~~ | ~~Low~~ | ~~XS~~ | ~~tooltip.py~~ | ~~Meter keyword match fragile for future label changes~~ |
 | ~~E-4~~ | ~~Low~~ | ~~XS~~ | ~~extension.js~~ | ~~Stale `panel-metric` preference never cleared~~ |
 | ~~E-5~~ | ~~Low~~ | ~~XS~~ | ~~extension.js~~ | ~~`_anyCrit`/`_flashSuppressed` not initialised in `_init`~~ |
-| E-6 | Low | — | extension.js | Notification cooldown resets on extension reload |
+| ~~E-6~~ | ~~Low~~ | ~~—~~ | ~~extension.js~~ | ~~Notification cooldown resets on extension reload~~ |
 | ~~B-1~~ | ~~Low~~ | ~~XS~~ | ~~background.js~~ | ~~`reset_minutes` return not capped at parse site~~ |
 | ~~B-2~~ | ~~Low~~ | ~~—~~ | ~~background.js~~ | ~~3-second scrape delay is a heuristic~~ |
 | ~~B-3~~ | ~~Low~~ | ~~S~~ | ~~background.js~~ | ~~Tab leak window between create and storage write~~ |
