@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
 """Tiny local HTTP server — receives usage JSON from the Chrome extension."""
 from http.server import HTTPServer, BaseHTTPRequestHandler
-import json, os, subprocess, sys, threading, time
+import json, os, signal, subprocess, sys, threading, time
 from pathlib import Path
 
 import tooltip
+
+# Auto-reap exited child processes (generate-icon.py spawns). The Popen
+# objects are discarded after dispatch, so without SIGCHLD ignored the
+# kernel keeps zombies around until the next subprocess._cleanup() sweep.
+signal.signal(signal.SIGCHLD, signal.SIG_IGN)
 
 OUTPUT        = Path.home() / '.cache' / 'claude-usage' / 'usage.json'
 # Source install puts generate-icon.py under ~/.local/share; .deb under /usr/share.

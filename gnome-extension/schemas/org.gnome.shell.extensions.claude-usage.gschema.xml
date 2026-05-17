@@ -78,7 +78,7 @@
     </key>
     <key name="panel-icon-size" type="u">
       <default>16</default>
-      <summary>Panel icon pixel size (requires extension reload)</summary>
+      <summary>Panel icon pixel size</summary>
       <range min="8" max="32"/>
     </key>
     <key name="panel-metric" type="s">

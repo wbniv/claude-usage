@@ -219,7 +219,9 @@ class ClaudeIndicator extends PanelMenu.Button {
             const text = new TextDecoder().decode(contents);
             this._data = JSON.parse(text);
             this._updateDisplay();
-        } catch (_e) {}
+        } catch (e) {
+            logError(e, 'ClaudeUsage: failed to read cache');
+        }
     }
 
     _updateDisplay() {
@@ -227,6 +229,9 @@ class ClaudeIndicator extends PanelMenu.Button {
         const s = this._settings;
         const fontSize = s.get_uint('panel-font-size');
         const labelGap = s.get_uint('panel-label-spacing');
+        // Live update: settings 'changed' fires _updateDisplay so a slider
+        // tweak in prefs flows through without an extension reload.
+        this._icon.set_icon_size(s.get_uint('panel-icon-size'));
 
         if (!d || !d.meters || d.meters.length === 0) {
             this._label.set_text('--');

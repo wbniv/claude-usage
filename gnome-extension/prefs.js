@@ -124,7 +124,7 @@ export default class ClaudeUsagePreferences extends ExtensionPreferences {
         addSpinRow(panelGroup, settings, 'panel-label-spacing',
             'Icon–label gap', 'Pixels between the icon and the percentage label', 0, 20);
         addSpinRow(panelGroup, settings, 'panel-icon-size',
-            'Icon size', 'Panel icon pixel size — requires reloading the extension', 8, 32);
+            'Icon size', 'Panel icon pixel size', 8, 32);
 
         // ── Setup ────────────────────────────────────────────────────────────
         const infoGroup = new Adw.PreferencesGroup({title: 'Setup'});

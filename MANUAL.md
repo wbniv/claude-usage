@@ -180,7 +180,7 @@ gsettings reset org.gnome.shell.extensions.claude-usage popup-color-normal  # re
 | `panel-label-spacing` | `6` | Pixels between panel icon and label |
 | `popup-font-size` | `10` | Popup meter row font size (px) |
 | `popup-font-family` | `monospace` | Popup meter row font family |
-| `panel-icon-size` | `16` | Panel icon pixel size (requires extension reload) |
+| `panel-icon-size` | `16` | Panel icon pixel size |
 
 ---
 

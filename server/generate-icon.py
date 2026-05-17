@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 """Generate dock icon PNG with two concentric rings from cached usage data."""
-import cairo, math, json, sys
+import cairo, math, json, sys, time
 from pathlib import Path
 from PIL import Image
+
+# Forward-compat: Pillow 9.1+ moved LANCZOS under Image.Resampling and
+# deprecated the top-level alias. getattr fallback keeps older Pillow happy.
+RESAMPLE = getattr(Image, 'Resampling', Image).LANCZOS
 
 from tooltip import update_desktop  # parse_reset, format_tooltip used via update_desktop
 
@@ -66,9 +70,11 @@ def hex_to_rgba(h):
     return (r/255, g/255, b/255, 1.0)
 
 def ring_color(pct, cfg):
-    if pct >= cfg.get('threshold_critical', 80): return hex_to_rgba(cfg['weekly_color_red'])
-    if pct >= cfg.get('threshold_warning',  50): return hex_to_rgba(cfg['weekly_color_amber'])
-    return                                             hex_to_rgba(cfg['weekly_color_green'])
+    # load_config() unconditionally populates both threshold keys (live or DEFAULTS),
+    # so the previous .get(default) was dead defense.
+    if pct >= cfg['threshold_critical']: return hex_to_rgba(cfg['weekly_color_red'])
+    if pct >= cfg['threshold_warning']:  return hex_to_rgba(cfg['weekly_color_amber'])
+    return                                      hex_to_rgba(cfg['weekly_color_green'])
 
 def pacing_pct(meter, period_lens):
     """pct / fraction_elapsed — uncapped. 100 = on pace, > 100 = over pace.
@@ -163,7 +169,7 @@ def generate(all_pct, sonnet_pct, cfg, dest, draw_rings=True, tier='normal'):
         from PIL import ImageOps
         grey = ImageOps.grayscale(Image.merge('RGB', (r, g, b)))
         img = Image.merge('RGBA', (grey, grey, grey, a))
-    img.resize((128, 128), Image.LANCZOS).save(dest)
+    img.resize((128, 128), RESAMPLE).save(dest)
 
 
 def derive_tier(data):
@@ -185,7 +191,6 @@ def derive_tier(data):
 
 def _next_icon_path():
     """Return a fresh timestamped path so GNOME never serves a cached pixbuf."""
-    import time
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     # Nanosecond precision: two same-second invocations would otherwise collide
     # on the filename, silently dropping the second icon refresh.
