@@ -346,11 +346,11 @@ The scraper (`background.js:scrapeAndPost`) relies on line-by-line text layout o
 | ~~E-1~~ | ~~Critical~~ | ~~XS~~ | ~~extension.js~~ | ~~`\[Rr\]` regex never matches — reset countdown always broken~~ |
 | ~~G-1~~ | ~~High~~ | ~~S~~ | ~~generate-icon.py~~ | ~~Uncapped pacing → Cairo arc overdraws at >100%~~ |
 | ~~S-1~~ | ~~High~~ | ~~S~~ | ~~usage-server.py~~ | ~~CORS allows any Chrome extension, not just this one~~ |
-| S-2 | Medium | S | usage-server.py | `_period_lengths` keys accumulate without pruning |
-| S-3 | Medium | XS | usage-server.py | No key-count bound on `_period_lengths` |
-| E-2 | Medium | XS | extension.js | `logError` deprecated in GNOME 48+ |
-| E-3 | Medium | M | extension.js | Synchronous file I/O on GNOME Shell main thread |
-| P-1 | Medium | S | prefs.js | Warning/critical thresholds not constrained relative to each other |
+| ~~S-2~~ | ~~Medium~~ | ~~S~~ | ~~usage-server.py~~ | ~~`_period_lengths` keys accumulate without pruning~~ |
+| ~~S-3~~ | ~~Medium~~ | ~~XS~~ | ~~usage-server.py~~ | ~~No key-count bound on `_period_lengths`~~ |
+| ~~E-2~~ | ~~Medium~~ | ~~XS~~ | ~~extension.js~~ | ~~`logError` deprecated in GNOME 48+~~ |
+| ~~E-3~~ | ~~Medium~~ | ~~M~~ | ~~extension.js~~ | ~~Synchronous file I/O on GNOME Shell main thread~~ |
+| ~~P-1~~ | ~~Medium~~ | ~~S~~ | ~~prefs.js~~ | ~~Warning/critical thresholds not constrained relative to each other~~ |
 | T-2 | Low | XS | tooltip.py | Unrecognised .desktop lines silently dropped |
 | T-3 | Low | XS | tooltip.py | Meter keyword match fragile for future label changes |
 | E-4 | Low | XS | extension.js | Stale `panel-metric` preference never cleared |

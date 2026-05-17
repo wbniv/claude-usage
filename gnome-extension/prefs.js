@@ -51,6 +51,7 @@ function addSpinRow(group, settings, key, title, subtitle, lower, upper, regen =
         if (regen) regenIcon();
     });
     group.add(row);
+    return adj;
 }
 
 export default class ClaudeUsagePreferences extends ExtensionPreferences {
@@ -93,10 +94,18 @@ export default class ClaudeUsagePreferences extends ExtensionPreferences {
         // ── Popup Display ────────────────────────────────────────────────────
         const popupDisplayGroup = new Adw.PreferencesGroup({title: 'Popup Display'});
         page.add(popupDisplayGroup);
-        addSpinRow(popupDisplayGroup, settings, 'threshold-warning',
+        const warningAdj  = addSpinRow(popupDisplayGroup, settings, 'threshold-warning',
             'Warning threshold',  '% at which color flips to warning (must be below Critical)', 1, 99, true);
-        addSpinRow(popupDisplayGroup, settings, 'threshold-critical',
+        const criticalAdj = addSpinRow(popupDisplayGroup, settings, 'threshold-critical',
             'Critical threshold', '% at which color flips to critical (must exceed Warning)', 1, 99, true);
+        warningAdj.connect('value-changed', () => {
+            if (Math.round(warningAdj.get_value()) >= Math.round(criticalAdj.get_value()))
+                criticalAdj.set_value(Math.round(warningAdj.get_value()) + 1);
+        });
+        criticalAdj.connect('value-changed', () => {
+            if (Math.round(criticalAdj.get_value()) <= Math.round(warningAdj.get_value()))
+                warningAdj.set_value(Math.round(criticalAdj.get_value()) - 1);
+        });
         addSpinRow(popupDisplayGroup, settings, 'bar-width',
             'Bar width', 'Character count of the █░ usage bar', 1, 20);
         addSpinRow(popupDisplayGroup, settings, 'popup-font-size',

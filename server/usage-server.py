@@ -111,6 +111,8 @@ def _validate(body):
     if pl is not None:
         if not isinstance(pl, dict):
             return "'_period_lengths' must be an object"
+        if len(pl) > 100:
+            return "'_period_lengths' must have ≤ 100 keys"
         for k, v in pl.items():
             if not isinstance(k, str) or len(k) > MAX_STR_LEN:
                 return f"'_period_lengths' keys must be strings ≤ {MAX_STR_LEN} chars"
@@ -196,6 +198,11 @@ class Handler(BaseHTTPRequestHandler):
                     if rm is None or not label:
                         continue
                     period_lengths[label] = max(period_lengths.get(label, 0), rm)
+                # Evict labels no longer in the current meter set so stale keys
+                # from renamed meters don't skew future pacing calculations.
+                current_labels = {m.get('label') for m in body.get('meters', []) or [] if m.get('label')}
+                if current_labels:
+                    period_lengths = {k: v for k, v in period_lengths.items() if k in current_labels}
                 body['_period_lengths'] = period_lengths
                 OUTPUT.parent.mkdir(parents=True, exist_ok=True)
                 tmp = OUTPUT.with_suffix(OUTPUT.suffix + '.tmp')

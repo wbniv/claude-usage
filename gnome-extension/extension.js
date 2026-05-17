@@ -218,21 +218,23 @@ class ClaudeIndicator extends PanelMenu.Button {
                 }
             });
         } catch (e) {
-            logError(e, 'ClaudeUsage: file monitor failed');
+            console.error('ClaudeUsage: file monitor failed', e);
         }
     }
 
     _loadData() {
-        try {
-            const f = Gio.File.new_for_path(CACHE_FILE);
-            const [ok, contents] = f.load_contents(null);
-            if (!ok) return;
-            const text = new TextDecoder().decode(contents);
-            this._data = JSON.parse(text);
-            this._updateDisplay();
-        } catch (e) {
-            logError(e, 'ClaudeUsage: failed to read cache');
-        }
+        const f = Gio.File.new_for_path(CACHE_FILE);
+        f.load_contents_async(null, (_obj, result) => {
+            try {
+                const [ok, contents] = f.load_contents_finish(result);
+                if (!ok) return;
+                const text = new TextDecoder().decode(contents);
+                this._data = JSON.parse(text);
+                this._updateDisplay();
+            } catch (e) {
+                console.error('ClaudeUsage: failed to read cache', e);
+            }
+        });
     }
 
     _updateDisplay() {
