@@ -23,6 +23,14 @@ GENERATE_ICON = next(
 if GENERATE_ICON is None:
     print("warning: generate-icon.py not found; dock icon updates disabled", file=sys.stderr, flush=True)
 PORT = 7331
+# Set CLAUDE_USAGE_EXTENSION_ID to the published Chrome Web Store extension ID
+# to restrict CORS to only that extension. Unset = allow any chrome-extension://
+# origin (safe for dev installs; server only binds to 127.0.0.1 regardless).
+_EXTENSION_ID  = os.environ.get('CLAUDE_USAGE_EXTENSION_ID', '')
+ALLOWED_ORIGINS = {f'chrome-extension://{_EXTENSION_ID}'} if _EXTENSION_ID else None
+if not _EXTENSION_ID:
+    print("warning: CLAUDE_USAGE_EXTENSION_ID not set; CORS allows any Chrome extension",
+          file=sys.stderr, flush=True)
 MAX_STR_LEN = 128
 
 
@@ -217,7 +225,11 @@ class Handler(BaseHTTPRequestHandler):
         # Drive-by web pages send their real Origin; only emit Allow-Origin
         # for extension-style origins so browsers reject the rest.
         origin = self.headers.get('Origin', '')
-        if origin.startswith('chrome-extension://'):
+        allowed = (
+            (ALLOWED_ORIGINS is None and origin.startswith('chrome-extension://')) or
+            (ALLOWED_ORIGINS is not None and origin in ALLOWED_ORIGINS)
+        )
+        if allowed:
             self.send_header('Access-Control-Allow-Origin', origin)
             self.send_header('Access-Control-Allow-Methods', 'POST, OPTIONS')
             self.send_header('Access-Control-Allow-Headers', 'Content-Type')
