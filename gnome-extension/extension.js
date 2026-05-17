@@ -166,7 +166,7 @@ class ClaudeIndicator extends PanelMenu.Button {
 
         // Stop flashing when the user opens the popup — they're now looking at
         // the meters. Suppress restart until critical clears and re-enters.
-        this.menu.connect('open-state-changed', (_menu, open) => {
+        this._menuOpenId = this.menu.connect('open-state-changed', (_menu, open) => {
             if (open) {
                 this._stopFlash();
                 this._flashSuppressed = true;
@@ -451,6 +451,10 @@ class ClaudeIndicator extends PanelMenu.Button {
         if (this._flashId) {
             GLib.source_remove(this._flashId);
             this._flashId = null;
+        }
+        if (this._menuOpenId) {
+            this.menu.disconnect(this._menuOpenId);
+            this._menuOpenId = null;
         }
         super.destroy();
     }

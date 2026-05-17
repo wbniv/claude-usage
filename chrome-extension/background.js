@@ -357,8 +357,8 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 });
 
-chrome.alarms.onAlarm.addListener(alarm => {
-  if (alarm.name === 'fetch-usage') fetchUsage();
+chrome.alarms.onAlarm.addListener(async alarm => {
+  if (alarm.name === 'fetch-usage') await fetchUsage();
 });
 
-chrome.action.onClicked.addListener(() => fetchUsage());
+chrome.action.onClicked.addListener(async () => { await fetchUsage(); });
