@@ -43,7 +43,7 @@ When the server's POST handler invokes `generate-icon.py` it does not pass `--ti
 ## B‑3 — `_scrape_tabs` tab leak between `tabs.create` and `storage.set`
 
 **Source:** [pass-9 review](investigations/2026-05-17-code-review-pass9.md)  
-**Verdict:** Won't fix — gap is negligible in practice
+**Verdict:** Can't fix — gap is structurally unavoidable
 
 The concern: if the service worker is suspended in the single microtask turn between `chrome.tabs.create` resolving and `chrome.storage.local.set` completing, the tab ID is never persisted and the orphan-cleanup loop on next wake-up won't find it.
 
