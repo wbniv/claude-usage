@@ -164,6 +164,15 @@ class ClaudeIndicator extends PanelMenu.Button {
 
         this._settingsId = this._settings.connect('changed', () => this._updateDisplay());
 
+        // Stop flashing when the user opens the popup — they're now looking at
+        // the meters. Suppress restart until critical clears and re-enters.
+        this.menu.connect('open-state-changed', (_menu, open) => {
+            if (open) {
+                this._stopFlash();
+                this._flashSuppressed = true;
+            }
+        });
+
         this._watchFile();
         this._loadData();
 
@@ -262,8 +271,31 @@ class ClaudeIndicator extends PanelMenu.Button {
         // pacing drives the COLOR; raw `pct` still drives the displayed text.
         const panelPacing = primary ? pacingPct(primary, periodLens) : pct;
         const panelColor = panelPacing >= tCrit ? panelCrit : panelPacing >= tWarn ? panelWarn : panelNorm;
+        // If any meter is critical (even a non-primary one), force label red so
+        // the user gets a signal even when watching a different metric.
+        const anyCrit = d.meters.some(m => pacingPct(m, periodLens) >= tCrit);
+        const labelColor = anyCrit ? panelCrit : panelColor;
         this._label.set_text(`${pct}%`);
-        this._label.set_style(`font-size: ${fontSize}px; margin-left: ${labelGap}px; color: ${panelColor};`);
+        this._label.set_style(`font-size: ${fontSize}px; margin-left: ${labelGap}px; color: ${labelColor};`);
+
+        // Flash management: blink the panel label when any meter enters critical.
+        // Stops when the popup is opened (user has seen it), resets when pacing clears.
+        if (!anyCrit) {
+            if (this._anyCrit) {
+                this._stopFlash();
+                this._flashSuppressed = false;
+            }
+        } else if (!this._anyCrit) {
+            const now = Date.now();
+            if (now - (this._lastCritNotifyTs || 0) > 5 * 60 * 1000) {
+                const critMeter = d.meters.find(m => pacingPct(m, periodLens) >= tCrit);
+                Main.notify('Claude Usage',
+                    `⚠ ${critMeter?.label ?? 'A meter'} is at ${Math.round(pacingPct(critMeter, periodLens))}% pacing`);
+                this._lastCritNotifyTs = now;
+            }
+            if (!this._flashSuppressed) this._startFlash();
+        }
+        this._anyCrit = anyCrit;
 
         const plan   = d.plan || 'Claude';
         const age    = d._timestamp ? Math.round((Date.now() / 1000 - d._timestamp) / 60) : null;
@@ -360,6 +392,24 @@ class ClaudeIndicator extends PanelMenu.Button {
         }
     }
 
+    _startFlash() {
+        this._stopFlash();
+        let vis = false;
+        this._flashId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
+            this._label.opacity = vis ? 255 : 30;
+            vis = !vis;
+            return GLib.SOURCE_CONTINUE;
+        });
+    }
+
+    _stopFlash() {
+        if (this._flashId) {
+            GLib.source_remove(this._flashId);
+            this._flashId = null;
+        }
+        this._label.opacity = 255;
+    }
+
     _isEligible(m) {
         return m.pct !== undefined ||
                (m.count !== undefined && m.total !== undefined && m.total > 0);
@@ -397,6 +447,10 @@ class ClaudeIndicator extends PanelMenu.Button {
         if (this._tickId) {
             GLib.source_remove(this._tickId);
             this._tickId = null;
+        }
+        if (this._flashId) {
+            GLib.source_remove(this._flashId);
+            this._flashId = null;
         }
         super.destroy();
     }
