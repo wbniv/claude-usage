@@ -102,6 +102,17 @@ tasks:
           echo "Version mismatch: packaging/control=$ctl_ver, chrome-extension/manifest.json=$ext_ver" >&2
           exit 1
         fi
+        # Auto-increment the GNOME extension integer version (EGO requirement).
+        # Runs after all guards so a wrong-branch/dirty-tree abort never mutates the file.
+        python3 - <<'PYEOF'
+import json, pathlib
+p = pathlib.Path('gnome-extension/metadata.json')
+d = json.loads(p.read_text())
+d['version'] += 1
+p.write_text(json.dumps(d, indent=2) + '\n')
+PYEOF
+        git add gnome-extension/metadata.json
+        git commit -m "chore: bump gnome extension version for release"
       - git push origin main
       - git tag "{{.TAG}}"
       - git push origin "{{.TAG}}"
