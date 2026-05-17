@@ -73,7 +73,7 @@ fi
 
 # User setup script + diagnostics script
 cp "$REPO_DIR/packaging/claude-usage-setup" "$PKG/usr/bin/"
-install -m 755 "$REPO_DIR/scripts/claude-usage-status.sh" "$PKG/usr/bin/claude-usage-status"
+install -m 755 "$REPO_DIR/scripts/claude-usage-status.py" "$PKG/usr/bin/claude-usage-status"
 
 # DEBIAN control files
 cp "$REPO_DIR/packaging/control"  "$PKG/DEBIAN/"
