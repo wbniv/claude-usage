@@ -90,7 +90,11 @@ def format_tooltip(meters, anchor_ts=None):
 
 
 def update_desktop(meters, icon_path=None, scrape_ts=None):
-    """Rewrite the .desktop launcher's Name= line with a fresh tooltip.
+    """Update the .desktop launcher: live tooltip → Comment=, static Name=.
+
+    Name= is kept as "Claude Usage" so GNOME Activities search indexes it
+    correctly. The live meter text goes into Comment= instead — visible in
+    app menus and some launchers, not the dock hover (which reads Name=).
 
     If icon_path is None, preserve the existing Icon= line — that's the
     path the 60 s tick takes from usage-server.py; the 15 min regen
@@ -101,12 +105,14 @@ def update_desktop(meters, icon_path=None, scrape_ts=None):
     in parse_reset so the tooltip ticks down between scrapes."""
     if not DESKTOP.exists():
         return
-    name = format_tooltip(meters, anchor_ts=scrape_ts).replace('\n', r'\n')
+    comment = format_tooltip(meters, anchor_ts=scrape_ts).replace('\n', r'\n')
     lines = DESKTOP.read_text().splitlines()
     out = []
     for line in lines:
         if line.startswith('Name='):
-            out.append(f'Name={name}')
+            out.append('Name=Claude Usage')
+        elif line.startswith('Comment='):
+            out.append(f'Comment={comment}')
         elif line.startswith('Icon='):
             out.append(line if icon_path is None else f'Icon={icon_path}')
         elif line.startswith('#'):
