@@ -116,7 +116,10 @@ PYEOF
       - git push origin main
       - git tag "{{.TAG}}"
       - git push origin "{{.TAG}}"
-      - echo "Tag {{.TAG}} pushed — GitHub Actions will build, test, and publish the release."
+      - |
+        echo "Tag {{.TAG}} pushed — GitHub Actions will build, test, and publish the release."
+        rm -f dist/*.deb dist/*.zip
+        echo "Local dist/ artifacts removed (CI uploads the canonical copies)."
 
   md:
     desc: Preview a markdown file in the browser
