@@ -362,8 +362,8 @@ The scraper (`background.js:scrapeAndPost`) relies on line-by-line text layout o
 | ~~B-4~~ | ~~Low~~ | ~~XS~~ | ~~background.js~~ | ~~Error-report fetch failure fully silenced~~ |
 | ~~G-2~~ | ~~Low~~ | ~~—~~ | ~~generate-icon.py~~ | ~~Substring `find_meter` vulnerable to label prefix collisions~~ |
 | ~~G-3~~ | ~~Low~~ | ~~XS~~ | ~~generate-icon.py~~ | ~~Silent color-fallback gives no journal entry~~ |
-| M-1 | Low | XS | manifest.json | Version mismatch with README |
-| I-1 | Low | XS | install.sh | `set -euo pipefail` not confirmed |
+| ~~M-1~~ | ~~Low~~ | ~~XS~~ | ~~manifest.json~~ | ~~Version mismatch with README~~ |
+| ~~I-1~~ | ~~Low~~ | ~~XS~~ | ~~install.sh~~ | ~~`set -euo pipefail` not confirmed~~ |
 
 **Effort key:** XS = 1–5 min, S = 15–30 min, M = 1–2 h
 

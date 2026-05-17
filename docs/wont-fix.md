@@ -53,6 +53,20 @@ Why it doesn't matter: Chrome service workers can only be suspended at `await` b
 
 ## Won't Fix — Not a Bug
 
+### I‑1 — `install.sh` missing `set -euo pipefail`
+
+**Source:** [pass-9 review](investigations/2026-05-17-code-review-pass9.md)
+
+`install.sh` line 2 is `set -euo pipefail`. Already present; review was incorrect.
+
+### M‑1 — Version mismatch between `manifest.json` and README
+
+**Source:** [pass-9 review](investigations/2026-05-17-code-review-pass9.md)
+
+README contains no version string. There is nothing to mismatch; review was incorrect.
+
+---
+
 ### BUG‑4 — Weekday numbering inconsistency (Python vs JavaScript)
 
 **Source:** [pass-1 review](investigations/2026-05-16-code-review.md)
