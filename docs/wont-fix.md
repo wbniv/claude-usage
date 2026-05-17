@@ -1,0 +1,64 @@
+# Won't Fix
+
+Permanent deferrals from all code review passes. Check this file before reopening any of these items in future reviews.
+
+---
+
+## BUG‑5 — Sonnet ring ignores warning/critical color thresholds
+
+**Source:** [pass-1 review](investigations/2026-05-16-code-review.md)  
+**Verdict:** By design
+
+Blue always = Sonnet so users can distinguish the current-session ring from the all-models ring by color family at a glance. Applying warning/critical thresholds to the Sonnet ring would break that visual invariant. A comment in the source documents the intent.
+
+---
+
+## CQ6‑5 — `release` task `deps:` run before preflight checks
+
+**Source:** [pass-6 review](investigations/2026-05-17-code-review-pass6.md)  
+**Verdict:** Moot (resolved differently)
+
+The structural issue — go-task runs `deps:` in parallel before the first `cmds:` step, so a dirty tree would still build the `.deb` before aborting — was real but the fix would have required restructuring the task. Resolved instead by removing the `deps: [build, build-chrome-zip, test-deb]` entries from `task release` entirely (A1): `task release` is now preflight-only and CI handles build/test/publish. The issue no longer exists.
+
+---
+
+## CQ6‑6 — Server-spawned `generate-icon.py` missing `--tier`
+
+**Source:** [pass-6 review](investigations/2026-05-17-code-review-pass6.md), [pass-7 review](investigations/2026-05-17-code-review-pass7.md)  
+**Verdict:** Asymmetry by design
+
+When the server's POST handler invokes `generate-icon.py` it does not pass `--tier`, so the icon always uses the default (no-outage) color regardless of current Statuspage state. The asymmetry is intentional: the extension's 30 s timer fires `generate-icon.py --tier <current>` on each cycle, so any tier mismatch is self-correcting within 30 s. The server is the icon-rendering trigger on the happy path (fresh scrape just landed); the extension is the trigger on the unhappy path (stale data, outage transitions). The two call sites are not interchangeable and do not need to be.
+
+---
+
+## CQ6‑7 — `_period_lengths` dict accumulates labels forever
+
+**Source:** [pass-6 review](investigations/2026-05-17-code-review-pass6.md), [pass-7 review](investigations/2026-05-17-code-review-pass7.md)  
+**Verdict:** Won't fix — bounded by label universe
+
+`server/usage_server.py` stores one entry per unique period label (e.g. `"claude.ai Pro"`, `"claude.ai Max"`). The dict grows without eviction, but the universe of labels is controlled entirely by Anthropic and is practically bounded to a small fixed set (~dozen entries). An eviction strategy would add complexity for no real benefit. If Anthropic ever ships hundreds of distinct billing tiers, revisit.
+
+---
+
+## CQ8 — `update_desktop` `Name=` overwrites GNOME Activities search title
+
+**Source:** [pass-5 review](investigations/2026-05-16-code-review-pass5.md), [pass-7 review](investigations/2026-05-17-code-review-pass7.md)  
+**Verdict:** Won't fix — live tooltip preferred
+
+`server/tooltip.py:update_desktop()` overwrites `Name=` in the `.desktop` file with live usage data (e.g. `current 72%  ⏱1:23`). This `Name=` value also populates the GNOME Activities search result, so the app appears as `current 72% ⏱1:23` rather than `Claude Usage`. The fix would require writing a static `Name=Claude Usage` and moving live data to `Comment=` — but `Comment=` is not displayed on the dock hover tooltip (confirmed by screenshot). Since the live tooltip is the primary value, and Activities search still finds the app via substring match on `claude`, the current behaviour is kept.
+
+---
+
+## Won't Fix — Not a Bug
+
+### BUG‑4 — Weekday numbering inconsistency (Python vs JavaScript)
+
+**Source:** [pass-1 review](investigations/2026-05-16-code-review.md)
+
+Python's `WD_MAP` uses Mon=0…Sun=6, matching `datetime.weekday()`. The JavaScript `wdMap` uses Sun=0…Sat=6, matching `Date.getDay()`. Both are internally consistent with their host language conventions and produce identical reset-day results. The original review made an arithmetic error in comparing them.
+
+### BUG‑6 — Chrome scraper DOM index lacks lower-bound guard
+
+**Source:** [pass-1 review](investigations/2026-05-16-code-review.md)
+
+Every `lines[i-1]` access in `chrome-extension/background.js` is guarded by `i >= 1`; every `lines[i-2]` access is guarded by `i >= 2`. Guards were already consistently applied at all call sites.
