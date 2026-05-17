@@ -22,14 +22,14 @@
 | ~~P8‑9~~ | ~~Medium~~ | ~~Chrome ext~~ | ~~`parseResetMinutes` hour/minute range not validated~~ |
 | ~~P8‑10~~ | ~~Medium~~ | ~~Python server~~ | ~~`_anthropic_status.indicator` not whitelisted~~ |
 | ~~P8‑11~~ | ~~Medium~~ | ~~Python server~~ | ~~JSON / unicode / memory errors all return 400~~ |
-| P8‑12 | Low | Chrome ext | `innerText` triggers layout recalculation |
-| P8‑13 | Low | Chrome ext | 3 s scrape delay unexplained |
-| P8‑14 | Low | Python server | Silent degradation when `generate-icon.py` not found |
-| P8‑15 | Low | CI | `VERSION` extracted twice in `release.yml` |
-| P8‑16 | Nitpick | GNOME ext | `critMeter?.label` optional chaining redundant |
-| P8‑17 | Nitpick | GNOME ext | `pacingPct(critMeter, …)` computed twice |
-| P8‑18 | Nitpick | Python server | `generate-icon.py --tier` arg access without length guard |
-| P8‑19 | Nitpick | GNOME ext | `formatReset()` missing `typeof` type guard |
+| ~~P8‑12~~ | ~~Low~~ | ~~Chrome ext~~ | ~~`innerText` triggers layout recalculation~~ |
+| ~~P8‑13~~ | ~~Low~~ | ~~Chrome ext~~ | ~~3 s scrape delay unexplained~~ |
+| ~~P8‑14~~ | ~~Low~~ | ~~Python server~~ | ~~Silent degradation when `generate-icon.py` not found~~ |
+| ~~P8‑15~~ | ~~Low~~ | ~~CI~~ | ~~`VERSION` extracted twice in `release.yml`~~ |
+| ~~P8‑16~~ | ~~Nitpick~~ | ~~GNOME ext~~ | ~~`critMeter?.label` optional chaining redundant~~ |
+| ~~P8‑17~~ | ~~Nitpick~~ | ~~GNOME ext~~ | ~~`pacingPct(critMeter, …)` computed twice~~ |
+| ~~P8‑18~~ | ~~Nitpick~~ | ~~Python server~~ | ~~`generate-icon.py --tier` arg access without length guard~~ |
+| ~~P8‑19~~ | ~~Nitpick~~ | ~~GNOME ext~~ | ~~`formatReset()` missing `typeof` type guard~~ |
 
 ---
 
