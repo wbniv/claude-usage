@@ -5,6 +5,8 @@ from pathlib import Path
 
 DESKTOP = Path.home() / '.local/share/applications/claude-usage.desktop'
 
+WD_MAP = {'Mon': 0, 'Tue': 1, 'Wed': 2, 'Thu': 3, 'Fri': 4, 'Sat': 5, 'Sun': 6}
+
 
 def parse_reset(reset, reset_minutes=None, anchor_ts=None):
     """Returns (is_countdown, display) or None. Countdown shows ⏱h:mm; day shows 'Tue 1:00'.
@@ -39,10 +41,15 @@ def parse_reset(reset, reset_minutes=None, anchor_ts=None):
     m = re.match(r'[Rr]esets? (\w{3}) (\d+):(\d+) (AM|PM)', reset)
     if m:
         day, h, mn, ap = m.group(1), int(m.group(2)), int(m.group(3)), m.group(4)
+        # Unknown day (locale change, formatter glitch) — return None so the
+        # caller falls back to the literal reset string rather than silently
+        # defaulting to Monday and rendering the wrong reset day.
+        if day not in WD_MAP:
+            return None
         if ap == 'PM' and h != 12: h += 12
         elif ap == 'AM' and h == 12: h = 0
         now = datetime.datetime.now()
-        wd = {'Mon':0,'Tue':1,'Wed':2,'Thu':3,'Fri':4,'Sat':5,'Sun':6}.get(day, 0)
+        wd = WD_MAP[day]
         ahead = (wd - now.weekday()) % 7
         if ahead == 0:
             candidate = now.replace(hour=h, minute=mn, second=0, microsecond=0)

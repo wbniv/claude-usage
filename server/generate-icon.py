@@ -2,7 +2,7 @@
 """Generate dock icon PNG with two concentric rings from cached usage data."""
 import cairo, math, json, sys, time
 from pathlib import Path
-from PIL import Image
+from PIL import Image, ImageOps
 
 # Forward-compat: Pillow 9.1+ moved LANCZOS under Image.Resampling and
 # deprecated the top-level alias. getattr fallback keeps older Pillow happy.
@@ -166,7 +166,6 @@ def generate(all_pct, sonnet_pct, cfg, dest, draw_rings=True, tier='normal'):
     # so the icon reads as "data is suspect" at a glance.
     if tier == 'stale':
         r, g, b, a = img.split()
-        from PIL import ImageOps
         grey = ImageOps.grayscale(Image.merge('RGB', (r, g, b)))
         img = Image.merge('RGBA', (grey, grey, grey, a))
     img.resize((128, 128), RESAMPLE).save(dest)

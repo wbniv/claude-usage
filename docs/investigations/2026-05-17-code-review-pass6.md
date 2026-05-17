@@ -825,3 +825,35 @@ Everything above, plus:
 - Single Python diagnostics script replacing `claude-usage-status.sh` (closes CQ5 from pass 5).
 - systemd hardening directives (defense-in-depth; not a bug).
 - Version-sync preflight in `release` (A4).
+
+---
+
+## Closure Status
+
+Resolved by `213e19b` (Commit A — bugs + 0.10.6 bump) and the immediately-following Commit B (code quality). See [plans/2026-05-17-pass6-fixes.md](../plans/2026-05-17-pass6-fixes.md) for the fix plan and verification log.
+
+| ID | Status | Commit |
+|----|--------|--------|
+| BUG-P6-1 (stale astat) | ✓ Fixed | A |
+| BUG-P6-2 (icon delete race) | ✓ Fixed | A |
+| BUG-P6-3 (`_period_lengths` validation) | ✓ Fixed | A |
+| BUG-P6-4 (`.desktop` tmp race) | ✓ Fixed | A |
+| BUG-P6-5 (`_timestamp` bool) | ✓ Fixed | A |
+| BUG-P6-6 (`reset_minutes` cap) | ✓ Fixed | A |
+| BUG-P6-7 (URL exact match) | ✓ Fixed | A |
+| BUG-P6-8 (status fetch timeout) | ✓ Fixed | A |
+| BUG-P6-9 (Origin-based CORS) | ✓ Fixed | A |
+| A4 (version-sync preflight) | ✓ Fixed | A |
+| CQ6-1 (ImageOps hoist) | ✓ Fixed | B |
+| CQ6-2 (single storage read) | ✓ Fixed | B |
+| CQ6-3 (`claude-usage-status` thresholds) | ✓ Fixed | B |
+| CQ6-4 (surface tier signals) | ✓ Fixed | B |
+| CQ5 (pass-5, three-Python heredocs) | ✓ Fixed | B — closed by CQ6-4 restructure |
+| CQ6-8 (notify rate limit) | ✓ Fixed | B |
+| CQ6-9 (fail-loud on unknown day) | ✓ Fixed | B |
+| CQ6-10 (extra test-deb-verify checks) | ✓ Fixed | B |
+| CQ6-11 (chmod scope) | ✓ Fixed | B |
+| CQ6-12 (PRIVACY.md fields) | ✓ Fixed | B |
+| CQ6-5, CQ6-6, CQ6-7, CQ6-13, CQ6-14 | Deferred — see plan |
+| CQ8 (pass 5, Activities-search) | Deferred — needs live GNOME test |
+| A1, A2, A3, A5 | Deferred — backlog |

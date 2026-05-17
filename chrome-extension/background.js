@@ -322,9 +322,9 @@ chrome.tabs.onUpdated.addListener(async (tabId, info, tab) => {
   // Skip while toolbar/alarm scrape is running — that path includes its
   // own tabs.create which would otherwise fire this listener.
   if (_fetching) return;
-  const { _scrape_tabs = [] } = await chrome.storage.local.get('_scrape_tabs');
+  const { _scrape_tabs = [], _last_scrape_ts = 0 } =
+      await chrome.storage.local.get(['_scrape_tabs', '_last_scrape_ts']);
   if (_scrape_tabs.includes(tabId)) return;
-  const { _last_scrape_ts = 0 } = await chrome.storage.local.get('_last_scrape_ts');
   if (Date.now() - _last_scrape_ts < AUTO_DEBOUNCE_MS) return;
   _fetching = true;
   try {

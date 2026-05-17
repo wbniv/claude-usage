@@ -310,10 +310,17 @@ class ClaudeIndicator extends PanelMenu.Button {
 
         // Tier transition: notify on entry to stale/broken, spawn dock-icon
         // regen with the new tier. Recovery to normal also regens so the
-        // dock clears the stale/red override.
+        // dock clears the stale/red override. Notifications are rate-limited
+        // to 1 per 5 min so a flapping signal (Chrome misses an alarm, catches
+        // up, misses, catches up) doesn't pile toasts on top of the persistent
+        // icon-color signal.
         if (tier !== this._lastTier) {
             if (tier === 'stale' || tier === 'broken') {
-                Main.notify('Claude Usage', reason || `Status: ${tier}`);
+                const now = Date.now();
+                if (now - (this._lastNotifyTs || 0) > 5 * 60 * 1000) {
+                    Main.notify('Claude Usage', reason || `Status: ${tier}`);
+                    this._lastNotifyTs = now;
+                }
                 this._spawnIconRegen(tier);
             } else if (this._lastTier === 'stale' || this._lastTier === 'broken') {
                 this._spawnIconRegen('normal');

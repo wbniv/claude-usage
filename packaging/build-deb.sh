@@ -83,7 +83,10 @@ cp "$REPO_DIR/packaging/postrm"   "$PKG/DEBIAN/"
 # Permissions
 find "$PKG/usr" -type f              -exec chmod 644 {} \;
 find "$PKG/usr/bin"                  -exec chmod 755 {} \;
-find "$PKG/usr/share/claude-usage" -name "*.py" -exec chmod 755 {} \;
+# Only the two entry-point scripts get executable; tooltip.py is a library
+# (imported, never run directly) and stays 644 — matches install.sh behaviour.
+chmod 755 "$PKG/usr/share/claude-usage/usage-server.py" \
+          "$PKG/usr/share/claude-usage/generate-icon.py"
 chmod 755 "$PKG/DEBIAN/postinst" "$PKG/DEBIAN/postrm"
 
 # Build

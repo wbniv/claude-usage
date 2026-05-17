@@ -27,7 +27,9 @@ test -f /usr/lib/systemd/user/claude-usage-fetch.service
 /usr/bin/claude-usage-status -h >/dev/null
 python3 -m py_compile /usr/share/claude-usage/generate-icon.py
 python3 -m py_compile /usr/share/claude-usage/usage-server.py
+python3 -m py_compile /usr/share/claude-usage/tooltip.py
 bash -n /usr/bin/claude-usage-setup
+bash -n /usr/bin/claude-usage-status
 # Removal must clear the system-wide schema (postrm)
 DEBIAN_FRONTEND=noninteractive apt-get remove -y claude-usage
 test ! -f /usr/share/glib-2.0/schemas/org.gnome.shell.extensions.claude-usage.gschema.xml
