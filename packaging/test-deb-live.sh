@@ -33,6 +33,23 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1
 fi
 
+# The .deb's postinst auto-runs claude-usage-setup for SUDO_USER (the user
+# who ran `apt-get install …`). That user's service is already bound to
+# 127.0.0.1:7331 by the time we get here, which would make cu-smoke's
+# instance crash-loop on EADDRINUSE — `is-active --quiet` still reports
+# "activating" as active, so the POSTs would silently hit the wrong server.
+# Stop the prior-user service first so cu-smoke's owns the port.
+if [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ] && [ "$SUDO_USER" != "$TESTUSER" ]; then
+    SUDO_UID=$(id -u "$SUDO_USER" 2>/dev/null || echo "")
+    if [ -n "$SUDO_UID" ]; then
+        echo "==> Stopping pre-existing claude-usage service for $SUDO_USER (UID $SUDO_UID) to free port 7331"
+        runuser -u "$SUDO_USER" -- env \
+            XDG_RUNTIME_DIR="/run/user/$SUDO_UID" \
+            DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$SUDO_UID/bus" \
+            systemctl --user stop claude-usage-fetch.service 2>/dev/null || true
+    fi
+fi
+
 echo "==> Creating user '$TESTUSER' and enabling linger"
 if ! id -u "$TESTUSER" >/dev/null 2>&1; then
     useradd -m -s /bin/bash "$TESTUSER"
