@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Tiny local HTTP server — receives usage JSON from the Chrome extension."""
 from http.server import HTTPServer, BaseHTTPRequestHandler
-import json, os, subprocess, sys, time
+import json, os, subprocess, sys, threading, time
 from pathlib import Path
+
+import tooltip
 
 OUTPUT        = Path.home() / '.cache' / 'claude-usage' / 'usage.json'
 # Source install puts generate-icon.py under ~/.local/share; .deb under /usr/share.
@@ -143,9 +145,24 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
 
+def _tooltip_tick():
+    """Refresh the dock launcher tooltip every 60 s so the countdown
+    timer stays current between 15-min scrape POSTs. In-process call
+    via tooltip.update_desktop — no subprocess fork/exec."""
+    while True:
+        time.sleep(60)
+        try:
+            if OUTPUT.exists():
+                data = json.loads(OUTPUT.read_text())
+                tooltip.update_desktop(data.get('meters', []))
+        except Exception as e:
+            print(f"tooltip tick: {e}", file=sys.stderr, flush=True)
+
+
 if __name__ == '__main__':
     server = HTTPServer(('127.0.0.1', PORT), Handler)
     print(f"Claude Usage server listening on 127.0.0.1:{PORT}", flush=True)
+    threading.Thread(target=_tooltip_tick, daemon=True).start()
     try:
         server.serve_forever()
     except KeyboardInterrupt:

@@ -30,6 +30,7 @@ cp -r "$REPO_DIR/gnome-extension/." \
 # Python server
 cp "$REPO_DIR/server/usage-server.py" \
    "$REPO_DIR/server/generate-icon.py" \
+   "$REPO_DIR/server/tooltip.py" \
    "$PKG/usr/share/claude-usage/"
 
 # Chrome extension (for load-unpacked until CWS listing is live)

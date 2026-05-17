@@ -13,6 +13,7 @@ test -x /usr/bin/claude-usage-status
 # Shipped server
 test -f /usr/share/claude-usage/generate-icon.py
 test -f /usr/share/claude-usage/usage-server.py
+test -f /usr/share/claude-usage/tooltip.py
 # Extension + compiled schema in both locations
 test -f /usr/share/gnome-shell/extensions/claude-usage@indri.studio/extension.js
 test -f /usr/share/gnome-shell/extensions/claude-usage@indri.studio/schemas/gschemas.compiled
