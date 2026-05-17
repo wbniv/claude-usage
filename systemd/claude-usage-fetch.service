@@ -8,5 +8,17 @@ ExecStart=/usr/bin/python3 %h/.local/share/claude-usage/usage-server.py
 Restart=always
 RestartSec=5
 
+# Hardening — service only writes to ~/.cache/claude-usage/ and
+# ~/.local/share/applications/; everything else can be locked down.
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectControlGroups=yes
+ProtectKernelModules=yes
+ProtectKernelTunables=yes
+RestrictAddressFamilies=AF_INET AF_UNIX
+RestrictNamespaces=yes
+LockPersonality=yes
+
 [Install]
 WantedBy=default.target
