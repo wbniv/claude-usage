@@ -11,12 +11,12 @@
 
 | ID | Severity | Subsystem | Title |
 |----|----------|-----------|-------|
-| P8‑1 | Critical | GNOME ext | Menu `open-state-changed` signal never disconnected |
-| P8‑2 | Critical | Chrome ext | Alarm handler not async — MV3 SW can be killed mid-scrape |
-| P8‑3 | Critical | Chrome ext | Click handler not async — same issue |
-| P8‑4 | High | GNOME ext | Scroll returns `EVENT_STOP` unconditionally |
-| P8‑5 | High | GNOME ext | Scroll idx=−1 when `panel-metric` not in eligible list |
-| P8‑6 | High | Python server | Icon-path race: tick overwrites `generate-icon.py`'s `Icon=` update |
+| ~~P8‑1~~ | ~~Critical~~ | ~~GNOME ext~~ | ~~Menu `open-state-changed` signal never disconnected~~ |
+| ~~P8‑2~~ | ~~Critical~~ | ~~Chrome ext~~ | ~~Alarm handler not async — MV3 SW can be killed mid-scrape~~ |
+| ~~P8‑3~~ | ~~Critical~~ | ~~Chrome ext~~ | ~~Click handler not async — same issue~~ |
+| ~~P8‑4~~ | ~~High~~ | ~~GNOME ext~~ | ~~Scroll returns `EVENT_STOP` unconditionally~~ |
+| ~~P8‑5~~ | ~~High~~ | ~~GNOME ext~~ | ~~Scroll idx=−1 when `panel-metric` not in eligible list~~ |
+| ~~P8‑6~~ | ~~High~~ | ~~Python server~~ | ~~Icon-path race: tick overwrites `generate-icon.py`'s `Icon=` update~~ |
 | P8‑7 | Medium | GNOME ext | `bar()` overflows when pct > 100 |
 | P8‑8 | Medium | Chrome ext | Offline-buffered data never ages out |
 | P8‑9 | Medium | Chrome ext | `parseResetMinutes` hour/minute range not validated |
