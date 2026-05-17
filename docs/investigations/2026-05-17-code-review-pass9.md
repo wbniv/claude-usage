@@ -358,7 +358,7 @@ The scraper (`background.js:scrapeAndPost`) relies on line-by-line text layout o
 | E-6 | Low | — | extension.js | Notification cooldown resets on extension reload |
 | ~~B-1~~ | ~~Low~~ | ~~XS~~ | ~~background.js~~ | ~~`reset_minutes` return not capped at parse site~~ |
 | ~~B-2~~ | ~~Low~~ | ~~—~~ | ~~background.js~~ | ~~3-second scrape delay is a heuristic~~ |
-| B-3 | Low | S | background.js | Tab leak window between create and storage write |
+| ~~B-3~~ | ~~Low~~ | ~~S~~ | ~~background.js~~ | ~~Tab leak window between create and storage write~~ |
 | ~~B-4~~ | ~~Low~~ | ~~XS~~ | ~~background.js~~ | ~~Error-report fetch failure fully silenced~~ |
 | ~~G-2~~ | ~~Low~~ | ~~—~~ | ~~generate-icon.py~~ | ~~Substring `find_meter` vulnerable to label prefix collisions~~ |
 | ~~G-3~~ | ~~Low~~ | ~~XS~~ | ~~generate-icon.py~~ | ~~Silent color-fallback gives no journal entry~~ |
