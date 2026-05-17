@@ -1,0 +1,64 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install go-task
+        uses: arduino/setup-task@v2
+
+      - name: Cache test Docker image
+        uses: actions/cache@v4
+        id: docker-cache
+        with:
+          path: /tmp/test-image.tar
+          key: deb-test-image-${{ hashFiles('packaging/control', 'packaging/test-deb.Dockerfile') }}
+
+      - name: Load cached test image
+        if: steps.docker-cache.outputs.cache-hit == 'true'
+        run: docker load -i /tmp/test-image.tar
+
+      - name: Build test image (cache miss)
+        if: steps.docker-cache.outputs.cache-hit != 'true'
+        run: |
+          task build-test-image
+          docker save claude-usage-test:latest -o /tmp/test-image.tar
+
+      - name: Build .deb
+        run: task build
+
+      - name: Test .deb
+        run: |
+          VERSION=$(grep '^Version:' packaging/control | awk '{print $2}')
+          docker run --rm \
+            -v "$PWD/dist:/dist:ro" \
+            -v "$PWD/packaging/test-deb-verify.sh:/usr/local/bin/verify:ro" \
+            claude-usage-test:latest bash -c "
+            set -euo pipefail
+            dpkg -i /dist/claude-usage_${VERSION}_all.deb
+            /usr/local/bin/verify
+          "
+
+      - name: Build Chrome extension zip
+        run: task build-chrome-zip
+
+      - name: Create GitHub release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=$(grep '^Version:' packaging/control | awk '{print $2}')
+          gh release create "${{ github.ref_name }}" \
+            "dist/claude-usage_${VERSION}_all.deb" \
+            "dist/claude-usage-chrome-${VERSION}.zip" \
+            --title "Claude Usage ${{ github.ref_name }}" \
+            --generate-notes

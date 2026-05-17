@@ -73,8 +73,7 @@ tasks:
         '
 
   release:
-    desc: Build .deb + Chrome zip, tag, and publish a GitHub release (VERSION= to override)
-    deps: [build, build-chrome-zip, test-deb]
+    desc: Preflight checks, tag, and push — CI builds and publishes the release (VERSION= to override)
     vars:
       TAG: v{{.VERSION}}
     cmds:
@@ -106,11 +105,7 @@ tasks:
       - git push origin main
       - git tag "{{.TAG}}"
       - git push origin "{{.TAG}}"
-      - |
-        gh release create "{{.TAG}}" "{{.DEB}}" "{{.CHROME_ZIP}}" \
-          --title "Claude Usage {{.TAG}}" \
-          --generate-notes
-      - echo "Released {{.TAG}} — $(gh release view {{.TAG}} --json url -q .url)"
+      - echo "Tag {{.TAG}} pushed — GitHub Actions will build, test, and publish the release."
 
   md:
     desc: Preview a markdown file in the browser
