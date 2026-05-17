@@ -1,9 +1,38 @@
 const USAGE_URL = 'https://claude.ai/settings/usage';
 const LOCAL_SERVER = 'http://127.0.0.1:7331/update';
-const INTERVAL_MINUTES = 15;
+const STATUS_URL   = 'https://status.claude.com/api/v2/summary.json';
+const INTERVAL_MINUTES = 7;
 const AUTO_DEBOUNCE_MS = 30_000;
 
 let _fetching = false;
+
+// Poll Anthropic's public Statuspage. JSON, no auth, doesn't burn tokens.
+// Returns the compact subset the GNOME extension uses to compute the broken
+// tier; null on network/parse failure (treated as "no signal", not "no outage").
+async function fetchAnthropicStatus() {
+    try {
+        const resp = await fetch(STATUS_URL);
+        if (!resp.ok) return null;
+        const j = await resp.json();
+        const claudeAi = (j.components || []).find(c => c.name === 'claude.ai');
+        return {
+            indicator: j.status?.indicator ?? null,
+            description: j.status?.description ?? null,
+            claude_ai_component_status: claudeAi?.status ?? null,
+        };
+    } catch (_) {
+        return null;
+    }
+}
+
+async function getFailCount() {
+    const { _scrape_fail_count = 0 } = await chrome.storage.local.get('_scrape_fail_count');
+    return _scrape_fail_count;
+}
+
+async function setFailCount(n) {
+    await chrome.storage.local.set({ _scrape_fail_count: n });
+}
 
 // Parse "Resets in X hr Y min" / "Resets in X min" / "Resets Tue 5:00 PM"
 // into minutes-from-now. Returns null when the string doesn't match a
@@ -128,8 +157,27 @@ async function scrapeAndPost(tabId) {
   });
 
   const data = result?.result;
+
+  // Fetch Anthropic's status page in parallel — included in every POST
+  // (full or partial) so the GNOME extension can flag confirmed outages.
+  const anthropic_status = await fetchAnthropicStatus();
+
   if (!data || !data.meters.length) {
     console.warn('Claude Usage: no meters extracted');
+    // Partial update: increment scrape-fail counter, push the new count
+    // and the status-page result to the server. Server's merge logic
+    // preserves last-known meters/plan/_timestamp.
+    const fails = (await getFailCount()) + 1;
+    await setFailCount(fails);
+    const partial = { _scrape_fail_count: fails };
+    if (anthropic_status) partial._anthropic_status = anthropic_status;
+    try {
+      await fetch(LOCAL_SERVER, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(partial),
+      });
+    } catch (_) {}
     return;
   }
 
@@ -139,6 +187,11 @@ async function scrapeAndPost(tabId) {
   for (const m of data.meters) {
     if (m.reset) m.reset_minutes = parseResetMinutes(m.reset);
   }
+
+  // Successful scrape — reset the fail counter, attach status-page result.
+  await setFailCount(0);
+  data._scrape_fail_count = 0;
+  if (anthropic_status) data._anthropic_status = anthropic_status;
 
   try {
     const resp = await fetch(LOCAL_SERVER, {
@@ -220,6 +273,21 @@ async function fetchUsage() {
     await scrapeAndPost(tab.id);
   } catch (err) {
     console.error('Claude Usage fetch failed:', err.message);
+    // Page never loaded / tab create failed / executeScript threw —
+    // bump the counter and push a status-only POST so the GNOME extension
+    // can flag the tier even though no scrape data exists for this cycle.
+    try {
+      const fails = (await getFailCount()) + 1;
+      await setFailCount(fails);
+      const anthropic_status = await fetchAnthropicStatus();
+      const partial = { _scrape_fail_count: fails };
+      if (anthropic_status) partial._anthropic_status = anthropic_status;
+      await fetch(LOCAL_SERVER, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(partial),
+      });
+    } catch (_) {}
   } finally {
     if (tab) {
       try { await chrome.tabs.remove(tab.id); } catch (_) {}

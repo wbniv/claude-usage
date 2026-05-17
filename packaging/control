@@ -1,5 +1,5 @@
 Package: claude-usage
-Version: 0.10.3
+Version: 0.10.4
 Architecture: all
 Maintainer: Will Norris <will@biohack.net>
 Depends: python3 (>= 3.8), python3-cairo, python3-pil, gnome-shell (>= 45), systemd
@@ -11,7 +11,7 @@ Description: Claude.ai usage indicator for GNOME
  ring), a color-coded panel label with scroll-wheel toggle between metrics,
  and user-configurable ring colors via a GNOME preferences UI.
  .
- Data is fetched every 15 minutes by the Claude Usage Tracker Chrome
+ Data is fetched every 7 minutes by the Claude Usage Tracker Chrome
  extension, which reads your existing Claude.ai session — no API keys or
  stored credentials required.
  .

@@ -41,6 +41,20 @@ Reset times show a countdown (`⏱h:mm`) when less than 24 h away, or a day + ti
 
 The icon regenerates automatically on each data fetch.
 
+### When something is wrong
+
+The panel and dock icons change color when the data is suspect or Claude is having problems. Three tiers:
+
+| State | Trigger | Panel icon | Dock icon | Popup status |
+|-------|---------|------------|-----------|--------------|
+| **Normal** | Fresh data, no errors | Anthropic orange + percentage colors | Orange tile · colored rings | normal meter list |
+| **Stale** | No fresh data in 10 min (~1.5 missed fetches) | Ghosted, 40% opacity | Greyscale tile · grey rings | `🕐 No update in N min` |
+| **Broken** | One of: <br/>· No fresh data in 20 min (~3 missed)<br/>· 2+ consecutive scrape failures (claude.ai returned an error, login expired, page changed)<br/>· Anthropic's status page (`status.claude.com`) reports an incident on the `claude.ai` component | Red-tinted | Orange tile · solid red rings | `⚠ <reason>` — names the cause |
+
+The Chrome extension polls Anthropic's public status page on every cycle and surfaces the incident text (e.g. *"Anthropic reports: Elevated 5xx on Claude.ai"*) in the popup so you don't need to alt-tab to find out whether it's your laptop or theirs.
+
+Recovery is automatic: the next successful scrape resets the state and the icons return to their normal colors.
+
 ---
 
 ## Installation
@@ -102,7 +116,7 @@ Nothing to do. Everything starts automatically:
 
 ## Day-to-day use
 
-**Data updates every 15 minutes** — the Chrome extension opens `claude.ai/settings/usage` in a background tab, scrapes the meters, and writes `~/.cache/claude-usage/usage.json`. The panel indicator updates immediately when the file changes.
+**Data updates every 7 minutes** — the Chrome extension opens `claude.ai/settings/usage` in a background tab, scrapes the meters, and writes `~/.cache/claude-usage/usage.json`. The panel indicator updates immediately when the file changes.
 
 **Force an immediate refresh** — two ways:
 

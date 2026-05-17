@@ -20,7 +20,7 @@ All data stays on your own machine. It is sent only to `http://127.0.0.1:7331` �
 
 ## What is stored
 
-- `~/.cache/claude-usage/usage.json` — usage data + inferred per-meter period lengths (`_period_lengths`: integer minutes-per-meter-label, used for pacing-based color thresholds), updated every 15 minutes
+- `~/.cache/claude-usage/usage.json` — usage data + inferred per-meter period lengths (`_period_lengths`: integer minutes-per-meter-label, used for pacing-based color thresholds), updated every 7 minutes
 - `~/.cache/claude-usage/icon-{epoch}.png` — generated dock icon (filename rotates to bust the pixbuf cache)
 - GSettings (`org.gnome.shell.extensions.claude-usage`) — user color and threshold preferences
 - `chrome.storage.local` — fallback copy of the last fetch, used only when the local server is not running
@@ -31,9 +31,10 @@ All data stays on your own machine. It is sent only to `http://127.0.0.1:7331` �
 |------------|-----|
 | `tabs` | Open `claude.ai/settings/usage` in a background tab to read usage data |
 | `scripting` | Inject a script into that tab to read the meter values from the DOM |
-| `alarms` | Schedule a fetch every 15 minutes |
+| `alarms` | Schedule a fetch every 7 minutes |
 | `storage` | Store a fallback copy of usage data when the local server is unavailable |
 | `https://claude.ai/*` | Access the usage page |
+| `https://status.claude.com/*` | Poll Anthropic's public status page for outage detection (no auth, no token cost) |
 | `http://127.0.0.1:7331/*` | Post data to the local server |
 
 ## Contact

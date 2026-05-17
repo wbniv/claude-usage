@@ -110,7 +110,7 @@ def draw_ring(cr, cx, cy, radius, thick, pct, color, track=True):
                -math.pi / 2 + 2 * math.pi * (pct / 100))
         cr.stroke()
 
-def generate(all_pct, sonnet_pct, cfg, dest, draw_rings=True):
+def generate(all_pct, sonnet_pct, cfg, dest, draw_rings=True, tier='normal'):
     cx = cy = CANVAS // 2
     THICK_OUTER, THICK_INNER, GAP = 10 * SCALE, 8 * SCALE, 3 * SCALE
     R_INNER = ICON // 2 + GAP + THICK_INNER // 2
@@ -141,15 +141,47 @@ def generate(all_pct, sonnet_pct, cfg, dest, draw_rings=True):
     cr.restore()
 
     if draw_rings:
-        draw_ring(cr, cx, cy, R_OUTER, THICK_OUTER, all_pct, ring_color(all_pct, cfg))
-        if sonnet_pct > 0:
-            # Sonnet ring intentionally uses a fixed blue — color family distinguishes it from the outer ring.
-            draw_ring(cr, cx, cy, R_INNER, THICK_INNER, sonnet_pct, hex_to_rgba(cfg['sonnet_color']))
+        if tier == 'broken':
+            # Both rings rendered in a solid alarm-red, baseline tile unchanged
+            # so the Claude brand stays recognisable.
+            red = hex_to_rgba('#e03030')
+            draw_ring(cr, cx, cy, R_OUTER, THICK_OUTER, max(all_pct, 100), red)
+            draw_ring(cr, cx, cy, R_INNER, THICK_INNER, max(sonnet_pct, 100), red)
+        else:
+            draw_ring(cr, cx, cy, R_OUTER, THICK_OUTER, all_pct, ring_color(all_pct, cfg))
+            if sonnet_pct > 0:
+                # Sonnet ring intentionally uses a fixed blue — color family distinguishes it from the outer ring.
+                draw_ring(cr, cx, cy, R_INNER, THICK_INNER, sonnet_pct, hex_to_rgba(cfg['sonnet_color']))
 
     surface.flush()
     img = Image.frombytes('RGBA', (CANVAS, CANVAS),
                           bytes(surface.get_data()), 'raw', 'BGRA')
+    # Stale tier: desaturate the whole tile (rings + baseline orange + star)
+    # so the icon reads as "data is suspect" at a glance.
+    if tier == 'stale':
+        r, g, b, a = img.split()
+        from PIL import ImageOps
+        grey = ImageOps.grayscale(Image.merge('RGB', (r, g, b)))
+        img = Image.merge('RGBA', (grey, grey, grey, a))
     img.resize((128, 128), Image.LANCZOS).save(dest)
+
+
+def derive_tier(data):
+    """Decide the tier from cache fields (status-page + scrape-fail count).
+
+    Time-based stale/broken is the GNOME extension's job — it detects age by
+    reading the cache's `_timestamp` and spawns generate-icon.py --tier=stale
+    or --tier=broken explicitly. This function handles the two signals that
+    are already encoded in the cache itself.
+    """
+    astat = data.get('_anthropic_status') or {}
+    if astat.get('indicator') not in (None, 'none'):
+        return 'broken'
+    if astat.get('claude_ai_component_status') not in (None, 'operational'):
+        return 'broken'
+    if (data.get('_scrape_fail_count') or 0) >= 2:
+        return 'broken'
+    return 'normal'
 
 def _next_icon_path():
     """Return a fresh timestamped path so GNOME never serves a cached pixbuf."""
@@ -159,7 +191,7 @@ def _next_icon_path():
     # on the filename, silently dropping the second icon refresh.
     return CACHE_DIR / f'icon-{time.time_ns()}.png'
 
-def main():
+def main(tier_override=None):
     cfg = load_config()
     if not CACHE_JSON.exists():
         sys.exit(0)  # no data yet — not an error
@@ -172,8 +204,9 @@ def main():
     sonnet_m = find_meter('sonnet')
     all_pct    = pacing_pct(all_m,    period_lens)
     sonnet_pct = pacing_pct(sonnet_m, period_lens)
+    tier = tier_override or derive_tier(data)
     dest = _next_icon_path()
-    generate(all_pct, sonnet_pct, cfg, dest)
+    generate(all_pct, sonnet_pct, cfg, dest, tier=tier)
     for old in CACHE_DIR.glob('icon-*.png'):
         if old != dest:
             try:
@@ -181,7 +214,7 @@ def main():
             except OSError:
                 pass
     update_desktop(meters, dest, scrape_ts=data.get('_timestamp'))
-    print(f'Icon: All={all_pct:.0f}% Sonnet={sonnet_pct:.0f}% (pacing)', flush=True)
+    print(f'Icon: All={all_pct:.0f}% Sonnet={sonnet_pct:.0f}% (pacing) tier={tier}', flush=True)
 
 if __name__ == '__main__':
     try:
@@ -194,7 +227,16 @@ if __name__ == '__main__':
                 sys.exit(2)
             generate(0, 0, dict(DEFAULTS), Path(sys.argv[2]), draw_rings=False)
             sys.exit(0)
-        main()
+        # --tier {normal,stale,broken}: override the cache-derived tier. Used by
+        # the GNOME extension for time-based stale/broken (it knows the cache
+        # is N minutes old; generate-icon.py only sees the cache contents).
+        tier_override = None
+        if len(sys.argv) >= 3 and sys.argv[1] == '--tier':
+            if sys.argv[2] not in ('normal', 'stale', 'broken'):
+                print(f"usage: generate-icon.py --tier {{normal,stale,broken}}", file=sys.stderr)
+                sys.exit(2)
+            tier_override = sys.argv[2]
+        main(tier_override)
     except Exception as e:
         print(f'generate-icon: {e}', file=sys.stderr, flush=True)
         sys.exit(1)

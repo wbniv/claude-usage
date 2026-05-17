@@ -30,32 +30,52 @@ def _bounded_str(v, field):
 
 
 def _validate(body):
-    """Return an error string, or None if the payload is structurally valid."""
+    """Return an error string, or None if the payload is structurally valid.
+
+    `meters` is optional: a partial update (e.g. scrape-failed status-only
+    POST) will be merged into the existing cache by do_POST, preserving the
+    last-known meters/plan/_timestamp.
+    """
     if not isinstance(body, dict):
         return "body must be a JSON object"
     meters = body.get('meters')
-    if not isinstance(meters, list):
-        return "'meters' must be an array"
-    for i, m in enumerate(meters):
-        if not isinstance(m, dict):
-            return f"meters[{i}] must be an object"
-        pct = m.get('pct')
-        # bool is a subclass of int — reject explicitly before the int check,
-        # otherwise {"pct": true} passes and renders as "true%" in the panel.
-        if isinstance(pct, bool) or not isinstance(pct, int) or not (0 <= pct <= 100):
-            return f"meters[{i}].pct must be an integer in [0, 100]"
-        for k in ('label', 'reset', 'spent', 'balance'):
-            err = _bounded_str(m.get(k), f"meters[{i}].{k}")
-            if err:
-                return err
-        rm = m.get('reset_minutes')
-        if rm is not None and (
-            isinstance(rm, bool) or not isinstance(rm, int) or rm < 0
-        ):
-            return f"meters[{i}].reset_minutes must be a non-negative integer or null"
+    if meters is not None:
+        if not isinstance(meters, list):
+            return "'meters' must be a list when present"
+        for i, m in enumerate(meters):
+            if not isinstance(m, dict):
+                return f"meters[{i}] must be an object"
+            pct = m.get('pct')
+            # bool is a subclass of int — reject explicitly before the int check,
+            # otherwise {"pct": true} passes and renders as "true%" in the panel.
+            if isinstance(pct, bool) or not isinstance(pct, int) or not (0 <= pct <= 100):
+                return f"meters[{i}].pct must be an integer in [0, 100]"
+            for k in ('label', 'reset', 'spent', 'balance'):
+                err = _bounded_str(m.get(k), f"meters[{i}].{k}")
+                if err:
+                    return err
+            rm = m.get('reset_minutes')
+            if rm is not None and (
+                isinstance(rm, bool) or not isinstance(rm, int) or rm < 0
+            ):
+                return f"meters[{i}].reset_minutes must be a non-negative integer or null"
     err = _bounded_str(body.get('plan'), 'plan')
     if err:
         return err
+    sfc = body.get('_scrape_fail_count')
+    if sfc is not None:
+        if isinstance(sfc, bool) or not isinstance(sfc, int):
+            return "'_scrape_fail_count' must be an integer"
+        if sfc < 0 or sfc > 1000:
+            return "'_scrape_fail_count' must be in [0, 1000]"
+    astat = body.get('_anthropic_status')
+    if astat is not None:
+        if not isinstance(astat, dict):
+            return "'_anthropic_status' must be an object"
+        for k in ('indicator', 'description', 'claude_ai_component_status'):
+            err = _bounded_str(astat.get(k), f"_anthropic_status.{k}")
+            if err:
+                return err
     ts = body.get('_timestamp') or body.get('timestamp')
     if ts is not None and not isinstance(ts, (int, float)):
         return "'_timestamp' must be a number"
@@ -95,6 +115,21 @@ class Handler(BaseHTTPRequestHandler):
                 print(f"Validation error: {err}", file=sys.stderr, flush=True)
                 status, reply = 422, err.encode()
             else:
+                # Read previous cache so partial updates (status-only POSTs
+                # with no `meters` key) preserve last-known meters/plan, and
+                # so period_lengths accumulates over time.
+                prev = {}
+                if OUTPUT.exists():
+                    try:
+                        prev = json.loads(OUTPUT.read_text())
+                    except Exception:
+                        pass
+                # Merge: dict-spread keeps prev keys not present in body,
+                # body keys override prev keys. Full scrape updates carry
+                # meters/plan/_timestamp and replace those; status-only
+                # updates carry only _scrape_fail_count/_anthropic_status.
+                body = {**prev, **body}
+
                 # Accept _timestamp (epoch-s from extension) or legacy timestamp (epoch-ms).
                 # 0 is treated as missing — fall back to server time so stale-data warning never fires spuriously.
                 if not body.get('_timestamp'):
@@ -104,14 +139,8 @@ class Handler(BaseHTTPRequestHandler):
                 # The max ever seen per label converges to the true period
                 # (~5 h for session meters, ~7 d for weekly). Used downstream
                 # to compute pacing-based colors.
-                period_lengths = {}
-                if OUTPUT.exists():
-                    try:
-                        prev = json.loads(OUTPUT.read_text())
-                        period_lengths = prev.get('_period_lengths', {}) or {}
-                    except Exception:
-                        pass
-                for meter in body.get('meters', []):
+                period_lengths = body.get('_period_lengths', {}) or {}
+                for meter in body.get('meters', []) or []:
                     rm = meter.get('reset_minutes')
                     label = meter.get('label')
                     if rm is None or not label:

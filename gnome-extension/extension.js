@@ -107,8 +107,13 @@ class ClaudeIndicator extends PanelMenu.Button {
         this._settings = ext.getSettings('org.gnome.shell.extensions.claude-usage');
         this._monitor = null;
         this._settingsId = null;
+        this._tickId = null;
         this._data = null;
-        this._wasStale = false;
+        this._lastTier = 'normal';
+        // Two gicons held to allow O(1) swap between normal and red-tinted panel
+        // icons per tier without re-allocating per-update.
+        this._iconNormal = Gio.icon_new_for_string(ext.path + '/icons/claude-22.png');
+        this._iconRed    = Gio.icon_new_for_string(ext.path + '/icons/claude-22-red.png');
 
         this.connect('scroll-event', (_actor, event) => {
             const dir = event.get_scroll_direction();
@@ -128,7 +133,7 @@ class ClaudeIndicator extends PanelMenu.Button {
         const box = new St.BoxLayout({style_class: 'panel-status-menu-box'});
 
         this._icon = new St.Icon({
-            gicon: Gio.icon_new_for_string(ext.path + '/icons/claude-22.png'),
+            gicon: this._iconNormal,
             icon_size: this._settings.get_uint('panel-icon-size'),
             y_align: Clutter.ActorAlign.CENTER,
         });
@@ -161,6 +166,34 @@ class ClaudeIndicator extends PanelMenu.Button {
 
         this._watchFile();
         this._loadData();
+
+        // Time-based stale/broken can't be triggered by cache-write events —
+        // they're absence-of-write signals. A 30 s tick re-runs _updateDisplay
+        // so the icon flips to ghosted grey at the 10 min threshold and red
+        // at the 20 min threshold even when no fresh POST arrives.
+        this._tickId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 30, () => {
+            this._updateDisplay();
+            return GLib.SOURCE_CONTINUE;
+        });
+    }
+
+    _spawnIconRegen(tier) {
+        // Spawn generate-icon.py with an explicit tier override so the dock
+        // icon reflects the GNOME extension's time-based tier (the script
+        // itself only sees the cache and can't know how stale it is).
+        const candidates = [
+            GLib.get_home_dir() + '/.local/share/claude-usage/generate-icon.py',
+            '/usr/share/claude-usage/generate-icon.py',
+        ];
+        const script = candidates.find(p =>
+            Gio.File.new_for_path(p).query_exists(null));
+        if (!script) return;
+        try {
+            Gio.Subprocess.new(
+                ['python3', script, '--tier', tier],
+                Gio.SubprocessFlags.STDOUT_SILENCE | Gio.SubprocessFlags.STDERR_SILENCE
+            );
+        } catch (_) {}
     }
 
     _watchFile() {
@@ -229,13 +262,59 @@ class ClaudeIndicator extends PanelMenu.Button {
 
         const plan   = d.plan || 'Claude';
         const age    = d._timestamp ? Math.round((Date.now() / 1000 - d._timestamp) / 60) : null;
-        const stale  = age !== null && age > 30;
         const ageStr = age !== null ? ` · ${age < 1 ? '<1' : age}m ago` : '';
-        this._statusItem.label.set_text(`${stale ? '⚠ ' : ''}${plan}${ageStr}`);
-        if (stale && !this._wasStale)
-            Main.notify('Claude Usage',
-                `No update in ${age} min. Open Chrome and click the extension icon, or run claude-usage-status to diagnose.`);
-        this._wasStale = stale;
+
+        // Tier: highest-confidence active failure signal.
+        //   broken — Anthropic outage confirmed, OR scrape-fail count >= 2, OR age > 20 min
+        //   stale  — age > 10 min
+        //   normal — otherwise
+        const astat = d._anthropic_status || {};
+        const sfc   = d._scrape_fail_count || 0;
+        let tier = 'normal';
+        let reason = null;
+        if (astat.indicator && astat.indicator !== 'none') {
+            tier = 'broken';
+            reason = `⚠ Anthropic reports: ${astat.description || astat.indicator}`;
+        } else if (astat.claude_ai_component_status && astat.claude_ai_component_status !== 'operational') {
+            tier = 'broken';
+            reason = `⚠ claude.ai status: ${astat.claude_ai_component_status}`;
+        } else if (sfc >= 2) {
+            tier = 'broken';
+            reason = `⚠ ${sfc} scrape attempts failed · run claude-usage-status`;
+        } else if (age !== null && age > 20) {
+            tier = 'broken';
+            reason = `⚠ No data in ${age} min · run claude-usage-status`;
+        } else if (age !== null && age > 10) {
+            tier = 'stale';
+            reason = `🕐 No update in ${age} min`;
+        }
+
+        // Per-tier panel icon + label. Drop the ⚠ glyph prefix from the
+        // label — the icon's color change is the strong signal now.
+        if (tier === 'broken') {
+            this._icon.gicon = this._iconRed;
+            this._icon.opacity = 255;
+        } else if (tier === 'stale') {
+            this._icon.gicon = this._iconNormal;
+            this._icon.opacity = 100;   // ~40% — ghosted
+        } else {
+            this._icon.gicon = this._iconNormal;
+            this._icon.opacity = 255;
+        }
+        this._statusItem.label.set_text(reason || `${plan}${ageStr}`);
+
+        // Tier transition: notify on entry to stale/broken, spawn dock-icon
+        // regen with the new tier. Recovery to normal also regens so the
+        // dock clears the stale/red override.
+        if (tier !== this._lastTier) {
+            if (tier === 'stale' || tier === 'broken') {
+                Main.notify('Claude Usage', reason || `Status: ${tier}`);
+                this._spawnIconRegen(tier);
+            } else if (this._lastTier === 'stale' || this._lastTier === 'broken') {
+                this._spawnIconRegen('normal');
+            }
+            this._lastTier = tier;
+        }
 
         const barWidth  = s.get_uint('bar-width');
         const popupSize = s.get_uint('popup-font-size');
@@ -302,6 +381,10 @@ class ClaudeIndicator extends PanelMenu.Button {
         if (this._monitor) {
             this._monitor.cancel();
             this._monitor = null;
+        }
+        if (this._tickId) {
+            GLib.source_remove(this._tickId);
+            this._tickId = null;
         }
         super.destroy();
     }
