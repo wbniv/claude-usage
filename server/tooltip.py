@@ -90,35 +90,37 @@ def format_tooltip(meters, anchor_ts=None):
 
 
 def update_desktop(meters, icon_path=None, scrape_ts=None):
-    """Rewrite the .desktop launcher's Name= line with a fresh tooltip.
+    """Rewrite the .desktop launcher's Name= (and optionally Icon=) line.
 
-    If icon_path is None, preserve the existing Icon= line — that's the
-    path the 60 s tick takes from usage-server.py; the 15 min regen
-    from generate-icon.py passes a fresh timestamped path.
+    icon_path=None (60 s tick): targeted Name=-only substitution via re.sub
+    so we never clobber an Icon= written by a concurrent generate-icon.py.
 
-    scrape_ts is the cache's _timestamp (epoch seconds when the scrape
-    landed); when supplied, countdown-form resets are recomputed live
-    in parse_reset so the tooltip ticks down between scrapes."""
+    icon_path set (generate-icon.py): full read-parse-write to update both
+    Name= and Icon= atomically.
+
+    scrape_ts: when supplied, countdown resets are recomputed live."""
     if not DESKTOP.exists():
         return
     name = format_tooltip(meters, anchor_ts=scrape_ts).replace('\n', r'\n')
-    lines = DESKTOP.read_text().splitlines()
-    out = []
-    for line in lines:
-        if line.startswith('Name='):
-            out.append(f'Name={name}')
-        elif line.startswith('Icon='):
-            out.append(line if icon_path is None else f'Icon={icon_path}')
-        elif line.startswith('#'):
-            out.append(line)
-        elif line.startswith('[') or '=' in line or line == '':
-            out.append(line)
-        # else: skip orphaned lines from a previous broken write
-    # Unique per-writer tmp name. Multiple writers can race on this path
-    # (60 s tooltip tick from usage-server.py + generate-icon.py invocations
-    # from both the server's POST handler and the GNOME extension's tier
-    # transitions). A shared `.tmp` filename would let one writer's open()
-    # truncate another's in-flight write.
     tmp = DESKTOP.with_suffix(f'.desktop.tmp.{os.getpid()}.{time.time_ns()}')
-    tmp.write_text('\n'.join(out) + '\n')
+    if icon_path is None:
+        text = DESKTOP.read_text()
+        new_text = re.sub(r'^Name=.*$', f'Name={name}', text, flags=re.MULTILINE)
+        if new_text == text:
+            return
+        tmp.write_text(new_text)
+    else:
+        lines = DESKTOP.read_text().splitlines()
+        out = []
+        for line in lines:
+            if line.startswith('Name='):
+                out.append(f'Name={name}')
+            elif line.startswith('Icon='):
+                out.append(f'Icon={icon_path}')
+            elif line.startswith('#'):
+                out.append(line)
+            elif line.startswith('[') or '=' in line or line == '':
+                out.append(line)
+            # else: skip orphaned lines from a previous broken write
+        tmp.write_text('\n'.join(out) + '\n')
     tmp.replace(DESKTOP)

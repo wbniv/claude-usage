@@ -122,12 +122,14 @@ class ClaudeIndicator extends PanelMenu.Button {
                 const eligible = (this._data.meters || []).filter(m => this._isSelectable(m));
                 if (eligible.length < 2) return Clutter.EVENT_STOP;
                 const cur = this._settings.get_string('panel-metric');
-                const idx = eligible.findIndex(m => m.label === cur);
+                let idx = eligible.findIndex(m => m.label === cur);
+                if (idx === -1) idx = 0;
                 const delta = dir === Clutter.ScrollDirection.UP ? -1 : 1;
                 const next = eligible[(idx + delta + eligible.length) % eligible.length];
                 this._settings.set_string('panel-metric', next.label);
+                return Clutter.EVENT_STOP;
             }
-            return Clutter.EVENT_STOP;
+            return Clutter.EVENT_PROPAGATE;
         });
 
         const box = new St.BoxLayout({style_class: 'panel-status-menu-box'});
