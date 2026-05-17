@@ -17,11 +17,11 @@
 | ~~P8‑4~~ | ~~High~~ | ~~GNOME ext~~ | ~~Scroll returns `EVENT_STOP` unconditionally~~ |
 | ~~P8‑5~~ | ~~High~~ | ~~GNOME ext~~ | ~~Scroll idx=−1 when `panel-metric` not in eligible list~~ |
 | ~~P8‑6~~ | ~~High~~ | ~~Python server~~ | ~~Icon-path race: tick overwrites `generate-icon.py`'s `Icon=` update~~ |
-| P8‑7 | Medium | GNOME ext | `bar()` overflows when pct > 100 |
-| P8‑8 | Medium | Chrome ext | Offline-buffered data never ages out |
-| P8‑9 | Medium | Chrome ext | `parseResetMinutes` hour/minute range not validated |
-| P8‑10 | Medium | Python server | `_anthropic_status.indicator` not whitelisted |
-| P8‑11 | Medium | Python server | JSON / unicode / memory errors all return 400 |
+| ~~P8‑7~~ | ~~Medium~~ | ~~GNOME ext~~ | ~~`bar()` overflows when pct > 100~~ |
+| ~~P8‑8~~ | ~~Medium~~ | ~~Chrome ext~~ | ~~Offline-buffered data never ages out~~ |
+| ~~P8‑9~~ | ~~Medium~~ | ~~Chrome ext~~ | ~~`parseResetMinutes` hour/minute range not validated~~ |
+| ~~P8‑10~~ | ~~Medium~~ | ~~Python server~~ | ~~`_anthropic_status.indicator` not whitelisted~~ |
+| ~~P8‑11~~ | ~~Medium~~ | ~~Python server~~ | ~~JSON / unicode / memory errors all return 400~~ |
 | P8‑12 | Low | Chrome ext | `innerText` triggers layout recalculation |
 | P8‑13 | Low | Chrome ext | 3 s scrape delay unexplained |
 | P8‑14 | Low | Python server | Silent degradation when `generate-icon.py` not found |
