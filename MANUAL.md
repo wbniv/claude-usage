@@ -104,7 +104,10 @@ Nothing to do. Everything starts automatically:
 
 **Data updates every 15 minutes** — the Chrome extension opens `claude.ai/settings/usage` in a background tab, scrapes the meters, and writes `~/.cache/claude-usage/usage.json`. The panel indicator updates immediately when the file changes.
 
-**Force an immediate refresh:** click the **Claude Usage Tracker icon in the Chrome toolbar**. This is the only manual trigger — opening `claude.ai/settings/usage` directly (via the popup's "Open Usage Page" item, a bookmark, or typing the URL) just loads the page in your browser; the extension has no listener watching for navigation, so no scrape happens. The toolbar click opens a fresh background tab, scrapes, and POSTs to the local server.
+**Force an immediate refresh** — two ways:
+
+- **Click the Claude Usage Tracker icon in the Chrome toolbar.** Opens a fresh background tab, scrapes, closes the tab. Background to the user.
+- **Open `claude.ai/settings/usage` in any normal tab** (via the popup's "Open Usage Page" item, a bookmark, the address bar, anything). The extension auto-scrapes the page once it finishes loading and stays out of your way — the tab isn't touched, it's just read. Debounced to one auto-scrape per 30 s so a page reload or a second tab doesn't double-fire.
 
 **Check the raw data:**
 
