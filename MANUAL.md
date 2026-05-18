@@ -118,7 +118,7 @@ Nothing to do. Everything starts automatically:
 
 ## Day-to-day use
 
-**Data updates every 7 minutes** — the Chrome extension opens `claude.ai/settings/usage` in a background tab, scrapes the meters, and writes `~/.cache/claude-usage/usage.json`. The panel indicator updates immediately when the file changes.
+**Data updates every 7 minutes** — the Chrome extension scrapes `claude.ai/settings/usage` and writes `~/.cache/claude-usage/usage.json`. If you already have that page open in a tab, it reads from there; otherwise it opens a temporary background tab. The panel indicator updates immediately when the file changes.
 
 **Force an immediate refresh** — two ways:
 

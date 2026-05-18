@@ -254,7 +254,7 @@ async function scrapeAndPost(tabId) {
 async function fetchUsage() {
   if (_fetching) return;
   _fetching = true;
-  let tab = null;
+  let createdTab = null;
   // Outer try/finally wraps the *entire* body so a throw from any await
   // (storage.get, tabs.query, tabs.create, scripting.executeScript, ...)
   // still resets _fetching. Inner try/catches handle graceful degradation
@@ -302,29 +302,44 @@ async function fetchUsage() {
       if (_scrape_tabs.length) await chrome.storage.local.set({ _scrape_tabs: [] });
     } catch (_) {}
 
-    tab = await chrome.tabs.create({ url: USAGE_URL, active: false });
-    await chrome.storage.local.set({ _scrape_tabs: [tab.id] });
+    // Prefer an already-loaded user tab — skips the tab-create + page-load
+    // round trip entirely (the slowest part of a scrape cycle). executeScript
+    // runs in an isolated world, so the user's tab is read, not modified.
+    // Fall through to a background tab if no candidate is fully loaded.
+    let scrapeTabId = null;
+    try {
+      const candidates = await chrome.tabs.query({ url: 'https://claude.ai/settings/usage*' });
+      const reusable = candidates.find(t =>
+        t.status === 'complete' && (t.url || '').split(/[?#]/)[0] === USAGE_URL);
+      if (reusable) scrapeTabId = reusable.id;
+    } catch (_) {}
 
-    await new Promise((resolve, reject) => {
-      // Lifted to a const so both the timeout and the listener body can
-      // reference it. Named-function-expression scoping rules would otherwise
-      // leave `listener` undefined inside the setTimeout closure.
-      const listener = (tabId, info) => {
-        if (tabId !== tab.id) return;
-        if (info.status === 'complete') {
+    if (scrapeTabId === null) {
+      createdTab = await chrome.tabs.create({ url: USAGE_URL, active: false });
+      scrapeTabId = createdTab.id;
+      await chrome.storage.local.set({ _scrape_tabs: [scrapeTabId] });
+
+      await new Promise((resolve, reject) => {
+        // Lifted to a const so both the timeout and the listener body can
+        // reference it. Named-function-expression scoping rules would otherwise
+        // leave `listener` undefined inside the setTimeout closure.
+        const listener = (tabId, info) => {
+          if (tabId !== createdTab.id) return;
+          if (info.status === 'complete') {
+            chrome.tabs.onUpdated.removeListener(listener);
+            clearTimeout(timeout);
+            resolve();
+          }
+        };
+        const timeout = setTimeout(() => {
           chrome.tabs.onUpdated.removeListener(listener);
-          clearTimeout(timeout);
-          resolve();
-        }
-      };
-      const timeout = setTimeout(() => {
-        chrome.tabs.onUpdated.removeListener(listener);
-        reject(new Error('tab load timeout'));
-      }, 30_000);
-      chrome.tabs.onUpdated.addListener(listener);
-    });
+          reject(new Error('tab load timeout'));
+        }, 30_000);
+        chrome.tabs.onUpdated.addListener(listener);
+      });
+    }
 
-    await scrapeAndPost(tab.id);
+    await scrapeAndPost(scrapeTabId);
   } catch (err) {
     console.error('Claude Usage fetch failed:', err.message);
     // Page never loaded / tab create failed / executeScript threw —
