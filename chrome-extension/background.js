@@ -407,6 +407,18 @@ chrome.webNavigation.onHistoryStateUpdated.addListener(
   { url: [{ hostEquals: 'claude.ai' }] }
 );
 
+// Auto-scrape when an already-loaded Usage tab gets focused — covers the
+// "GNOME popup opened the URL but Chrome focused an existing tab" path,
+// where no onUpdated/historyStateUpdated event fires. AUTO_DEBOUNCE_MS
+// prevents excessive scraping on normal tab-switching.
+chrome.tabs.onActivated.addListener(async ({ tabId }) => {
+  try {
+    const tab = await chrome.tabs.get(tabId);
+    if (tab.status !== 'complete' || !tab.url) return;
+    await _autoScrapeIfEligible(tabId, tab.url);
+  } catch (_) {}
+});
+
 // Direct fetchUsage() on install/reload and browser startup — MV3 alarm
 // scheduling adds seconds of latency before the first fire, on top of the
 // tab-load + hydration wait inside fetchUsage. Calling directly skips that
