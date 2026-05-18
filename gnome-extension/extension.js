@@ -393,7 +393,10 @@ class ClaudeIndicator extends PanelMenu.Button {
         } else if (age !== null && age > 20) {
             tier = 'broken';
             reason = `⚠ No data in ${age} min · run claude-usage-status`;
-        } else if (age !== null && age > 10) {
+        } else if (age !== null && age > 15) {
+            // 15 min ≈ one full Chrome alarm cycle (7 min) plus jitter. Tighter
+            // thresholds produce spurious "No update" toasts when MV3 dormancy
+            // slows an alarm; pass-13 A-2 raised this from 10 → 15.
             tier = 'stale';
             reason = `🕐 No update in ${age} min`;
         }
@@ -419,13 +422,18 @@ class ClaudeIndicator extends PanelMenu.Button {
         // up, misses, catches up) doesn't pile toasts on top of the persistent
         // icon-color signal.
         if (tier !== this._lastTier) {
-            if (tier === 'stale' || tier === 'broken') {
+            // Only toast on broken — stale's icon-ghosting is already a visible
+            // signal and a toast on top of every MV3-jitter-induced stale tick
+            // adds noise without info. All transitions still regen the dock icon.
+            if (tier === 'broken') {
                 const now = Date.now();
                 if (now - (this._lastNotifyTs || 0) > 5 * 60 * 1000) {
                     Main.notify('Claude Usage', reason || `Status: ${tier}`);
                     this._lastNotifyTs = now;
                     try { GLib.file_set_contents(NOTIF_TS_FILE, String(now)); } catch (_) {}
                 }
+                this._spawnIconRegen(tier);
+            } else if (tier === 'stale') {
                 this._spawnIconRegen(tier);
             } else if (this._lastTier === 'stale' || this._lastTier === 'broken') {
                 this._spawnIconRegen('normal');

@@ -112,3 +112,30 @@ Service check uses `systemctl show --property=MainPID --value` (clean single-val
 **Source:** [2026-05-18 comprehensive review](investigations/2026-05-18-code-review-comprehensive.md)
 
 `re.sub` returns `text` unchanged when no match → `new_text == text` → early return is the correct fallback behavior, not a silent bug. Acceptable by design.
+
+---
+
+## Won't Fix — Not a Bug (Pass 13, 2026-05-18)
+
+### A‑3 — Three-install-path drift on the maintainer's machine (observational)
+
+**Source:** [pass-13 review](investigations/2026-05-18-code-review-pass13.md)
+**Verdict:** Observational — no code change
+
+Pass-13 documented that the maintainer's live system had the source repo 4 commits ahead of the .deb install, while Chrome ran the .deb copy. This is the symptom of U‑1 (the source-vs-running trap), not a separate bug. Closes when U‑1's `install.sh --dev` mode ships in a separate change.
+
+### N‑2 — `chrome.tabs.onActivated` listener runs on every tab activation
+
+**Source:** [pass-13 review](investigations/2026-05-18-code-review-pass13.md)
+**Verdict:** By design — cost is acceptable
+
+The MV3 `tabs.onActivated` API doesn't accept a URL filter; the handler must call `chrome.tabs.get(tabId)` to read the URL before deciding to scrape. This means the SW wakes briefly on every tab switch, including non-Claude tabs. The cost is ~µs per switch on modern hardware and the 30 s debounce inside `_autoScrapeIfEligible` caps the downstream work.
+
+The alternative (no `onActivated` listener) means scraping doesn't trigger when Chrome focuses an already-loaded Usage tab — which is the specific case 0.11.4 was added to handle. Removing the handler would re-introduce the user-visible bug it closed.
+
+### D‑3 — Cache `plan: "Max plan"` proves source-vs-running drift
+
+**Source:** [pass-13 review](investigations/2026-05-18-code-review-pass13.md)
+**Verdict:** Evidentiary; auto-resolves with U‑1
+
+The HEAD scraper at `chrome-extension/background.js:108` captures `"Max"` or `"Max (5x)"`, never `"Max plan"`. A cache holding `"Max plan"` is direct evidence the running Chrome ext is older than the comprehensive-review JS‑6 fix. Self-resolves the moment a current Chrome ext POSTs fresh data.

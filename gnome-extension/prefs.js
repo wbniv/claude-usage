@@ -15,6 +15,17 @@ const ICON_SCRIPT = _ICON_SCRIPT_CANDIDATES.find(
     p => GLib.file_test(p, GLib.FileTest.EXISTS)
 ) || _ICON_SCRIPT_CANDIDATES[0];
 
+// Same probe for the Chrome-extension load-unpacked dir — the prefs window
+// surfaces this path so the user can paste it into chrome://extensions.
+// Hardcoding ~/.local/share/ misled .deb-installed users to a non-existent path.
+const _CHROME_EXT_CANDIDATES = [
+    GLib.get_home_dir() + '/.local/share/claude-usage/chrome-extension',
+    '/usr/share/claude-usage/chrome-extension',
+];
+const CHROME_EXT_PATH = _CHROME_EXT_CANDIDATES.find(
+    p => GLib.file_test(p, GLib.FileTest.EXISTS)
+) || _CHROME_EXT_CANDIDATES[0];
+
 function regenIcon() {
     try {
         Gio.Subprocess.new(
@@ -145,7 +156,7 @@ export default class ClaudeUsagePreferences extends ExtensionPreferences {
         page.add(infoGroup);
         infoGroup.add(new Adw.ActionRow({
             title: 'Chrome extension',
-            subtitle: 'Load unpacked from: ~/.local/share/claude-usage/chrome-extension/',
+            subtitle: `Load unpacked from: ${CHROME_EXT_PATH}`,
         }));
         infoGroup.add(new Adw.ActionRow({
             title: 'Settings via CLI',

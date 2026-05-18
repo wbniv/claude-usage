@@ -60,9 +60,15 @@ def _check_cache():
     if component and component != 'operational':
         print(f'  Anthropic:  ⚠ claude.ai component: {component}')
 
+    ev = d.get('_ext_version')
     if d.get('_ext_version_mismatch'):
-        ev = d.get('_ext_version') or '?'
-        print(f'  Chrome ext: ⚠ v{ev} differs from server-expected version')
+        print(f'  Chrome ext: ⚠ v{ev or "?"} differs from server-expected version')
+        print('              Fix: chrome://extensions → Claude Usage Tracker → Reload')
+    elif ev is None and d.get('_timestamp', 0) > 0:
+        # Cache has data but no version stamp → Chrome ext predates 0.11.1's
+        # _ext_version field. Most likely: user upgraded the .deb but Chrome is
+        # still running the old loaded copy and was never reloaded.
+        print('  Chrome ext: ⚠ running version predates 0.11.1 (no _ext_version stamp)')
         print('              Fix: chrome://extensions → Claude Usage Tracker → Reload')
 
     for m in d.get('meters', []):
@@ -84,6 +90,24 @@ def _check_extension():
     print(f'  Extension:  {state} ({EXT_ID})')
 
 
+def _check_chrome_orphans():
+    """Flag Chrome-registered Claude Usage extensions whose load-unpacked path
+    no longer exists. Common after switching install methods (source → .deb);
+    Chrome silently keeps the orphan registration with a load error."""
+    prefs = Path.home() / '.config/google-chrome/Default/Preferences'
+    if not prefs.exists():
+        return
+    try:
+        exts = json.loads(prefs.read_text())['extensions']['settings']
+    except (KeyError, json.JSONDecodeError):
+        return
+    for eid, e in exts.items():
+        path = e.get('path', '') or ''
+        if 'claude-usage' in path and not Path(path).exists():
+            print(f'  Chrome ext: ⚠ orphan registration at {path}')
+            print(f'              Fix: chrome://extensions → remove "{eid[:8]}…"')
+
+
 if __name__ == '__main__':
     if len(sys.argv) > 1 and sys.argv[1] in ('-h', '--help'):
         print(f'Usage: {Path(sys.argv[0]).name}')
@@ -99,4 +123,5 @@ if __name__ == '__main__':
     _check_service()
     _check_cache()
     _check_extension()
+    _check_chrome_orphans()
     print()

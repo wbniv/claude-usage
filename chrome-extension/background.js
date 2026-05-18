@@ -10,6 +10,10 @@ const AUTO_DEBOUNCE_MS = 30_000;
 const EXT_VERSION = chrome.runtime.getManifest().version;
 
 let _fetching = false;
+// One-shot guard for the tabs.query swallow in fetchUsage. If Chrome ever
+// tightens permission semantics so tabs.query throws, we'd otherwise silently
+// fall back to the background-tab path forever — log once per SW lifetime.
+let _tabQueryWarned = false;
 
 // Poll Anthropic's public Statuspage. JSON, no auth, doesn't burn tokens.
 // Returns the compact subset the GNOME extension uses to compute the broken
@@ -312,7 +316,12 @@ async function fetchUsage() {
       const reusable = candidates.find(t =>
         t.status === 'complete' && (t.url || '').split(/[?#]/)[0] === USAGE_URL);
       if (reusable) scrapeTabId = reusable.id;
-    } catch (_) {}
+    } catch (e) {
+      if (!_tabQueryWarned) {
+        console.warn('Claude Usage: tabs.query failed, falling back to background tab:', e.message);
+        _tabQueryWarned = true;
+      }
+    }
 
     if (scrapeTabId === null) {
       createdTab = await chrome.tabs.create({ url: USAGE_URL, active: false });
@@ -432,6 +441,13 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 
 chrome.runtime.onStartup.addListener(() => {
+  // Recreate the alarm even though MV3 alarms normally persist across browser
+  // restarts — wiped registries (profile corruption, uninstall/reinstall
+  // sequences, storage quota purges) still recover next startup.
+  chrome.alarms.create('fetch-usage', {
+    delayInMinutes: INTERVAL_MINUTES,
+    periodInMinutes: INTERVAL_MINUTES,
+  });
   fetchUsage();
 });
 
