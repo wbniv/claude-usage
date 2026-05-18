@@ -15,15 +15,23 @@ const PORT_CACHE_TTL_MS = 60 * 60 * 1000;
 async function probePorts() {
   // Race all ports concurrently. First /hello response with the right
   // signature wins. Returns null if nothing on the range answers.
+  // Manual AbortController + setTimeout instead of AbortSignal.timeout()
+  // for parity with fetchAnthropicStatus and to avoid the Chrome <102
+  // silent-breakage path (TypeError: AbortSignal.timeout is not a function).
+  // Validates both `app` and `version` so a local impersonator with the
+  // right app string but wrong shape can't win the race.
   const probes = PROBE_PORTS.map(async port => {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), PROBE_TIMEOUT_MS);
     try {
-      const r = await fetch(`http://127.0.0.1:${port}/hello`,
-        { signal: AbortSignal.timeout(PROBE_TIMEOUT_MS) });
+      const r = await fetch(`http://127.0.0.1:${port}/hello`, { signal: ctl.signal });
       if (!r.ok) return null;
       const j = await r.json();
-      return j && j.app === 'claude-usage' ? port : null;
+      return j && j.app === 'claude-usage' && typeof j.version === 'string' ? port : null;
     } catch (_) {
       return null;
+    } finally {
+      clearTimeout(timer);
     }
   });
   const results = await Promise.all(probes);
@@ -44,26 +52,36 @@ async function getServerUrl({ forceProbe = false } = {}) {
   return `http://127.0.0.1:${port}/update`;
 }
 
-// POST to the local server with auto-rediscovery. On network error or 5xx,
-// invalidate the cached port and re-probe once. 4xx is treated as a real
-// server response (validator rejection) — return the Response so callers can
-// decide whether to discard the payload. Throws only if both attempts fail.
+// POST to the local server with auto-rediscovery. On network error, 5xx, or
+// a response missing the claude-usage signature header (squatter on the
+// cached port), invalidate the cache and re-probe once. 4xx WITH the signature
+// is treated as a real server response (validator rejection) — return the
+// Response so callers can decide whether to discard the payload. Throws only
+// if both attempts fail.
 async function postUpdate(body) {
   const payload = {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   };
+  // Reject any response without our signature header. The PROBE path validates
+  // via GET /hello at discovery; this header is the in-band POST check that
+  // catches a squatter that took our cached port between probe and POST. With
+  // host_permissions for 127.0.0.1, all response headers are readable from
+  // the SW — no CORS exposure dance needed.
+  const isOurs = r => r.headers.get('x-claude-usage-server') !== null;
   let url = await getServerUrl();
   if (url) {
     try {
       const r = await fetch(url, payload);
-      if (r.ok || (r.status >= 400 && r.status < 500)) return r;
-    } catch (_) { /* network error — fall through to re-probe */ }
+      if ((r.ok || (r.status >= 400 && r.status < 500)) && isOurs(r)) return r;
+    } catch (_) { /* network error or wrong-server — fall through to re-probe */ }
   }
   url = await getServerUrl({ forceProbe: true });
   if (!url) throw new Error('claude-usage server not found on probe range');
-  return await fetch(url, payload);
+  const r = await fetch(url, payload);
+  if (!isOurs(r)) throw new Error('server response missing claude-usage signature');
+  return r;
 }
 
 // Stamped on every POST so the server can detect version skew. Chrome does
@@ -417,8 +435,8 @@ async function fetchUsage() {
       await postUpdate(partial);
     } catch (_) {}
   } finally {
-    if (tab) {
-      try { await chrome.tabs.remove(tab.id); } catch (_) {}
+    if (createdTab) {
+      try { await chrome.tabs.remove(createdTab.id); } catch (_) {}
       try { await chrome.storage.local.set({ _scrape_tabs: [] }); } catch (_) {}
     }
     _fetching = false;

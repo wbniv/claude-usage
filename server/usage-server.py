@@ -25,7 +25,7 @@ GENERATE_ICON = next(
 if GENERATE_ICON is None:
     print("warning: generate-icon.py not found; dock icon updates disabled", file=sys.stderr, flush=True)
 # Bump alongside packaging/control + chrome-extension/manifest.json on release.
-VERSION = '0.11.7'
+VERSION = '0.11.8'
 # Default fallback range: try 7331 first, fall through if it's taken. CLAUDE_USAGE_PORT
 # pins a single port (no fallback) — used by packaging/test-deb-live.sh and any caller
 # that wants deterministic binding.
@@ -176,6 +176,15 @@ def _validate(body):
 
 
 class Handler(BaseHTTPRequestHandler):
+    def end_headers(self):
+        # Stamp every response with a server signature so the Chrome extension
+        # can detect a POST that hit a squatter on a stale-cached port — the
+        # GET /hello probe verifies the server at discovery, this closes the
+        # POST-path equivalent. Header-based (not body-based) so existing
+        # status codes and response bodies stay unchanged.
+        self.send_header('X-Claude-Usage-Server', VERSION)
+        super().end_headers()
+
     def do_OPTIONS(self):
         self.send_response(200)
         self._cors()
