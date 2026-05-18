@@ -392,11 +392,20 @@ chrome.webNavigation.onHistoryStateUpdated.addListener(
   { url: [{ hostEquals: 'claude.ai' }] }
 );
 
+// Direct fetchUsage() on install/reload and browser startup — MV3 alarm
+// scheduling adds seconds of latency before the first fire, on top of the
+// tab-load + hydration wait inside fetchUsage. Calling directly skips that
+// scheduling delay so reloading the extension visibly updates the panel.
 chrome.runtime.onInstalled.addListener(() => {
   chrome.alarms.create('fetch-usage', {
-    delayInMinutes: 0,
+    delayInMinutes: INTERVAL_MINUTES,
     periodInMinutes: INTERVAL_MINUTES,
   });
+  fetchUsage();
+});
+
+chrome.runtime.onStartup.addListener(() => {
+  fetchUsage();
 });
 
 chrome.alarms.onAlarm.addListener(async alarm => {
