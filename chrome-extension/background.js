@@ -1,8 +1,70 @@
 const USAGE_URL = 'https://claude.ai/settings/usage';
-const LOCAL_SERVER = 'http://127.0.0.1:7331/update';
 const STATUS_URL   = 'https://status.claude.com/api/v2/summary.json';
 const INTERVAL_MINUTES = 7;
 const AUTO_DEBOUNCE_MS = 30_000;
+
+// Local server discovery. The server tries to bind 7331 first and falls back
+// through 7340 if something else is squatting on 7331. We probe the range via
+// GET /hello, cache the winning port in chrome.storage.local, and re-probe on
+// POST failure. host_permissions in manifest.json must cover every port in
+// PROBE_PORTS — MV3 match patterns don't support port wildcards.
+const PROBE_PORTS = Array.from({ length: 10 }, (_, i) => 7331 + i);
+const PROBE_TIMEOUT_MS = 500;
+const PORT_CACHE_TTL_MS = 60 * 60 * 1000;
+
+async function probePorts() {
+  // Race all ports concurrently. First /hello response with the right
+  // signature wins. Returns null if nothing on the range answers.
+  const probes = PROBE_PORTS.map(async port => {
+    try {
+      const r = await fetch(`http://127.0.0.1:${port}/hello`,
+        { signal: AbortSignal.timeout(PROBE_TIMEOUT_MS) });
+      if (!r.ok) return null;
+      const j = await r.json();
+      return j && j.app === 'claude-usage' ? port : null;
+    } catch (_) {
+      return null;
+    }
+  });
+  const results = await Promise.all(probes);
+  return results.find(p => p !== null) ?? null;
+}
+
+async function getServerUrl({ forceProbe = false } = {}) {
+  if (!forceProbe) {
+    const { serverPort } = await chrome.storage.local.get('serverPort');
+    if (serverPort?.port && (Date.now() - serverPort.cachedAt) < PORT_CACHE_TTL_MS) {
+      return `http://127.0.0.1:${serverPort.port}/update`;
+    }
+  }
+  const port = await probePorts();
+  if (port === null) return null;
+  await chrome.storage.local.set({ serverPort: { port, cachedAt: Date.now() } });
+  console.log(`Claude Usage: probed and cached server port ${port}`);
+  return `http://127.0.0.1:${port}/update`;
+}
+
+// POST to the local server with auto-rediscovery. On network error or 5xx,
+// invalidate the cached port and re-probe once. 4xx is treated as a real
+// server response (validator rejection) — return the Response so callers can
+// decide whether to discard the payload. Throws only if both attempts fail.
+async function postUpdate(body) {
+  const payload = {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  };
+  let url = await getServerUrl();
+  if (url) {
+    try {
+      const r = await fetch(url, payload);
+      if (r.ok || (r.status >= 400 && r.status < 500)) return r;
+    } catch (_) { /* network error — fall through to re-probe */ }
+  }
+  url = await getServerUrl({ forceProbe: true });
+  if (!url) throw new Error('claude-usage server not found on probe range');
+  return await fetch(url, payload);
+}
 
 // Stamped on every POST so the server can detect version skew. Chrome does
 // not auto-reload unpacked extensions on .deb upgrade — without this, a user
@@ -209,13 +271,7 @@ async function scrapeAndPost(tabId) {
       _anthropic_status: anthropic_status,
       _ext_version: EXT_VERSION,
     };
-    try {
-      await fetch(LOCAL_SERVER, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(partial),
-      });
-    } catch (_) {}
+    try { await postUpdate(partial); } catch (_) {}
     return;
   }
 
@@ -238,11 +294,7 @@ async function scrapeAndPost(tabId) {
   data._ext_version = EXT_VERSION;
 
   try {
-    const resp = await fetch(LOCAL_SERVER, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
+    const resp = await postUpdate(data);
     if (!resp.ok) throw new Error(`server ${resp.status}`);
     console.log(`Claude Usage: sent ${data.meters.length} meters to local server`);
   } catch (e) {
@@ -274,11 +326,7 @@ async function fetchUsage() {
         await chrome.storage.local.remove('claude_usage');
       } else {
         try {
-          const r = await fetch(LOCAL_SERVER, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(stored),
-          });
+          const r = await postUpdate(stored);
           if (r.ok) {
             await chrome.storage.local.remove('claude_usage');
             console.log('Claude Usage: flushed offline data to server');
@@ -366,11 +414,7 @@ async function fetchUsage() {
         _ext_version: EXT_VERSION,
       };
       console.warn('Claude Usage: reporting error to local server');
-      await fetch(LOCAL_SERVER, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(partial),
-      });
+      await postUpdate(partial);
     } catch (_) {}
   } finally {
     if (tab) {

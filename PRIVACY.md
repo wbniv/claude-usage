@@ -1,6 +1,6 @@
 # Privacy Policy — Claude Usage Tracker
 
-**Last updated: 2026-05-15**
+**Last updated: 2026-05-18**
 
 ## What data is collected
 
@@ -14,7 +14,7 @@ The data collected is:
 
 ## Where data goes
 
-All data stays on your own machine. It is sent only to `http://127.0.0.1:7331` — a local Python server running on your computer — and written under `~/.cache/claude-usage/`.
+All data stays on your own machine. It is sent only to `http://127.0.0.1:<port>` — a local Python server running on your computer — and written under `~/.cache/claude-usage/`. The server picks the first free port in 7331-7340 and records its choice in `~/.cache/claude-usage/port`; the Chrome extension probes that range to discover it.
 
 **No data is transmitted to any remote server, third party, or the extension developer.**
 
@@ -35,7 +35,7 @@ All data stays on your own machine. It is sent only to `http://127.0.0.1:7331` �
 | `storage` | Store a fallback copy of usage data when the local server is unavailable |
 | `https://claude.ai/*` | Access the usage page |
 | `https://status.claude.com/*` | Poll Anthropic's public status page for outage detection (no auth, no token cost) |
-| `http://127.0.0.1:7331/*` | Post data to the local server |
+| `http://127.0.0.1:7331-7340/*` | Discover and post data to the local server (one of these ports, chosen at server startup) |
 
 ## Contact
 

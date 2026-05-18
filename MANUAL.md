@@ -129,6 +129,7 @@ Nothing to do. Everything starts automatically:
 
 ```bash
 cat ~/.cache/claude-usage/usage.json
+cat ~/.cache/claude-usage/port      # which local port the server bound (7331-7340)
 ```
 
 **Run the diagnostics tool:**

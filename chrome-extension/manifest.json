@@ -1,13 +1,22 @@
 {
   "manifest_version": 3,
   "name": "Claude Usage Tracker",
-  "version": "0.11.6",
+  "version": "0.11.7",
   "description": "Opens claude.ai/settings/usage in a background tab every 7 minutes, reads your usage meters, and forwards them to the local Claude Usage panel indicator.",
   "permissions": ["tabs", "scripting", "alarms", "storage", "webNavigation"],
   "host_permissions": [
     "https://claude.ai/settings/usage*",
     "https://status.claude.com/api/v2/*",
-    "http://127.0.0.1:7331/*"
+    "http://127.0.0.1:7331/*",
+    "http://127.0.0.1:7332/*",
+    "http://127.0.0.1:7333/*",
+    "http://127.0.0.1:7334/*",
+    "http://127.0.0.1:7335/*",
+    "http://127.0.0.1:7336/*",
+    "http://127.0.0.1:7337/*",
+    "http://127.0.0.1:7338/*",
+    "http://127.0.0.1:7339/*",
+    "http://127.0.0.1:7340/*"
   ],
   "background": {
     "service_worker": "background.js"

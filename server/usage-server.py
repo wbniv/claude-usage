@@ -24,7 +24,13 @@ GENERATE_ICON = next(
 )
 if GENERATE_ICON is None:
     print("warning: generate-icon.py not found; dock icon updates disabled", file=sys.stderr, flush=True)
-PORT = 7331
+# Bump alongside packaging/control + chrome-extension/manifest.json on release.
+VERSION = '0.11.7'
+# Default fallback range: try 7331 first, fall through if it's taken. CLAUDE_USAGE_PORT
+# pins a single port (no fallback) — used by packaging/test-deb-live.sh and any caller
+# that wants deterministic binding.
+PORT_RANGE = range(7331, 7341)
+PORT_FILE  = _CACHE_HOME / 'claude-usage' / 'port'
 # Set CLAUDE_USAGE_EXTENSION_ID to the published Chrome Web Store extension ID
 # to restrict CORS to only that extension. Unset = allow any chrome-extension://
 # origin (safe for dev installs; server only binds to 127.0.0.1 regardless).
@@ -172,6 +178,24 @@ def _validate(body):
 class Handler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         self.send_response(200)
+        self._cors()
+        self.end_headers()
+
+    def do_GET(self):
+        # /hello — discovery signature for the Chrome extension. The body
+        # identifies this process as claude-usage so a probe across the port
+        # range can distinguish our server from any squatter on the same port.
+        # No auth; the signature is the body, not access control.
+        if self.path == '/hello':
+            payload = json.dumps({'app': 'claude-usage', 'version': VERSION}).encode()
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Content-Length', str(len(payload)))
+            self._cors()
+            self.end_headers()
+            self.wfile.write(payload)
+            return
+        self.send_response(404)
         self._cors()
         self.end_headers()
 
@@ -342,6 +366,46 @@ def _tooltip_tick():
             print(f"tooltip tick: {e}", file=sys.stderr, flush=True)
 
 
+def _bind():
+    """Bind to 127.0.0.1 on the first free port from the configured range.
+
+    CLAUDE_USAGE_PORT, if set, pins a single port (no fallback) — fail with a
+    clear message if that port is taken. Otherwise iterate PORT_RANGE and
+    return the first HTTPServer that successfully binds.
+    """
+    pin = os.environ.get('CLAUDE_USAGE_PORT')
+    if pin:
+        try:
+            port = int(pin)
+        except ValueError:
+            print(f"CLAUDE_USAGE_PORT={pin!r} is not an integer", file=sys.stderr, flush=True)
+            sys.exit(2)
+        candidates = [port]
+    else:
+        candidates = list(PORT_RANGE)
+    last_err = None
+    for port in candidates:
+        try:
+            return HTTPServer(('127.0.0.1', port), Handler), port
+        except OSError as e:
+            last_err = e
+            continue
+    tried = candidates[0] if len(candidates) == 1 else f"{candidates[0]}–{candidates[-1]}"
+    print(f"failed to bind any port in {tried}: {last_err}", file=sys.stderr, flush=True)
+    sys.exit(1)
+
+
+def _write_port_file(port):
+    """Atomic, 0600 write of the chosen port for local consumers (CLI, status
+    script, etc.). The Chrome extension cannot read arbitrary local files, so
+    it probes /hello on the range instead — the port file is for local code."""
+    PORT_FILE.parent.mkdir(parents=True, exist_ok=True)
+    tmp = PORT_FILE.with_suffix(PORT_FILE.suffix + '.tmp')
+    tmp.write_text(f"{port}\n")
+    os.chmod(tmp, 0o600)
+    tmp.replace(PORT_FILE)
+
+
 def _sweep_orphan_tmps():
     """Prune leftover update_desktop tmp files from crashed writes.
 
@@ -367,8 +431,9 @@ def _sweep_orphan_tmps():
 
 if __name__ == '__main__':
     _sweep_orphan_tmps()
-    server = HTTPServer(('127.0.0.1', PORT), Handler)
-    print(f"Claude Usage server listening on 127.0.0.1:{PORT}", flush=True)
+    server, port = _bind()
+    _write_port_file(port)
+    print(f"Claude Usage server listening on 127.0.0.1:{port}", flush=True)
     threading.Thread(target=_tooltip_tick, daemon=True).start()
     try:
         server.serve_forever()
