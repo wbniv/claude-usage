@@ -57,7 +57,7 @@ function formatReset(reset) {
         target.setDate(now.getDate() + ahead);
         target.setHours(h, mn, 0, 0);
         const mins = Math.floor((target - now) / 60000);
-        if (mins < 24 * 60)
+        if (mins < 12 * 60)
             return `resets in ⏱${Math.floor(mins / 60)}:${(mins % 60).toString().padStart(2, '0')}`;
         return `resets ${day} ${h.toString().padStart(2, '0')}:${mn.toString().padStart(2, '0')}`;
     }
@@ -67,6 +67,13 @@ function formatReset(reset) {
 function bar(pct, width = 10) {
     const filled = Math.max(0, Math.min(width, Math.round((pct / 100) * width)));
     return '█'.repeat(filled) + '░'.repeat(width - filled);
+}
+
+function fmtAge(min) {
+    if (min < 60) return `${min} min`;
+    const h = Math.floor(min / 60);
+    const m = min % 60;
+    return m > 0 ? `${h} h ${m} min` : `${h} h`;
 }
 
 // pacing_pct = pct / fraction_elapsed — "% you'd hit by reset at this
@@ -392,13 +399,13 @@ class ClaudeIndicator extends PanelMenu.Button {
             reason = `⚠ ${sfc} scrape attempts failed · run claude-usage-status`;
         } else if (age !== null && age > 20) {
             tier = 'broken';
-            reason = `⚠ No data in ${age} min · run claude-usage-status`;
+            reason = `⚠ No data in ${fmtAge(age)} · run claude-usage-status`;
         } else if (age !== null && age > 15) {
             // 15 min ≈ one full Chrome alarm cycle (7 min) plus jitter. Tighter
             // thresholds produce spurious "No update" toasts when MV3 dormancy
             // slows an alarm; pass-13 A-2 raised this from 10 → 15.
             tier = 'stale';
-            reason = `🕐 No update in ${age} min`;
+            reason = `🕐 No update in ${fmtAge(age)}`;
         }
 
         // Per-tier panel icon + label. Drop the ⚠ glyph prefix from the
@@ -446,6 +453,7 @@ class ClaudeIndicator extends PanelMenu.Button {
         const rawFont   = s.get_string('popup-font-family');
         const popupFont = /^[\w\s,'"-]+$/.test(rawFont) ? rawFont : 'monospace';
         const style     = `font-family: ${popupFont}; font-size: ${popupSize}px;`;
+        const meterOpacity = tier === 'broken' ? 80 : tier === 'stale' ? 140 : 255;
 
         const visibleMeters = d.meters.filter(m =>
             !(m.label?.toLowerCase().includes('sonnet') && (m.pct ?? 0) === 0));
@@ -463,6 +471,7 @@ class ClaudeIndicator extends PanelMenu.Button {
             const prefix = active ? '✴ ' : '  ';
             const eligible = !row.isSub && this._isEligible(row.meter);
             const item     = new PopupMenu.PopupMenuItem(prefix + row.text, {reactive: eligible});
+            item.opacity = meterOpacity;
             if (eligible) {
                 item.connect('activate', () => {
                     this._settings.set_string('panel-metric', row.meter.label);
