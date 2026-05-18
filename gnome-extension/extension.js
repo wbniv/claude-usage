@@ -135,21 +135,33 @@ class ClaudeIndicator extends PanelMenu.Button {
         this._iconNormal = Gio.icon_new_for_string(ext.path + '/icons/claude-22.png');
         this._iconRed    = Gio.icon_new_for_string(ext.path + '/icons/claude-22-red.png');
 
+        // Debounce GSettings writes — every set_string fires `changed`
+        // synchronously, which re-runs _updateDisplay (full popup rebuild +
+        // pacing recompute). Trackpad inertia produces 10-20 ticks per swipe;
+        // batching to one write at the end of the burst removes the CPU spike
+        // without losing visual feedback (label snaps to final position).
         this.connect('scroll-event', (_actor, event) => {
             const dir = event.get_scroll_direction();
-            if ((dir === Clutter.ScrollDirection.UP ||
-                 dir === Clutter.ScrollDirection.DOWN) && this._data) {
-                const eligible = (this._data.meters || []).filter(m => this._isSelectable(m));
-                if (eligible.length < 2) return Clutter.EVENT_STOP;
-                const cur = this._settings.get_string('panel-metric');
-                let idx = eligible.findIndex(m => m.label === cur);
-                if (idx === -1) idx = 0;
-                const delta = dir === Clutter.ScrollDirection.UP ? -1 : 1;
-                const next = eligible[(idx + delta + eligible.length) % eligible.length];
-                this._settings.set_string('panel-metric', next.label);
-                return Clutter.EVENT_STOP;
-            }
-            return Clutter.EVENT_PROPAGATE;
+            if (!((dir === Clutter.ScrollDirection.UP || dir === Clutter.ScrollDirection.DOWN) && this._data))
+                return Clutter.EVENT_PROPAGATE;
+            const eligible = (this._data.meters || []).filter(m => this._isSelectable(m));
+            if (eligible.length < 2) return Clutter.EVENT_STOP;
+            // Use the pending target if a debounce is in flight so consecutive
+            // ticks chain through eligible meters; else read the committed setting.
+            const cur = this._pendingMetric ?? this._settings.get_string('panel-metric');
+            let idx = eligible.findIndex(m => m.label === cur);
+            if (idx === -1) idx = 0;
+            const delta = dir === Clutter.ScrollDirection.UP ? -1 : 1;
+            this._pendingMetric = eligible[(idx + delta + eligible.length) % eligible.length].label;
+            if (this._scrollTimer) GLib.source_remove(this._scrollTimer);
+            this._scrollTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 80, () => {
+                this._scrollTimer = null;
+                const label = this._pendingMetric;
+                this._pendingMetric = null;
+                if (!this._destroyed) this._settings.set_string('panel-metric', label);
+                return GLib.SOURCE_REMOVE;
+            });
+            return Clutter.EVENT_STOP;
         });
 
         const box = new St.BoxLayout({style_class: 'panel-status-menu-box'});
@@ -259,8 +271,14 @@ class ClaudeIndicator extends PanelMenu.Button {
     }
 
     _loadData() {
+        // Guard the call site and the async callback against extension disable
+        // mid-read: load_contents_async queues the callback on the main loop,
+        // which then fires after destroy() has torn down our widgets and would
+        // throw on set_text against a disposed St.Label.
+        if (this._destroyed) return;
         const f = Gio.File.new_for_path(CACHE_FILE);
         f.load_contents_async(null, (_obj, result) => {
+            if (this._destroyed) return;
             try {
                 const [ok, contents] = f.load_contents_finish(result);
                 if (!ok) return;
@@ -491,6 +509,7 @@ class ClaudeIndicator extends PanelMenu.Button {
             if (!this._clearingMetric) {
                 this._clearingMetric = true;
                 GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                    if (this._destroyed) return GLib.SOURCE_REMOVE;
                     this._clearingMetric = false;
                     this._settings.set_string('panel-metric', '');
                     return GLib.SOURCE_REMOVE;
@@ -504,6 +523,10 @@ class ClaudeIndicator extends PanelMenu.Button {
     }
 
     destroy() {
+        // Set first so any async callback racing the cancel-and-disconnect
+        // dance below sees _destroyed === true and bails before touching
+        // disposed widgets.
+        this._destroyed = true;
         if (this._settingsId) {
             this._settings.disconnect(this._settingsId);
             this._settingsId = null;
@@ -523,6 +546,10 @@ class ClaudeIndicator extends PanelMenu.Button {
         if (this._retryId) {
             GLib.source_remove(this._retryId);
             this._retryId = null;
+        }
+        if (this._scrollTimer) {
+            GLib.source_remove(this._scrollTimer);
+            this._scrollTimer = null;
         }
         if (this._menuOpenId) {
             this.menu.disconnect(this._menuOpenId);
