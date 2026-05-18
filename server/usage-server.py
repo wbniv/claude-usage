@@ -24,8 +24,33 @@ GENERATE_ICON = next(
 )
 if GENERATE_ICON is None:
     print("warning: generate-icon.py not found; dock icon updates disabled", file=sys.stderr, flush=True)
-# Bump alongside packaging/control + chrome-extension/manifest.json on release.
-VERSION = '0.11.8'
+# Single source of truth for both the server's own version AND the bundled
+# Chrome extension's expected version — they ship together in every install
+# method. Derived at module load to eliminate the drift class the
+# port-discovery review's V-2 finding predicted and pass-14 caught: the
+# server's hardcoded VERSION fell two patch versions behind the rest of the
+# release before anyone noticed. Best-effort read so a stripped-down install
+# without packaging/ still starts up.
+def _read_manifest_version():
+    for p in (
+        Path(__file__).resolve().parent / 'chrome-extension' / 'manifest.json',
+        Path('/usr/share/claude-usage/chrome-extension/manifest.json'),
+        Path.home() / '.local/share/claude-usage/chrome-extension/manifest.json',
+    ):
+        try:
+            if p.exists():
+                return json.loads(p.read_text()).get('version')
+        except Exception:
+            pass
+    return None
+_MANIFEST_VERSION = _read_manifest_version()
+VERSION = _MANIFEST_VERSION or '0.0.0'
+if VERSION == '0.0.0':
+    print("warning: chrome-extension/manifest.json not found; /hello will report 0.0.0",
+          file=sys.stderr, flush=True)
+# None when the manifest is missing — that disables the mismatch check
+# (POSTs are still accepted), which is the right fallback for stripped installs.
+EXPECTED_EXT_VERSION = _MANIFEST_VERSION
 # Default fallback range: try 7331 first, fall through if it's taken. CLAUDE_USAGE_PORT
 # pins a single port (no fallback) — used by packaging/test-deb-live.sh and any caller
 # that wants deterministic binding.
@@ -45,26 +70,6 @@ MAX_STR_LEN = 128
 # script) check the field on load and warn on mismatch so half-state bugs
 # from old-reader/new-writer or new-reader/old-writer combos are visible.
 CACHE_SCHEMA = 1
-
-# Chrome extension version expected by this server build. Drift produces a
-# stderr log + an _ext_version_mismatch flag persisted into usage.json so
-# claude-usage-status can surface it. Sourced from the sibling .deb's
-# packaging/control or the chrome-extension manifest at build time — keep
-# both in sync (Taskfile's release gate enforces this). Best-effort read so
-# a stripped-down install without packaging/ still starts up.
-def _read_expected_ext_version():
-    for p in (
-        Path(__file__).resolve().parent / 'chrome-extension' / 'manifest.json',
-        Path('/usr/share/claude-usage/chrome-extension/manifest.json'),
-        Path.home() / '.local/share/claude-usage/chrome-extension/manifest.json',
-    ):
-        try:
-            if p.exists():
-                return json.loads(p.read_text()).get('version')
-        except Exception:
-            pass
-    return None
-EXPECTED_EXT_VERSION = _read_expected_ext_version()
 
 _VALID_ANTHROPIC_KEYS = ('indicator', 'description', 'claude_ai_component_status')
 
@@ -134,14 +139,18 @@ def _validate(body):
     if astat is not None:
         if not isinstance(astat, dict):
             return "'_anthropic_status' must be an object"
+        # AS-1: validate indicator as a bounded string rather than against a
+        # hard-coded whitelist. Forward-compat with any future Statuspage
+        # indicator value (e.g. 'investigating' has appeared in incident
+        # states historically); the previous whitelist would have rejected
+        # the entire POST on first unknown value — dropping the very data
+        # we want to surface during an outage. The display logic in the
+        # GNOME extension already treats any truthy non-'none' indicator
+        # as a broken-tier signal, so unknown values degrade gracefully.
         for k in _VALID_ANTHROPIC_KEYS:
             err = _bounded_str(astat.get(k), f"_anthropic_status.{k}")
             if err:
                 return err
-        ind = astat.get('indicator')
-        _VALID_INDICATORS = (None, 'none', 'minor', 'major', 'critical', 'maintenance')
-        if ind not in _VALID_INDICATORS:
-            return f"_anthropic_status.indicator must be one of {_VALID_INDICATORS}"
     pl = body.get('_period_lengths')
     if pl is not None:
         if not isinstance(pl, dict):
@@ -209,7 +218,9 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_POST(self):
-        ct = self.headers.get('Content-Type', '').split(';')[0].strip()
+        # Lowercased — RFC 7231 §3.1.1.1 says media types are case-insensitive.
+        # Chrome always sends lowercase, but accept variants defensively.
+        ct = self.headers.get('Content-Type', '').split(';')[0].strip().lower()
         if ct != 'application/json':
             self.send_response(415)
             self._cors()

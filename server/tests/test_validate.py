@@ -127,11 +127,18 @@ def test_anthropic_status_must_be_dict():
     assert _validate({'_anthropic_status': {}}) is None
 
 
-def test_anthropic_status_indicator_whitelist():
-    valid = (None, 'none', 'minor', 'major', 'critical', 'maintenance')
-    for v in valid:
-        assert _validate({'_anthropic_status': {'indicator': v}}) is None, f"rejected valid {v!r}"
-    err = _validate({'_anthropic_status': {'indicator': 'whatever'}})
+def test_anthropic_status_indicator_accepts_any_string():
+    """AS-1: indicator is validated as a bounded string, not a whitelist.
+    Forward-compat with any future Statuspage value (e.g. 'investigating' has
+    appeared historically). The previous whitelist would have rejected the
+    entire POST on first unknown value — dropping data during the exact moment
+    we wanted to surface it. Type and length checks remain in force."""
+    for v in (None, 'none', 'minor', 'major', 'critical', 'maintenance',
+              'investigating', 'identified', 'unknown-future-value'):
+        assert _validate({'_anthropic_status': {'indicator': v}}) is None, f"rejected {v!r}"
+    err = _validate({'_anthropic_status': {'indicator': 123}})
+    assert err and 'indicator' in err
+    err = _validate({'_anthropic_status': {'indicator': 'x' * 129}})
     assert err and 'indicator' in err
 
 

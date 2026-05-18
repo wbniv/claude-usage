@@ -13,7 +13,11 @@
 set -euo pipefail
 
 TESTUSER="${1:-cu-testuser}"
-PORT="${CLAUDE_USAGE_PORT:-7331}"
+# PORT is read from the service's port file *after* it starts (below), not
+# hardcoded — dynamic port discovery (0.11.7+) means the service may bind
+# 7332..7340 if 7331 is contended on the runner. CLAUDE_USAGE_PORT, if set,
+# pins the service's bind port via systemd env — the port file still reports
+# the actually-bound port, so reading it works under both pinning and fallback.
 
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
     echo "Usage: $0 [testuser]"
@@ -87,15 +91,33 @@ if ! run_as systemctl --user is-active --quiet claude-usage-fetch.service; then
     exit 1
 fi
 
+# Read the port the service actually bound. Without this, the smoke test
+# hardcoded 7331 and would POST to whatever happened to squat that port
+# when dynamic discovery (0.11.7+) made the service fall through to 7332+.
+PORT_FILE="/home/$TESTUSER/.cache/claude-usage/port"
+if [ ! -f "$PORT_FILE" ]; then
+    echo "FAIL: $PORT_FILE not written — port-file write path broken?" >&2
+    exit 1
+fi
+PORT=$(cat "$PORT_FILE")
+echo "==> Service bound port $PORT (from $PORT_FILE)"
+
+# Track the actual installed Chrome ext version for the fixture POST. Hard-
+# coding 0.11.1 produced a "version mismatch" warning on every CI run that
+# masked the signal we want — a real mismatch in the field. The .deb is
+# already installed at this point so the manifest is on disk.
+EXT_VER=$(python3 -c "import json; print(json.load(open('/usr/share/claude-usage/chrome-extension/manifest.json'))['version'])")
+
 echo "==> POSTing current-shape probe payload to 127.0.0.1:$PORT/update"
 run_as curl -sf -X POST "http://127.0.0.1:$PORT/update" \
     -H 'Content-Type: application/json' \
-    -d '{"meters":[{"pct":42,"label":"live-smoke","reset":null,"reset_minutes":120}],"_ext_version":"0.11.1"}' >/dev/null
+    -d "{\"meters\":[{\"pct\":42,\"label\":\"live-smoke\",\"reset\":null,\"reset_minutes\":120}],\"_ext_version\":\"$EXT_VER\"}" >/dev/null
 
 # Backcompat probe (C-3): a pre-V-1 Chrome extension would not include
 # _ext_version, reset_minutes, or _period_lengths. The server's validator
 # must remain permissive of older shapes so users on stale extensions
-# don't have their POSTs silently rejected mid-upgrade.
+# don't have their POSTs silently rejected mid-upgrade. Keep the literal
+# 'Max plan' string (older scraper output) to exercise the same path.
 echo "==> POSTing old-shape probe payload (no _ext_version, no reset_minutes)"
 run_as curl -sf -X POST "http://127.0.0.1:$PORT/update" \
     -H 'Content-Type: application/json' \

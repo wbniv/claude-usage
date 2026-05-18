@@ -181,7 +181,7 @@ async function scrapeAndPost(tabId) {
       }
 
       function doScrape() {
-        const body = document.body.textContent;
+        const body = document.body.innerText;
         const lines = body.split('\n').map(l => l.trim()).filter(l => l.length > 0);
         const meters = [];
         let plan = null;
@@ -258,7 +258,7 @@ async function scrapeAndPost(tabId) {
 
       if (isHydrated()) { resolve(doScrape()); return; }
 
-      const deadline = setTimeout(() => { observer.disconnect(); resolve(doScrape()); }, 10_000);
+      const deadline = setTimeout(() => { observer.disconnect(); resolve(doScrape()); }, 30_000);
       const observer = new MutationObserver(() => {
         if (!isHydrated()) return;
         clearTimeout(deadline);
@@ -316,7 +316,15 @@ async function scrapeAndPost(tabId) {
     if (!resp.ok) throw new Error(`server ${resp.status}`);
     console.log(`Claude Usage: sent ${data.meters.length} meters to local server`);
   } catch (e) {
-    console.warn('Claude Usage: local server unavailable, using chrome.storage', e.message);
+    // 4xx with the claude-usage signature means the server is up but rejected
+    // the payload (validator caught something). Route the user to the journal,
+    // not to "is the server running" — they're different diagnostics.
+    if (e.message?.startsWith('server 4')) {
+      console.warn('Claude Usage: server rejected POST:', e.message,
+                   '— see journalctl --user-unit=claude-usage-fetch.service');
+    } else {
+      console.warn('Claude Usage: local server unavailable, buffering offline:', e.message);
+    }
     await chrome.storage.local.set({ claude_usage: { ...data, _buffered_at: Date.now() } });
   }
 

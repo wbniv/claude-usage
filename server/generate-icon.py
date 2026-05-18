@@ -238,25 +238,40 @@ def main(tier_override=None):
     print(f'Icon: All={all_pct:.0f}% Sonnet={sonnet_pct:.0f}% (pacing) tier={tier}', flush=True)
 
 if __name__ == '__main__':
+    # --baseline DEST: render the placeholder tile (rounded-rect + orange + star,
+    # no rings) used as the system icon shipped in the .deb so the dock looks
+    # consistent before any usage data has been fetched.
+    # --tier {normal,stale,broken}: override the cache-derived tier. Used by
+    # the GNOME extension for time-based stale/broken (it knows the cache
+    # is N minutes old; generate-icon.py only sees the cache contents).
+    USAGE = (
+        "Usage: generate-icon.py                                # render from cache\n"
+        "       generate-icon.py --baseline DEST                # render placeholder tile\n"
+        "       generate-icon.py --tier {normal,stale,broken}   # override cache-derived tier"
+    )
+    args = sys.argv[1:]
+    if args and args[0] in ('-h', '--help'):
+        print(USAGE)
+        sys.exit(0)
     try:
-        # --baseline DEST: render the placeholder tile (rounded-rect + orange + star,
-        # no rings) used as the system icon shipped in the .deb so the dock looks
-        # consistent before any usage data has been fetched.
-        if len(sys.argv) >= 2 and sys.argv[1] == '--baseline':
-            if len(sys.argv) < 3:
-                print('usage: generate-icon.py --baseline DEST', file=sys.stderr)
+        if args and args[0] == '--baseline':
+            if len(args) != 2:
+                print(USAGE, file=sys.stderr)
                 sys.exit(2)
-            generate(0, 0, dict(DEFAULTS), Path(sys.argv[2]), draw_rings=False)
+            generate(0, 0, dict(DEFAULTS), Path(args[1]), draw_rings=False)
             sys.exit(0)
-        # --tier {normal,stale,broken}: override the cache-derived tier. Used by
-        # the GNOME extension for time-based stale/broken (it knows the cache
-        # is N minutes old; generate-icon.py only sees the cache contents).
         tier_override = None
-        if len(sys.argv) >= 3 and sys.argv[1] == '--tier':
-            if sys.argv[2] not in ('normal', 'stale', 'broken'):
-                print(f"usage: generate-icon.py --tier {{normal,stale,broken}}", file=sys.stderr)
+        if args and args[0] == '--tier':
+            if len(args) != 2 or args[1] not in ('normal', 'stale', 'broken'):
+                print(USAGE, file=sys.stderr)
                 sys.exit(2)
-            tier_override = sys.argv[2]
+            tier_override = args[1]
+        elif args:
+            # Anything else is a usage error rather than a silent fall-through to
+            # main(): the old "unknown args silently ignored" path made dev-time
+            # typos invisible.
+            print(USAGE, file=sys.stderr)
+            sys.exit(2)
         main(tier_override)
     except Exception as e:
         print(f'generate-icon: {e}', file=sys.stderr, flush=True)

@@ -58,7 +58,11 @@ def parse_reset(reset, reset_minutes=None, anchor_ts=None):
                 ahead = 7
         target = (now + datetime.timedelta(days=ahead)).replace(hour=h, minute=mn, second=0, microsecond=0)
         mins = int((target - now).total_seconds() / 60)
-        if mins < 24 * 60:
+        # 12 h matches extension.js::formatReset (set in 0.11.10): resets more
+        # than half a day away show a concrete day+time rather than ⏱h:mm.
+        # Two adjacent UI surfaces (popup row and dock-launcher tooltip) must
+        # agree on the threshold or they read inconsistently for the same meter.
+        if mins < 12 * 60:
             return (True, f"{mins // 60}:{mins % 60:02d}")
         return (False, f"{day} {h:02d}:{mn:02d}")
 
@@ -121,10 +125,6 @@ def update_desktop(meters, icon_path=None, scrape_ts=None):
                 out.append(f'Name={name}')
             elif line.startswith('Icon='):
                 out.append(f'Icon={icon_path}')
-            elif line.startswith('#'):
-                out.append(line)
-            elif line.startswith('[') or '=' in line or line == '':
-                out.append(line)
             else:
                 out.append(line)
         tmp.write_text('\n'.join(out) + '\n')
