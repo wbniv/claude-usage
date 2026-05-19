@@ -90,12 +90,14 @@ function pacingPct(meter, periodLens) {
     const period = periodLens?.[meter.label];
     if (rm == null || !period) return pct;
     const elapsed = period - rm;
-    // 15-min minimum-elapsed floor. The previous `fraction <= 0.01` floor was
-    // period-relative — on a 5 h session bucket that's only 3 min, so a single
-    // Opus turn (~3 %) at minute 6 paced to ~150 % and tripped the critical
-    // color, forcing the whole label red. Time-based floor handles short
-    // (session) and long (weekly) buckets uniformly.
-    if (elapsed < 15) return pct;
+    // Floor = max(15 min, 5% of period). WP-1 (pass-16 §6): the flat 15-min
+    // floor was right for the 5h session bucket (15/300 = 5% elapsed → solid
+    // denominator) but for 7d weekly buckets it meant any usage > ~0.14% in
+    // the first 16 min paced > critical. Scaling 5% of the period gives the
+    // weekly bucket an ~8.4h suppression window — long enough that one
+    // browsing session early in the week doesn't flag the whole label red.
+    // Session bucket: max(15, 295*0.05=14.75) = 15 — no change from 0.11.14.
+    if (elapsed < Math.max(15, period * 0.05)) return pct;
     return pct / (elapsed / period);
 }
 
@@ -374,8 +376,13 @@ class ClaudeIndicator extends PanelMenu.Button {
                     if (p >= tCrit) { critPacing = p; return true; }
                     return false;
                 });
+                // N-1 (pass-16 §11): "is at 605% pacing" reads weirdly to
+                // users who don't have a frame for the metric. Reframe as a
+                // forecast — "on pace for X% by reset" — and cap the displayed
+                // number at 200 since anything beyond is just noise.
+                const paceDisplay = critPacing > 200 ? '>200' : Math.round(critPacing);
                 Main.notify('Claude Usage',
-                    `⚠ ${critMeter.label} is at ${Math.round(critPacing)}% pacing`);
+                    `⚠ ${critMeter.label} on pace for ${paceDisplay}% by reset`);
                 this._lastCritNotifyTs = now;
                 try { GLib.file_set_contents(NOTIF_CRIT_TS_FILE, String(now)); } catch (_) {}
             }

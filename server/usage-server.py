@@ -527,6 +527,14 @@ if __name__ == '__main__':
     server, port = _bind()
     _write_port_file(port)
     print(f"Claude Usage server listening on 127.0.0.1:{port}", flush=True)
+    # D-2 (pass-16 §8): refresh the dock icon at startup. Without this, the
+    # icon stays at whatever was rendered before the last shutdown until the
+    # next Chrome alarm fires (up to 7 min — longer if Chrome isn't running).
+    # generate-icon.py exits 0 cleanly when the cache doesn't exist yet, so
+    # no error on fresh install.
+    if GENERATE_ICON and OUTPUT.exists():
+        subprocess.Popen([sys.executable, str(GENERATE_ICON)],
+                         stdout=subprocess.DEVNULL)
     threading.Thread(target=_tooltip_tick, daemon=True).start()
     try:
         server.serve_forever()

@@ -43,6 +43,11 @@ uninstall() {
     rm -rf "$XDG_CONFIG_HOME/claude-usage"
     rm -rf "$XDG_CACHE_HOME/claude-usage"
     rm -f "$XDG_DATA_HOME/applications/claude-usage.desktop"
+    # TF-1 (pass-16 §13): icon-theme files we now own. Remove both the baseline
+    # (64x64 from install.sh) and the dynamic version (128x128 from generate-icon.py).
+    rm -f "$XDG_DATA_HOME/icons/hicolor/64x64/apps/claude-usage.png"
+    rm -f "$XDG_DATA_HOME/icons/hicolor/128x128/apps/claude-usage.png"
+    gtk-update-icon-cache -f "$XDG_DATA_HOME/icons/hicolor/" 2>/dev/null || true
     update-desktop-database "$XDG_DATA_HOME/applications/" 2>/dev/null || true
     echo "Done. Log out and back in to remove the panel indicator."
     exit 0
@@ -103,6 +108,13 @@ glib-compile-schemas "$GLIB_SCHEMA_DIR/"
 echo "  ✓ GNOME extension installed"
 
 # 2. Local data server + diagnostics
+# I-1 (pass-16 §11): nuke and recreate the install.sh-owned subtrees so a
+# file removed in a new version doesn't linger from a previous install.
+# Only touches paths install.sh entirely owns (server scripts + chrome-ext
+# copy). Cache (~/.cache/claude-usage) and gsettings (dconf) live elsewhere
+# and are left alone.
+rm -rf "$SERVER_DIR/usage-server.py" "$SERVER_DIR/generate-icon.py" "$SERVER_DIR/tooltip.py" \
+       "$SERVER_DIR/claude-usage-status" "$SERVER_DIR/chrome-extension"
 mkdir -p "$SERVER_DIR"
 cp "$REPO_DIR/server/usage-server.py" "$SERVER_DIR/"
 cp "$REPO_DIR/server/generate-icon.py" "$SERVER_DIR/"
@@ -123,6 +135,19 @@ mkdir -p "$SERVER_DIR/chrome-extension"
 cp -r "$REPO_DIR/chrome-extension/." "$SERVER_DIR/chrome-extension/"
 rm -rf "$SERVER_DIR/chrome-extension/test"
 echo "  ✓ Chrome extension files synced to $SERVER_DIR/chrome-extension"
+
+# 2c. Icon-theme baseline for source installs (TF-1, pass-16 §13).
+# The .desktop file uses `Icon=claude-usage` (name, not path) — GNOME's XDG
+# icon-theme lookup resolves that name to whichever file is present. For
+# source installs the user-theme dir is the only candidate (the .deb path
+# also installs /usr/share/pixmaps/claude-usage.png as a system fallback).
+# Without this seed, `Icon=claude-usage` doesn't resolve until the first
+# generate-icon.py run writes the dynamic version.
+mkdir -p "$XDG_DATA_HOME/icons/hicolor/64x64/apps"
+cp "$REPO_DIR/gnome-extension/icons/claude-64.png" \
+    "$XDG_DATA_HOME/icons/hicolor/64x64/apps/claude-usage.png"
+gtk-update-icon-cache -f "$XDG_DATA_HOME/icons/hicolor/" 2>/dev/null || true
+echo "  ✓ Icon-theme baseline installed"
 
 # 3. Generate initial dock icon (0% rings until first data fetch)
 # Settings are stored in GSettings (dconf) with built-in defaults.

@@ -470,13 +470,19 @@ async function fetchUsage() {
 async function _autoScrapeIfEligible(tabId, url) {
   // Exact match on path, ignoring query string / fragment.
   if (url.split(/[?#]/, 1)[0] !== USAGE_URL) return;
+  // R-1 (pass-16 §5): lift _fetching = true BEFORE the storage.get await.
+  // The previous check-then-await-then-set ordering let two near-simultaneous
+  // events (e.g. tabs.onUpdated and tabs.onActivated fired for the same
+  // navigation) both pass `if (_fetching) return` before either set the flag,
+  // then both proceed to scrape. Matching fetchUsage's pattern: synchronous
+  // check + set before any await keeps the flag working as a real mutex.
   if (_fetching) return;
-  const { _scrape_tabs = [], _last_scrape_ts = 0 } =
-      await chrome.storage.local.get(['_scrape_tabs', '_last_scrape_ts']);
-  if (_scrape_tabs.includes(tabId)) return;
-  if (Date.now() - _last_scrape_ts < AUTO_DEBOUNCE_MS) return;
   _fetching = true;
   try {
+    const { _scrape_tabs = [], _last_scrape_ts = 0 } =
+        await chrome.storage.local.get(['_scrape_tabs', '_last_scrape_ts']);
+    if (_scrape_tabs.includes(tabId)) return;
+    if (Date.now() - _last_scrape_ts < AUTO_DEBOUNCE_MS) return;
     await scrapeAndPost(tabId);
   } catch (e) {
     console.warn('Claude Usage auto-scrape failed:', e.message);

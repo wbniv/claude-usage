@@ -278,6 +278,7 @@ sudo apt remove claude-usage
 
 ```bash
 rm -f  ~/.local/share/applications/claude-usage.desktop
+rm -f  ~/.local/share/icons/hicolor/128x128/apps/claude-usage.png
 rm -rf ~/.cache/claude-usage
 ```
 

@@ -15,6 +15,15 @@ _DATA_HOME   = Path(os.environ.get('XDG_DATA_HOME')  or Path.home() / '.local' /
 CACHE_DIR    = _CACHE_HOME / 'claude-usage'
 CACHE_JSON   = CACHE_DIR / 'usage.json'
 
+# TF-1 (pass-16 §13): write the dynamic icon to the user icon-theme dir
+# under a stable name so the .desktop file's Icon=claude-usage (already the
+# install-time default in build-deb.sh and claude-usage-setup) resolves to
+# the latest dynamic version. Lives outside ~/.cache so `rm -rf ~/.cache`
+# (a documented uninstall step) doesn't strand the launcher with a missing
+# icon — and when the user file is missing, GNOME falls back to the system
+# baseline at /usr/share/pixmaps/claude-usage.png shipped by the .deb.
+ICON_OUT = _DATA_HOME / 'icons/hicolor/128x128/apps/claude-usage.png'
+
 # Icon ships with the GNOME extension; check user-install path first, then system path.
 _EXT_REL = Path('gnome-shell/extensions/claude-usage@indri.studio/icons/claude-64.png')
 BASE_ICON = next(
@@ -96,12 +105,13 @@ def pacing_pct(meter, period_lens):
     if rm is None or not period:
         return pct
     elapsed = period - rm
-    # 15-min minimum-elapsed floor. The previous `fraction <= 0.01` floor was
-    # period-relative — on a 5 h session bucket that's only 3 min, so a single
-    # Opus turn (~3 %) at minute 6 paced to ~150 % and tripped the critical
-    # color. Time-based floor handles short (session) and long (weekly) buckets
-    # uniformly.
-    if elapsed < 15:
+    # Floor = max(15 min, 5% of period). WP-1 (pass-16 §6): flat 15-min was
+    # right for the 5h session bucket (15/300=5% elapsed) but for 7d weekly
+    # buckets meant any usage > ~0.14% in the first 16 min paced > critical.
+    # Period-scaled component gives the weekly bucket ~8.4h suppression. The
+    # session bucket sees max(15, 14.75)=15 — unchanged from 0.11.14.
+    # Kept in sync by hand with gnome-extension/extension.js:pacingPct.
+    if elapsed < max(15, period * 0.05):
         return pct
     return pct / (elapsed / period)
 
@@ -199,12 +209,28 @@ def derive_tier(data):
         return 'broken'
     return 'normal'
 
-def _next_icon_path():
-    """Return a fresh timestamped path so GNOME never serves a cached pixbuf."""
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    # Nanosecond precision: two same-second invocations would otherwise collide
-    # on the filename, silently dropping the second icon refresh.
-    return CACHE_DIR / f'icon-{time.time_ns()}.png'
+def _atomic_write_icon(render_to_path):
+    """Write the icon to ICON_OUT atomically. The render callback receives a
+    tmp path and writes the PNG to it; we then rename to the final location.
+
+    TF-1: stable filename in the user icon-theme dir replaces the previous
+    per-invocation ns-precision scheme in ~/.cache. Atomic rename gives
+    crash-safety + mtime-bump on every refresh (which is what GtkIconTheme
+    monitors to invalidate cached pixbufs)."""
+    ICON_OUT.parent.mkdir(parents=True, exist_ok=True)
+    # PID+ns infix so two concurrent generate-icon.py invocations (POST
+    # handler + GNOME extension tier-transition spawn) don't truncate each
+    # other's tmp files. Last writer wins on the rename — both produce
+    # functionally equivalent icons since they both render from the same cache.
+    # Keep the `.png` extension at the end so PIL infers the right format.
+    tmp = ICON_OUT.with_name(f'.claude-usage.tmp.{os.getpid()}.{time.time_ns()}.png')
+    try:
+        render_to_path(tmp)
+        tmp.replace(ICON_OUT)
+    except Exception:
+        try: tmp.unlink()
+        except OSError: pass
+        raise
 
 def main(tier_override=None):
     cfg = load_config()
@@ -221,28 +247,8 @@ def main(tier_override=None):
     all_pct    = min(100.0, pacing_pct(all_m,    period_lens))
     sonnet_pct = min(100.0, pacing_pct(sonnet_m, period_lens))
     tier = tier_override or derive_tier(data)
-    dest = _next_icon_path()
-    generate(all_pct, sonnet_pct, cfg, dest, tier=tier)
-    # Cleanup by mtime, not name equality: when the GNOME extension and the
-    # server POST handler both spawn generate-icon.py near-simultaneously
-    # (e.g. on tier-recovery transitions), each process has a distinct `dest`
-    # and a name-equality check would have them delete each other's icons.
-    # The 1 s grace window tolerates concurrent writers; the next solo regen
-    # cleans up whatever's left over.
-    try:
-        dest_mtime = dest.stat().st_mtime
-    except OSError:
-        dest_mtime = None
-    if dest_mtime is not None:
-        for old in CACHE_DIR.glob('icon-*.png'):
-            if old == dest:
-                continue
-            try:
-                if old.stat().st_mtime < dest_mtime - 1.0:
-                    old.unlink()
-            except OSError:
-                pass
-    update_desktop(meters, dest, scrape_ts=data.get('_timestamp'))
+    _atomic_write_icon(lambda dest: generate(all_pct, sonnet_pct, cfg, dest, tier=tier))
+    update_desktop(meters, scrape_ts=data.get('_timestamp'))
     print(f'Icon: All={all_pct:.0f}% Sonnet={sonnet_pct:.0f}% (pacing) tier={tier}', flush=True)
 
 if __name__ == '__main__':

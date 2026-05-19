@@ -97,17 +97,33 @@ def test_15_minute_boundary(elapsed_min, expect_suppressed):
         assert result > 5, f"elapsed={elapsed_min}min should pace, got {result}"
 
 
-# ── Weekly bucket: 15 min on a week is barely 0.15 %; pacing fires hot ──────
+# ── Weekly bucket: WP-1 (pass-16 §6) — period-scaled floor suppresses ──────
+# the first 5% of the period. Weekly: 10080 * 0.05 = 504 min ≈ 8.4 hours.
 
-def test_weekly_bucket_at_16min_paces():
-    """The weekly bucket loses ~82 min of suppression vs the old 1 % floor,
-    but that's fine: at minute 16 of a week, raw pct is small enough that
-    pacing only crosses 90 if usage is genuinely extreme."""
-    meter = {'label': 'All models', 'pct': 9, 'reset_minutes': 9680 - 16}
-    result = pacing_pct(meter, {'All models': 9680})
-    # 9 / (16/9680) ≈ 5445 — clearly hot, which is correct: 9 % in 16 min IS
-    # extreme usage on a weekly bucket and the user should see a warning.
-    assert result > 1000
+def test_weekly_bucket_at_16min_suppresses():
+    """WP-1: at minute 16 of a 10080-min week, period * 0.05 = 504, so the
+    floor is 504 not 15 — pacing returns raw pct. Replaces the old test
+    that asserted pacing > 1000 at this point (a false-critical class).
+    Before the fix, 9% at minute 16 paced to ~5445; users on Pro tier
+    saw the dock turn red within minutes of every weekly reset."""
+    meter = {'label': 'All models', 'pct': 9, 'reset_minutes': 10080 - 16}
+    assert pacing_pct(meter, {'All models': 10080}) == 9
+
+
+def test_weekly_bucket_paces_after_floor():
+    """Just past the 504-min weekly floor, pacing kicks in. At elapsed=505,
+    9% paces to ~179% (clearly on a fast burn — legit signal)."""
+    meter = {'label': 'All models', 'pct': 9, 'reset_minutes': 10080 - 505}
+    result = pacing_pct(meter, {'All models': 10080})
+    assert result > 100
+
+
+def test_weekly_bucket_normal_usage_does_not_pace_critical():
+    """Sanity check: a Pro-tier user with linear usage hits ~30% by mid-week
+    (~5040 min). Pacing should be ~60% (under critical=90)."""
+    meter = {'label': 'All models', 'pct': 30, 'reset_minutes': 10080 - 5040}
+    result = pacing_pct(meter, {'All models': 10080})
+    assert result == pytest.approx(60.0, abs=1.0)
 
 
 # ── Pass-throughs ───────────────────────────────────────────────────────────

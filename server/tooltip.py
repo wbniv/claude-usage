@@ -105,35 +105,36 @@ def format_tooltip(meters, anchor_ts=None):
     return 'Claude Usage   ✴   ' + '   |   '.join(parts) if parts else 'Claude Usage'
 
 
-def update_desktop(meters, icon_path=None, scrape_ts=None):
-    """Rewrite the .desktop launcher's Name= (and optionally Icon=) line.
+def update_desktop(meters, scrape_ts=None):
+    """Rewrite the .desktop launcher with fresh Name= tooltip text.
 
-    icon_path=None (60 s tick): targeted Name=-only substitution via re.sub
-    so we never clobber an Icon= written by a concurrent generate-icon.py.
-
-    icon_path set (generate-icon.py): full read-parse-write to update both
-    Name= and Icon= atomically.
+    TF-1 + D-1 (pass-16 §7, §13): always full read-parse-write — race-free
+    against any concurrent writer (the old re.sub Name=-only shortcut could
+    revert a fresh Icon= line back to its previous value in the rare overlap
+    with generate-icon.py's writes). Also always pins Icon=claude-usage so a
+    pre-0.11.18 .desktop with an absolute Icon= path gets migrated on the
+    first 60s tick after upgrade.
 
     scrape_ts: when supplied, countdown resets are recomputed live."""
     if not DESKTOP.exists():
         return
     name = format_tooltip(meters, anchor_ts=scrape_ts).replace('\n', r'\n')
+    text = DESKTOP.read_text()
+    out = []
+    for line in text.splitlines():
+        if line.startswith('Name='):
+            out.append(f'Name={name}')
+        elif line.startswith('Icon='):
+            # Stable icon-theme name. Resolves via XDG icon lookup to
+            # ~/.local/share/icons/hicolor/128x128/apps/claude-usage.png
+            # (written by generate-icon.py) with /usr/share/pixmaps/claude-usage.png
+            # as the .deb-shipped baseline fallback.
+            out.append('Icon=claude-usage')
+        else:
+            out.append(line)
+    new_text = '\n'.join(out) + '\n'
+    if new_text == text:
+        return
     tmp = DESKTOP.with_suffix(f'.desktop.tmp.{os.getpid()}.{time.time_ns()}')
-    if icon_path is None:
-        text = DESKTOP.read_text()
-        new_text = re.sub(r'^Name=.*$', f'Name={name}', text, flags=re.MULTILINE)
-        if new_text == text:
-            return
-        tmp.write_text(new_text)
-    else:
-        lines = DESKTOP.read_text().splitlines()
-        out = []
-        for line in lines:
-            if line.startswith('Name='):
-                out.append(f'Name={name}')
-            elif line.startswith('Icon='):
-                out.append(f'Icon={icon_path}')
-            else:
-                out.append(line)
-        tmp.write_text('\n'.join(out) + '\n')
+    tmp.write_text(new_text)
     tmp.replace(DESKTOP)
