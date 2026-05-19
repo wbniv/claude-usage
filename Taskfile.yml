@@ -106,9 +106,14 @@ tasks:
           echo "Refusing to release from non-main branch: $current"
           exit 1
         fi
-        if ! git diff --quiet HEAD; then
-          echo "Refusing to release with uncommitted changes:" >&2
-          git status --short
+        # docs/transcripts/ holds auto-generated session logs that almost
+        # always have pending edits when `task release` runs. They get
+        # committed separately via housekeeping commits (e.g. `chore:
+        # session transcript through X`); excluding them here keeps the
+        # release flow from tripping on benign churn.
+        if ! git diff --quiet HEAD -- . ':(exclude)docs/transcripts/'; then
+          echo "Refusing to release with uncommitted changes (transcripts excluded):" >&2
+          git status --short -- . ':(exclude)docs/transcripts/'
           exit 1
         fi
         if git rev-parse "{{.TAG}}" >/dev/null 2>&1; then
