@@ -11,7 +11,9 @@ without the .deb's runtime deps (CI runs pytest outside the docker image
 that has python3-cairo/python3-pil installed).
 """
 import importlib.util
+import os
 import sys
+import tempfile
 import types
 from pathlib import Path
 
@@ -20,6 +22,17 @@ import pytest
 _SERVER_DIR = Path(__file__).resolve().parent.parent
 if str(_SERVER_DIR) not in sys.path:
     sys.path.insert(0, str(_SERVER_DIR))
+
+# generate-icon.py raises FileNotFoundError at module load when neither
+# ~/.local/share/gnome-shell/extensions/.../icons/claude-64.png nor the
+# /usr/share equivalent exists. Provide a stub XDG_DATA_HOME with a
+# zero-byte placeholder so the discovery succeeds. pacing_pct never opens
+# the file, so a stub is sufficient.
+_TMP_XDG = Path(tempfile.mkdtemp(prefix='claude-usage-test-pacing-'))
+_ICON_DIR = _TMP_XDG / 'gnome-shell/extensions/claude-usage@indri.studio/icons'
+_ICON_DIR.mkdir(parents=True, exist_ok=True)
+(_ICON_DIR / 'claude-64.png').touch()
+os.environ['XDG_DATA_HOME'] = str(_TMP_XDG)
 
 # Stub the heavy module-load imports — pacing_pct is pure Python and touches
 # none of them. Mirrors the pattern in docs/plans/screenshots/.../render-mockups.py.
