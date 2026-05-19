@@ -6,9 +6,13 @@ fraction <= 0.01 floor, tripping the panel-label red. The replacement floor
 is a 15-min minimum elapsed.
 
 Imports the hyphenated module via importlib (same pattern as test_validate.py).
+Stubs cairo + PIL + tooltip before exec so the test runs on a bare runner
+without the .deb's runtime deps (CI runs pytest outside the docker image
+that has python3-cairo/python3-pil installed).
 """
 import importlib.util
 import sys
+import types
 from pathlib import Path
 
 import pytest
@@ -16,6 +20,25 @@ import pytest
 _SERVER_DIR = Path(__file__).resolve().parent.parent
 if str(_SERVER_DIR) not in sys.path:
     sys.path.insert(0, str(_SERVER_DIR))
+
+# Stub the heavy module-load imports — pacing_pct is pure Python and touches
+# none of them. Mirrors the pattern in docs/plans/screenshots/.../render-mockups.py.
+_stub_cairo = types.ModuleType('cairo')
+sys.modules.setdefault('cairo', _stub_cairo)
+
+_stub_image = types.ModuleType('PIL.Image')
+_stub_image.LANCZOS = 1  # generate-icon.py reads getattr(Image, 'Resampling', Image).LANCZOS
+_stub_imageops = types.ModuleType('PIL.ImageOps')
+_stub_pil = types.ModuleType('PIL')
+_stub_pil.Image = _stub_image
+_stub_pil.ImageOps = _stub_imageops
+sys.modules.setdefault('PIL', _stub_pil)
+sys.modules.setdefault('PIL.Image', _stub_image)
+sys.modules.setdefault('PIL.ImageOps', _stub_imageops)
+
+_stub_tooltip = types.ModuleType('tooltip')
+_stub_tooltip.update_desktop = lambda *a, **k: None
+sys.modules.setdefault('tooltip', _stub_tooltip)
 
 _SPEC = importlib.util.spec_from_file_location(
     'generate_icon',
