@@ -42,7 +42,10 @@ def _check_cache():
     if ts_min > 20:
         print(f'  Cache:      ✗ {ts_min}m old — extension flips to BROKEN at this point (plan: {plan})')
         print('              Fix: click the Chrome extension toolbar icon to force a fetch')
-    elif ts_min > 10:
+    elif ts_min > 15:
+        # 15-min stale threshold — must agree with extension.js's `age > 15`
+        # (raised 10→15 in pass-13 A‑2 for MV3 alarm jitter). Drift between
+        # this number and the extension's would make the diagnostic lie.
         print(f'  Cache:      ⚠ {ts_min}m old — extension flips to STALE at this point (plan: {plan})')
     else:
         print(f'  Cache:      ✓ present ({ts_min}m ago, plan: {plan})')

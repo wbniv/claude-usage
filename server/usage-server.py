@@ -73,12 +73,32 @@ CACHE_SCHEMA = 1
 
 _VALID_ANTHROPIC_KEYS = ('indicator', 'description', 'claude_ai_component_status')
 
+# V-2 (pass-16 §3): top-level keys we recognise. Anything else gets stripped
+# before the {**prev, **body} merge in do_POST so the cache can't accumulate
+# garbage indefinitely (e.g. _debug from an older Chrome ext version persisted
+# for days after the ext stopped sending it). Includes both chrome-emitted keys
+# and server-written keys (_schema, _ext_version_mismatch) so they survive
+# across the next POST's merge. Symmetric to _anthropic_status's known-keys
+# filter pattern already used inside do_POST.
+_VALID_TOP_KEYS = frozenset({
+    'meters', 'plan',
+    '_timestamp', 'timestamp',           # 'timestamp' is legacy epoch-ms; converted at write
+    '_scrape_fail_count',
+    '_anthropic_status',
+    '_ext_version', '_ext_version_mismatch',
+    '_period_lengths',
+    '_schema',
+    '_buffered_at',                       # written by Chrome ext during offline-buffer flush
+})
 
-def _bounded_str(v, field):
+
+def _bounded_str(v, field, allow_empty=True):
     if v is None:
         return None
     if not isinstance(v, str):
         return f"{field} must be a string or null"
+    if not allow_empty and not v:
+        return f"{field} must be non-empty"
     if len(v) > MAX_STR_LEN:
         return f"{field} exceeds {MAX_STR_LEN} chars"
     return None
@@ -105,7 +125,13 @@ def _validate(body):
             # otherwise {"pct": true} passes and renders as "true%" in the panel.
             if isinstance(pct, bool) or not isinstance(pct, int) or not (0 <= pct <= 100):
                 return f"meters[{i}].pct must be an integer in [0, 100]"
-            for k in ('label', 'reset', 'spent', 'balance'):
+            # V-3 (pass-16 §10): label must be non-empty. An empty-label meter
+            # would otherwise feed the current_labels set in do_POST's eviction
+            # filter and contribute to PL-1's period_lengths wipe.
+            err = _bounded_str(m.get('label'), f"meters[{i}].label", allow_empty=False)
+            if err:
+                return err
+            for k in ('reset', 'spent', 'balance'):
                 err = _bounded_str(m.get(k), f"meters[{i}].{k}")
                 if err:
                     return err
@@ -158,8 +184,11 @@ def _validate(body):
         if len(pl) > 100:
             return "'_period_lengths' must have ≤ 100 keys"
         for k, v in pl.items():
-            if not isinstance(k, str) or len(k) > MAX_STR_LEN:
-                return f"'_period_lengths' keys must be strings ≤ {MAX_STR_LEN} chars"
+            # V-3: keys must be non-empty strings — empty-string keys would
+            # accumulate noise in the accumulator and contribute to the
+            # current_labels eviction set (PL-1).
+            if not isinstance(k, str) or not k or len(k) > MAX_STR_LEN:
+                return f"'_period_lengths' keys must be non-empty strings ≤ {MAX_STR_LEN} chars"
             # Same upper bound as reset_minutes (31 days). bool ⊂ int — reject first.
             if isinstance(v, bool) or not isinstance(v, int) or v < 0 or v > 60 * 24 * 31:
                 return f"'_period_lengths[{k!r}]' must be a non-negative integer ≤ 44640"
@@ -296,6 +325,16 @@ class Handler(BaseHTTPRequestHandler):
                     except Exception:
                         pass
 
+                # V-2 (pass-16 §3): strip unknown top-level keys from both sides
+                # so the {**prev, **body} merge below can't propagate garbage
+                # indefinitely. Demonstrated in pass-16: cache still carried a
+                # `_debug` field three days after the Chrome ext stopped sending
+                # it, because shallow merge keeps prev keys body doesn't override.
+                # Filtering prev also one-shot cleans pre-existing garbage on the
+                # first POST after this fix lands.
+                prev = {k: v for k, v in prev.items() if k in _VALID_TOP_KEYS}
+                body = {k: v for k, v in body.items() if k in _VALID_TOP_KEYS}
+
                 # Period-lengths merge: start from prev's accumulated dict and
                 # dict-update with body's _period_lengths if present, NEVER
                 # replace with an empty/missing one. A naive {**prev, **body}
@@ -330,8 +369,18 @@ class Handler(BaseHTTPRequestHandler):
                     period_lengths[label] = max(period_lengths.get(label, 0), rm)
                 # Evict labels no longer in the current meter set so stale keys
                 # from renamed meters don't skew future pacing calculations.
+                # PL-1 (pass-16 §4): only fire on full scrapes — a partial /
+                # malicious POST with one fake meter would otherwise wipe the
+                # whole accumulator (demonstrated live with one curl). claude.ai
+                # always ships ≥ 2 meters on the usage page, so `_timestamp set
+                # AND meters ≥ 2` is a reliable "this is a real scrape, not a
+                # status-only POST" signal.
                 current_labels = {m.get('label') for m in body.get('meters', []) or [] if m.get('label')}
-                if current_labels:
+                is_full_scrape = (
+                    body.get('_timestamp') is not None
+                    and len(body.get('meters', []) or []) >= 2
+                )
+                if current_labels and is_full_scrape:
                     period_lengths = {k: v for k, v in period_lengths.items() if k in current_labels}
                 body['_period_lengths'] = period_lengths
 

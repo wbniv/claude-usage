@@ -389,7 +389,7 @@ class ClaudeIndicator extends PanelMenu.Button {
 
         // Tier: highest-confidence active failure signal.
         //   broken — Anthropic outage confirmed, OR scrape-fail count >= 2, OR age > 20 min
-        //   stale  — age > 10 min
+        //   stale  — age > 15 min
         //   normal — otherwise
         const astat = d._anthropic_status || {};
         const sfc   = d._scrape_fail_count || 0;

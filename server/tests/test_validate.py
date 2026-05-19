@@ -1,13 +1,18 @@
-"""Pytest coverage for usage-server.py::_validate.
+"""Pytest coverage for usage-server.py::_validate and do_POST merge behaviour.
 
 Imports the hyphenated module via importlib because Python's import system
 rejects 'usage-server' as a module name. The test file stays small and
-focused — one test per numbered failure path in the validator + happy paths.
+focused — one test per numbered failure path in the validator + happy paths,
+plus a `_do_post` harness for pass-16's V-2 / PL-1 merge regressions.
 """
 import importlib.util
+import io
+import json
 import sys
+import tempfile
 import time
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -180,7 +185,7 @@ def test_period_lengths_value_bounds():
 def test_period_lengths_key_length():
     too_long = 'x' * 129
     err = _validate({'_period_lengths': {too_long: 5}})
-    assert err and 'keys must be strings' in err
+    assert err and 'keys must be' in err
 
 
 # ── _timestamp ───────────────────────────────────────────────────────────────
@@ -303,3 +308,133 @@ def test_old_chrome_payload_accepted():
         '_timestamp': int(time.time()),
     }
     assert _validate(body) is None
+
+
+# ── V-3 (pass-16 §10) — empty-string label / _period_lengths key rejection ───
+
+def test_meter_label_must_be_non_empty():
+    """An empty label would otherwise feed the eviction wipe in PL-1."""
+    err = _validate({'meters': [{'pct': 50, 'label': ''}]})
+    assert err and 'label' in err and 'non-empty' in err
+
+
+def test_meter_label_missing_still_accepted():
+    """Backcompat: meters with no `label` key (None) keep working — only the
+    explicit empty-string case is rejected."""
+    assert _validate({'meters': [{'pct': 50}]}) is None
+
+
+def test_period_lengths_key_must_be_non_empty():
+    err = _validate({'_period_lengths': {'': 100}})
+    assert err and '_period_lengths' in err and 'non-empty' in err
+
+
+# ── V-2 / PL-1 (pass-16 §3, §4) — do_POST merge regression harness ──────────
+
+def _do_post(body, prev_cache=None):
+    """Drive Handler.do_POST against an in-memory request and tmpdir cache.
+
+    Mocks the BaseHTTPRequestHandler I/O surfaces (headers/rfile/wfile +
+    response helpers) so we exercise the full merge path without spinning up
+    an HTTPServer. Returns the parsed cache content written by the POST.
+    """
+    payload = json.dumps(body).encode()
+    tmp = Path(tempfile.mkdtemp(prefix='claude-usage-test-merge-'))
+    orig_output = _MOD.OUTPUT
+    _MOD.OUTPUT = tmp / 'usage.json'
+    try:
+        if prev_cache is not None:
+            _MOD.OUTPUT.parent.mkdir(parents=True, exist_ok=True)
+            _MOD.OUTPUT.write_text(json.dumps(prev_cache))
+
+        class _Handler:
+            headers = {
+                'Content-Type': 'application/json',
+                'Content-Length': str(len(payload)),
+                'Origin': 'chrome-extension://fake',
+            }
+            rfile = io.BytesIO(payload)
+            wfile = io.BytesIO()
+
+            def send_response(self, code): self._status = code
+            def send_header(self, *a, **k): pass
+            def end_headers(self): pass
+            def _cors(self): pass
+
+        handler = _Handler()
+        # bind do_POST as if it were a method on _Handler
+        _MOD.Handler.do_POST(handler)
+        # Inhibit the generate-icon.py subprocess that do_POST fires.
+        # Already side-effect-isolated (icon write goes to user XDG cache),
+        # but we don't read it in tests so no special handling needed beyond
+        # letting it fire-and-forget. Test assertions hit OUTPUT directly.
+        return json.loads(_MOD.OUTPUT.read_text())
+    finally:
+        _MOD.OUTPUT = orig_output
+
+
+def test_unknown_top_level_keys_filtered_from_cache():
+    """V-2: top-level keys not in _VALID_TOP_KEYS are stripped before merge.
+    Both the prev-cache garbage and any incoming garbage must be discarded."""
+    prev = {
+        'meters': [{'pct': 50, 'label': 'A'}],
+        '_period_lengths': {'A': 100},
+        '_debug': {'old': 'data from a previous Chrome ext version'},
+        'random_garbage_key': 'x' * 50,
+    }
+    # Partial status-only POST with one extra garbage key
+    result = _do_post(
+        {'_scrape_fail_count': 1, 'another_evil_key': 'y'},
+        prev_cache=prev,
+    )
+    assert '_debug' not in result, "prev's _debug should have been filtered out"
+    assert 'random_garbage_key' not in result, "prev's garbage key should have been filtered"
+    assert 'another_evil_key' not in result, "body's garbage key should have been filtered"
+    assert result.get('_scrape_fail_count') == 1, "legitimate body key must survive"
+    assert 'A' in (result.get('_period_lengths') or {}), "legit period_lengths must survive"
+
+
+def test_partial_post_does_not_wipe_period_lengths():
+    """PL-1: a single-meter POST without _timestamp / with < 2 meters should
+    NOT evict the period_lengths accumulator. Previously, any POST with
+    `meters` set wiped every label not in that POST."""
+    prev = {
+        'meters': [
+            {'pct': 50, 'label': 'Current session'},
+            {'pct': 50, 'label': 'All models'},
+        ],
+        '_period_lengths': {'Current session': 295, 'All models': 9680},
+    }
+    # Single-meter "fake" POST — mimics a malicious or buggy ext payload.
+    # No _timestamp set → not a "full scrape" → eviction must skip.
+    result = _do_post(
+        {'meters': [{'pct': 0, 'label': 'fake-meter'}]},
+        prev_cache=prev,
+    )
+    pl = result.get('_period_lengths') or {}
+    assert 'Current session' in pl, "Current session period must survive partial POST"
+    assert 'All models' in pl, "All models period must survive partial POST"
+
+
+def test_full_scrape_still_evicts_renamed_labels():
+    """Eviction still fires on a legit full scrape so a renamed-by-Anthropic
+    meter eventually drops out of the accumulator."""
+    prev = {
+        'meters': [{'pct': 50, 'label': 'OldName'}],
+        '_period_lengths': {'OldName': 100, 'AnotherOld': 200},
+    }
+    result = _do_post(
+        {
+            'meters': [
+                {'pct': 50, 'label': 'NewName', 'reset_minutes': 100},
+                {'pct': 50, 'label': 'OtherNew', 'reset_minutes': 200},
+            ],
+            '_timestamp': int(time.time()),
+        },
+        prev_cache=prev,
+    )
+    pl = result.get('_period_lengths') or {}
+    assert 'OldName' not in pl, "renamed label should be evicted on full scrape"
+    assert 'AnotherOld' not in pl, "stale label should be evicted on full scrape"
+    assert 'NewName' in pl and pl['NewName'] == 100
+    assert 'OtherNew' in pl and pl['OtherNew'] == 200
