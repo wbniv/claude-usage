@@ -164,10 +164,22 @@ def _validate(body):
             if isinstance(v, bool) or not isinstance(v, int) or v < 0 or v > 60 * 24 * 31:
                 return f"'_period_lengths[{k!r}]' must be a non-negative integer ≤ 44640"
     ts = body.get('_timestamp') or body.get('timestamp')
-    # bool ⊂ int — reject first so {"_timestamp": true} doesn't pass and end
-    # up as anchor_ts=True downstream (time.time() - True = epoch - 1).
-    if ts is not None and (isinstance(ts, bool) or not isinstance(ts, (int, float))):
-        return "'_timestamp' must be a number"
+    if ts is not None:
+        # bool ⊂ int — reject first so {"_timestamp": true} doesn't pass and end
+        # up as anchor_ts=True downstream (time.time() - True = epoch - 1).
+        if isinstance(ts, bool) or not isinstance(ts, (int, float)):
+            return "'_timestamp' must be a number"
+        # Legacy `timestamp` is epoch-ms; current `_timestamp` is epoch-s. Convert
+        # legacy to seconds for the bound check (the do_POST assignment at line
+        # 296 handles the same translation downstream). ±1 year past, +1 day
+        # future — anything wider is clock skew, not a legitimate write to
+        # persist. TS-1 (pass-15 §3): an unbounded future timestamp made
+        # extension.js's age go negative, bypassing every stale/broken-tier
+        # threshold and silently pinning the indicator to NORMAL forever.
+        ts_s = ts / 1000 if (body.get('timestamp') and not body.get('_timestamp')) else ts
+        now = time.time()
+        if not (now - 365 * 86400 < ts_s < now + 86400):
+            return "'_timestamp' implausibly far from server time"
     # _ext_version — stamped by the Chrome extension on every POST so the server
     # can detect version skew between Chrome (which doesn't auto-reload on .deb
     # upgrade) and the server. Bounded string; presence optional for backcompat

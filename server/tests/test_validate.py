@@ -6,6 +6,7 @@ focused — one test per numbered failure path in the validator + happy paths.
 """
 import importlib.util
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -185,8 +186,12 @@ def test_period_lengths_key_length():
 # ── _timestamp ───────────────────────────────────────────────────────────────
 
 def test_timestamp_accepts_int_and_float():
-    assert _validate({'_timestamp': 1700000000}) is None
-    assert _validate({'_timestamp': 1700000000.5}) is None
+    # Use time.time() rather than a literal epoch: TS-1's ±1-year bound makes
+    # a hard-coded historical timestamp drift out of range as wall-clock time
+    # advances past the literal's first birthday.
+    now = int(time.time())
+    assert _validate({'_timestamp': now}) is None
+    assert _validate({'_timestamp': now + 0.5}) is None
     assert _validate({'_timestamp': 0}) is None  # legacy: 0 is "missing" downstream
 
 
@@ -199,6 +204,32 @@ def test_timestamp_rejects_bool_subclass():
 
 def test_timestamp_rejects_string():
     assert _validate({'_timestamp': '1700000000'}) == "'_timestamp' must be a number"
+
+
+def test_timestamp_plausibility_bound():
+    """TS-1 (pass-15 §3): an unbounded future timestamp made extension.js's
+    age calc negative, bypassing every stale/broken threshold and silently
+    pinning the indicator to NORMAL forever. Validator now bounds to ±1 year
+    past, +1 day future."""
+    now = int(time.time())
+    # In-bounds
+    assert _validate({'_timestamp': now - 86400}) is None       # 1 day ago
+    assert _validate({'_timestamp': now - 30 * 86400}) is None  # 30 days ago
+    assert _validate({'_timestamp': now + 86400 - 60}) is None  # ~1 day future
+    # Future-bound: +1 week is out
+    err = _validate({'_timestamp': now + 7 * 86400})
+    assert err and '_timestamp' in err
+    # Year-5138 attack vector from pass-15 live evidence
+    err = _validate({'_timestamp': 99999999999})
+    assert err and '_timestamp' in err
+    # Pre-bound ancient timestamp (year 2001)
+    err = _validate({'_timestamp': 1000000000})
+    assert err and '_timestamp' in err
+    # Legacy `timestamp` (epoch-ms) form is also bounded after ms→s conversion
+    err = _validate({'timestamp': 99999999999000})
+    assert err and '_timestamp' in err
+    # Legacy `timestamp` in valid range (epoch-ms) accepted
+    assert _validate({'timestamp': now * 1000}) is None
 
 
 # ── _ext_version (V-1) ───────────────────────────────────────────────────────
@@ -243,7 +274,7 @@ def test_full_payload_happy_path():
              'reset_minutes': 3600},
         ],
         'plan': 'Max',
-        '_timestamp': 1779000000,
+        '_timestamp': int(time.time()),
         '_scrape_fail_count': 0,
         '_anthropic_status': {'indicator': 'none', 'description': 'All Systems Operational',
                                'claude_ai_component_status': 'operational'},
@@ -269,6 +300,6 @@ def test_old_chrome_payload_accepted():
     body = {
         'meters': [{'pct': 50, 'label': 'All models', 'reset': 'Resets in 1 hr 0 min'}],
         'plan': 'Max plan',
-        '_timestamp': 1779000000,
+        '_timestamp': int(time.time()),
     }
     assert _validate(body) is None

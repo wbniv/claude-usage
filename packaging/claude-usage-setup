@@ -22,12 +22,17 @@ echo "  ✓ Dock entry installed"
 
 # 2. Systemd user service
 systemctl --user daemon-reload
-# Clear any failed/auto-restart state from a previous broken version so
-# `enable --now` actually starts the service on upgrade rather than
-# refusing because StartLimitBurst was already exhausted.
+# Clear any failed/auto-restart state from a previous broken version so the
+# enable/restart pair below actually progresses the unit rather than refusing
+# because StartLimitBurst was already exhausted.
 systemctl --user reset-failed claude-usage-fetch.service 2>/dev/null || true
-systemctl --user enable --now claude-usage-fetch.service
-echo "  ✓ Service enabled"
+systemctl --user enable claude-usage-fetch.service
+# `restart` works whether the service is running (re-execs new code) or stopped
+# (equivalent to `start`). `enable --now` would be a no-op against an already-
+# running unit, leaving upgraded users on stale code — the same running ≠ disk
+# drift class as pass-14's V-2, one step further along the deploy pipeline.
+systemctl --user restart claude-usage-fetch.service
+echo "  ✓ Service enabled and (re)started"
 
 # 3. GNOME extension — enable via D-Bus if shell knows about it, else add UUID
 # directly to enabled-extensions so it auto-loads on next login (Wayland can't

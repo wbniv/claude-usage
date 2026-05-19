@@ -47,6 +47,14 @@ def parse_reset(reset, reset_minutes=None, anchor_ts=None):
         # defaulting to Monday and rendering the wrong reset day.
         if day not in WD_MAP:
             return None
+        # Parity with the JS twins (scraper.js, background.js, extension.js)
+        # which all return null on out-of-range values. Without this, a
+        # malformed reset like "Resets Tue 25:99 AM" passes the regex and
+        # raises ValueError from datetime.replace, dumping a Python traceback
+        # to the journal via _tooltip_tick's / generate-icon.py's outer
+        # try/except (T-8, pass-15 §4).
+        if not (1 <= h <= 12 and 0 <= mn <= 59):
+            return None
         if ap == 'PM' and h != 12: h += 12
         elif ap == 'AM' and h == 12: h = 0
         now = datetime.datetime.now()

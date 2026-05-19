@@ -133,12 +133,17 @@ python3 "$SERVER_DIR/generate-icon.py" 2>/dev/null || true
 mkdir -p "$SYSTEMD_DIR"
 cp "$REPO_DIR/systemd/claude-usage-fetch.service" "$SYSTEMD_DIR/"
 systemctl --user daemon-reload
-# Clear any failed/auto-restart state from a previous broken version so
-# `enable --now` actually starts the service on upgrade rather than
-# refusing because StartLimitBurst was already exhausted.
+# Clear any failed/auto-restart state from a previous broken version so the
+# enable/restart pair below actually progresses the unit rather than refusing
+# because StartLimitBurst was already exhausted.
 systemctl --user reset-failed claude-usage-fetch.service 2>/dev/null || true
-systemctl --user enable --now claude-usage-fetch.service
-echo "  ✓ Systemd service enabled and started"
+systemctl --user enable claude-usage-fetch.service
+# `restart` works whether the service is running (re-execs new code) or stopped
+# (equivalent to `start`). `enable --now` would be a no-op against an already-
+# running unit, leaving upgraded users on stale code — the same running ≠ disk
+# drift class as pass-14's V-2, one step further along the deploy pipeline.
+systemctl --user restart claude-usage-fetch.service
+echo "  ✓ Systemd service enabled and (re)started"
 
 # 5. Dock launcher entry
 mkdir -p "$XDG_DATA_HOME/applications"
