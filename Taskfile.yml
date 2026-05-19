@@ -17,11 +17,17 @@ tasks:
     cmds:
       - python3 -m pytest server/tests/ -v
 
+  lint-scraper-parity:
+    desc: "Verify scraper.js's exported parsers match background.js's inlined copies (SC-3: prevents the dual-implementation drift that ships green tests with broken prod scrape)"
+    cmds:
+      - python3 scripts/lint-scraper-parity.py
+
   test:
-    desc: Run all unit tests (scraper + validator)
+    desc: Run all unit tests (scraper + validator + scraper parity lint)
     cmds:
       - task: test-scraper
       - task: test-validate
+      - task: lint-scraper-parity
 
   build:
     desc: Build the .deb package

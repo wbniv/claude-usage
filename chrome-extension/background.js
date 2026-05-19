@@ -10,7 +10,11 @@ const AUTO_DEBOUNCE_MS = 30_000;
 // PROBE_PORTS — MV3 match patterns don't support port wildcards.
 const PROBE_PORTS = Array.from({ length: 10 }, (_, i) => 7331 + i);
 const PROBE_TIMEOUT_MS = 500;
-const PORT_CACHE_TTL_MS = 60 * 60 * 1000;
+// L-3 (pass-15 §11): TTL was 1 h, which forced a re-probe burst every ~9 scrapes
+// even when nothing changed. The POST-path isOurs header check already catches
+// port-move scenarios within one scrape cycle, so the TTL is only a long-tail
+// safety net — 24 h matches real-world port stability better.
+const PORT_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
 async function probePorts() {
   // Race all ports concurrently. First /hello response with the right
@@ -74,7 +78,12 @@ async function postUpdate(body) {
   if (url) {
     try {
       const r = await fetch(url, payload);
-      if ((r.ok || (r.status >= 400 && r.status < 500)) && isOurs(r)) return r;
+      // PR-1 (pass-15 §9): any well-formed response from our server (signature
+      // header present) is real — including 5xx. The previous 4xx-only branch
+      // would re-probe on a hypothetical 5xx-with-signature, wasting 10
+      // parallel /hello fetches. Defense in depth — the server today never
+      // emits 5xx (its catch-all returns 400), but the asymmetry was wrong.
+      if (r.status < 600 && isOurs(r)) return r;
     } catch (_) { /* network error or wrong-server — fall through to re-probe */ }
   }
   url = await getServerUrl({ forceProbe: true });
@@ -177,7 +186,12 @@ async function scrapeAndPost(tabId) {
     // appears; a 10 s deadline fires the scrape unconditionally as a fallback.
     func: () => new Promise(resolve => {
       function isHydrated() {
-        return /\d+%\s*used/i.test(document.body.textContent);
+        // SC-2 (pass-15 §6): match the predicate to the consumer. textContent
+        // sees hidden DOM + <script>/<style> bodies; innerText is layout-aware
+        // and matches what doScrape actually reads. Using textContent here
+        // could resolve hydration against hidden React placeholder text while
+        // doScrape then returns zero meters from the still-empty rendered DOM.
+        return /\d+%\s*used/i.test(document.body.innerText);
       }
 
       function doScrape() {

@@ -38,9 +38,13 @@ echo "  ✓ Service enabled and (re)started"
 # directly to enabled-extensions so it auto-loads on next login (Wayland can't
 # restart gnome-shell, so a freshly-installed extension is invisible to D-Bus
 # until logout — without this fallback the extension stays disabled forever).
+# I-2 (pass-15 §7): the success branch also needs to mention logout because
+# on Wayland `gnome-extensions enable` succeeds (dconf write) but the running
+# shell doesn't pick up the new code until next session — so "enabled" is
+# strictly true (registered + marked-enabled) but operationally misleading.
 UUID=claude-usage@indri.studio
 if gnome-extensions enable "$UUID" 2>/dev/null; then
-    echo "  ✓ GNOME extension enabled"
+    echo "  ✓ GNOME extension enabled (log out and back in if the panel indicator isn't visible)"
 else
     current=$(gsettings get org.gnome.shell enabled-extensions)
     if ! grep -q "'$UUID'" <<<"$current"; then

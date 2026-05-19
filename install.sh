@@ -153,8 +153,13 @@ update-desktop-database "$XDG_DATA_HOME/applications/" 2>/dev/null || true
 echo "  ✓ Dock entry installed — find 'Claude Usage' in the app grid, right-click → Add to Favorites"
 
 # 6. Enable GNOME extension (may fail until after re-login)
+# I-2 (pass-15 §7): `enable` returns 0 on Wayland even though the extension
+# code only loads after logout — gnome-shell can't be restarted in-place on
+# Wayland. Always mention the log-out fallback so the success message is
+# accurate on both X11 (where it self-activates) and Wayland (where it
+# doesn't appear until next session).
 gnome-extensions enable claude-usage@indri.studio 2>/dev/null \
-    && echo "  ✓ GNOME extension enabled" \
+    && echo "  ✓ GNOME extension enabled (log out and back in if the panel indicator isn't visible)" \
     || echo "  ℹ  GNOME extension registered — log out and back in to activate it"
 
 echo ""

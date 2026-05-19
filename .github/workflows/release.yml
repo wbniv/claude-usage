@@ -36,12 +36,21 @@ jobs:
       - name: Test server validator
         run: task test-validate
 
+      # CI-4 (pass-15 §13): rotate the docker test-image cache weekly so
+      # upstream Ubuntu drift (security patches, Python point releases) is
+      # exercised at most a week after it lands. Without this the cache key
+      # only changed on packaging/control or Dockerfile edits — an apt-cached
+      # base from weeks ago could mask a regression introduced upstream.
+      - name: Compute ISO week for cache-bust
+        id: cache-week
+        run: echo "iso=$(date -u +%G-W%V)" >> "$GITHUB_OUTPUT"
+
       - name: Cache 24.04 test image
         uses: actions/cache@v4
         id: docker-cache-2404
         with:
           path: /tmp/test-image-2404.tar
-          key: deb-test-image-2404-${{ hashFiles('packaging/control', 'packaging/test-deb.Dockerfile') }}
+          key: deb-test-image-2404-${{ hashFiles('packaging/control', 'packaging/test-deb.Dockerfile') }}-${{ steps.cache-week.outputs.iso }}
 
       - name: Load cached 24.04 image
         if: steps.docker-cache-2404.outputs.cache-hit == 'true'
@@ -61,7 +70,7 @@ jobs:
         id: docker-cache-2510
         with:
           path: /tmp/test-image-2510.tar
-          key: deb-test-image-2510-${{ hashFiles('packaging/control', 'packaging/test-deb.Dockerfile') }}
+          key: deb-test-image-2510-${{ hashFiles('packaging/control', 'packaging/test-deb.Dockerfile') }}-${{ steps.cache-week.outputs.iso }}
 
       - name: Load cached 25.10 image
         if: steps.docker-cache-2510.outputs.cache-hit == 'true'

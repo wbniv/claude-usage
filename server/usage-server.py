@@ -240,7 +240,19 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(b'expected application/json')
             return
 
-        length = int(self.headers.get('Content-Length', 0))
+        # HM-2 (pass-15 §5): a non-numeric Content-Length raised ValueError
+        # from int() and dumped a 9-line Python traceback to the journal per
+        # malformed request. BaseHTTPRequestHandler swallowed the exception
+        # but closed the connection without sending a response. Wrap and
+        # return 400, matching the pattern used for json.loads below.
+        try:
+            length = int(self.headers.get('Content-Length', 0))
+        except (ValueError, TypeError):
+            self.send_response(400)
+            self._cors()
+            self.end_headers()
+            self.wfile.write(b'bad request: invalid Content-Length')
+            return
         # length <= 0 catches negative values (which would otherwise bypass the
         # cap via self.rfile.read(-1) = read-until-EOF) and missing bodies.
         if length <= 0 or length > 256 * 1024:
