@@ -5,6 +5,15 @@ on:
     tags:
       - 'v*.*.*'
 
+# Opt into Node.js 24 ahead of GitHub's 2026-06-02 default flip. Covers any
+# action that still ships a Node 20 binary — currently arduino/setup-task@v2,
+# whose maintainer hasn't refreshed since 2024. actions/checkout@v6 and
+# actions/cache@v5 below are already Node 24 native; this env var is the
+# belt-and-braces for the lone holdout. Remove after 2026-09-16 (when
+# Node 20 is removed from runners entirely and the env var is redundant).
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   release:
     runs-on: ubuntu-24.04
@@ -12,7 +21,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Validate tag matches package version
         run: |
@@ -46,7 +55,7 @@ jobs:
         run: echo "iso=$(date -u +%G-W%V)" >> "$GITHUB_OUTPUT"
 
       - name: Cache 24.04 test image
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         id: docker-cache-2404
         with:
           path: /tmp/test-image-2404.tar
@@ -66,7 +75,7 @@ jobs:
           docker save claude-usage-test:24.04 -o /tmp/test-image-2404.tar
 
       - name: Cache 25.10 test image
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         id: docker-cache-2510
         with:
           path: /tmp/test-image-2510.tar
