@@ -40,7 +40,7 @@ export function parseResetMinutes(reset) {
 }
 
 // Parse claude.ai/settings/usage page text into structured usage data.
-// `textContent`        — document.body.textContent of the usage page
+// `textContent`        — document.body.innerText of the usage page
 // `extraToggleChecked` — aria-checked state of the Extra usage toggle
 export function doScrape(textContent, extraToggleChecked = false) {
   const lines = textContent.split('\n').map(l => l.trim()).filter(l => l.length > 0);
