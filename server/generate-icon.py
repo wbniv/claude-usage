@@ -81,8 +81,11 @@ def ring_color(pct, cfg):
 
 def pacing_pct(meter, period_lens):
     """pct / fraction_elapsed — uncapped. 100 = on pace, > 100 = over pace.
-    Falls back to raw pct when reset_minutes/period unknown or
-    fraction_elapsed is too small to trust."""
+    Falls back to raw pct when reset_minutes/period unknown or too few
+    minutes have elapsed for one user action to be statistical noise.
+
+    Kept in sync by hand with gnome-extension/extension.js:pacingPct.
+    """
     if not meter:
         return 0
     pct = meter.get('pct')
@@ -92,10 +95,15 @@ def pacing_pct(meter, period_lens):
     period = period_lens.get(meter.get('label'))
     if rm is None or not period:
         return pct
-    fraction = 1 - rm / period
-    if fraction <= 0.01:
+    elapsed = period - rm
+    # 15-min minimum-elapsed floor. The previous `fraction <= 0.01` floor was
+    # period-relative — on a 5 h session bucket that's only 3 min, so a single
+    # Opus turn (~3 %) at minute 6 paced to ~150 % and tripped the critical
+    # color. Time-based floor handles short (session) and long (weekly) buckets
+    # uniformly.
+    if elapsed < 15:
         return pct
-    return pct / fraction
+    return pct / (elapsed / period)
 
 def rounded_rect_path(cr, x, y, w, h, r):
     cr.new_sub_path()

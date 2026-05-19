@@ -78,18 +78,25 @@ function fmtAge(min) {
 
 // pacing_pct = pct / fraction_elapsed — "% you'd hit by reset at this
 // burn rate" with no cap. 100 = on pace, > 100 = over pace. Falls back
-// to raw pct when reset_minutes/period unknown or fraction_elapsed is
-// too small to trust (early in the period). Used only for color
-// decisions; displayed numbers stay raw.
+// to raw pct when reset_minutes/period unknown or too few minutes have
+// elapsed for one user action to be statistical noise. Used only for
+// color decisions; displayed numbers stay raw.
+//
+// Kept in sync by hand with server/generate-icon.py:pacing_pct.
 function pacingPct(meter, periodLens) {
     const pct = meter.pct;
     if (typeof pct !== 'number' || pct === 0) return pct ?? 0;
     const rm = meter.reset_minutes;
     const period = periodLens?.[meter.label];
     if (rm == null || !period) return pct;
-    const fraction = 1 - rm / period;
-    if (fraction <= 0.01) return pct;
-    return pct / fraction;
+    const elapsed = period - rm;
+    // 15-min minimum-elapsed floor. The previous `fraction <= 0.01` floor was
+    // period-relative — on a 5 h session bucket that's only 3 min, so a single
+    // Opus turn (~3 %) at minute 6 paced to ~150 % and tripped the critical
+    // color, forcing the whole label red. Time-based floor handles short
+    // (session) and long (weekly) buckets uniformly.
+    if (elapsed < 15) return pct;
+    return pct / (elapsed / period);
 }
 
 function formatRows(meters, barWidth) {
