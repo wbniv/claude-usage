@@ -10,6 +10,6 @@
     "49"
   ],
   "settings-schema": "org.gnome.shell.extensions.claude-usage",
-  "version": 2,
+  "version": 3,
   "url": ""
 }
