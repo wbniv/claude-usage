@@ -2,7 +2,13 @@ version: "3"
 
 vars:
   VERSION:
-    sh: grep '^Version:' packaging/control | awk '{print $2}'
+    sh: |
+      v=$(grep '^Version:' packaging/control | awk '{print $2}')
+      if [ -z "$v" ]; then
+        echo "ERROR: no Version: line in packaging/control" >&2
+        exit 1
+      fi
+      echo "$v"
   DEB: dist/claude-usage_{{.VERSION}}_all.deb
   CHROME_ZIP: dist/claude-usage-chrome-{{.VERSION}}.zip
 
@@ -136,6 +142,7 @@ tasks:
     vars:
       TAG: v{{.VERSION}}
     cmds:
+      - task: test
       - |
         set -euo pipefail
         current=$(git rev-parse --abbrev-ref HEAD)

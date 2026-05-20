@@ -1,6 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+    cat <<EOF
+Usage: $(basename "$0") [no arguments]
+Post-install setup: enables the GNOME extension, starts the systemd service,
+and writes the user-level .desktop launcher for the current user.
+EOF
+    exit 0
+fi
+
 echo "Setting up Claude Usage for $USER..."
 
 # 1. User-level .desktop file with dynamic icon path

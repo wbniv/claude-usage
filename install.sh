@@ -163,7 +163,12 @@ echo "  ✓ Diagnostics installed — run 'claude-usage-status' to check service
 # in background.js, drop-in temp files), they'll be wiped on next install.sh
 # run — that's intentional, and the only way to make the install reproducible.
 mkdir -p "$SERVER_DIR/chrome-extension"
-rsync -a --delete --exclude='test/' "$REPO_DIR/chrome-extension/" \
+rsync -a --delete \
+    --exclude='test/' \
+    --exclude='__pycache__/' \
+    --exclude='*.pyc' \
+    --exclude='.DS_Store' \
+    "$REPO_DIR/chrome-extension/" \
     "$SERVER_DIR/chrome-extension/"
 echo "  ✓ Chrome extension files synced to $SERVER_DIR/chrome-extension"
 

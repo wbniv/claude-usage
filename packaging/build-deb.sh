@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+    cat <<EOF
+Usage: $(basename "$0") [no arguments]
+Builds the claude-usage .deb package and writes it to dist/.
+EOF
+    exit 0
+fi
+
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VERSION="$(grep '^Version:' "$REPO_DIR/packaging/control" | awk '{print $2}')"
 DEB_NAME="claude-usage_${VERSION}_all.deb"
@@ -51,7 +59,12 @@ cp "$REPO_DIR/gnome-extension/schemas/org.gnome.shell.extensions.claude-usage.gs
 # `cp -r` + `rm -rf test` created a window where test/ existed at the
 # destination; rsync --exclude does it in one transactional op.
 mkdir -p "$PKG/usr/share/claude-usage/chrome-extension"
-rsync -a --exclude='test/' "$REPO_DIR/chrome-extension/" \
+rsync -a \
+    --exclude='test/' \
+    --exclude='__pycache__/' \
+    --exclude='*.pyc' \
+    --exclude='.DS_Store' \
+    "$REPO_DIR/chrome-extension/" \
     "$PKG/usr/share/claude-usage/chrome-extension/"
 
 # Systemd user unit — rewrite path from %h/.local/share to /usr/share

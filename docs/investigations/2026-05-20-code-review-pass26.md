@@ -16,27 +16,27 @@ The high-impact theme: **release pipeline lacks pre-tag validation, and several 
 
 | Sev | # | ID | Surface | Title |
 |-----|---|----|---------|-------|
-| **High** | 1 | **RL‑1** | release | `task release` pushes tag *before* running tests; CI is the only gate, and a failing build leaves a broken public tag (history: v0.11.14, v0.11.15) |
+| **High** | 1 | ~~**RL‑1**~~ | release | ~~`task release` pushes tag *before* running tests; CI is the only gate, and a failing build leaves a broken public tag (history: v0.11.14, v0.11.15)~~ |
 | **High** | 2 | **UX‑1** | gnome-ext | 30 s tick rebuilds the entire popup menu via `removeAll()` even while open — visible flicker + lost hover state |
 | **High** | 3 | **PL‑1** | lints | Pacing-parity lint diffs only numeric literals; hex colors / period strings / role names drift invisibly |
 | **High** | 4 | **TCM‑1** | docs/lints | `_doc_render._tier_color` is a 4th hand-written tier-color mirror (alongside extension.js, popup-preview.py, generate-icon.py) — not in PS-1's pair list |
 | **High** | 5 | **GI‑1** | render | `generate-icon.py:286` hardcodes broken-tier red `'#e03030'`; should read `cfg['popup_color_critical']` |
-| **Medium** | 6 | **ACC‑1** | server | `is_full_scrape` tautology: after `body = {**prev, **body}` + auto-timestamp fill, the timestamp gate is always True — a 2-fake-meter POST wipes accumulated `period_lengths` |
-| **Medium** | 7 | **NM‑1** | server | `_validate` accepts `{"meters": null}`; cache persists with `meters: None` and crashes every downstream consumer until hand-fixed |
+| **Medium** | 6 | ~~**ACC‑1**~~ | server | ~~`is_full_scrape` tautology: after `body = {**prev, **body}` + auto-timestamp fill, the timestamp gate is always True — a 2-fake-meter POST wipes accumulated `period_lengths`~~ |
+| **Medium** | 7 | ~~**NM‑1**~~ | server | ~~`_validate` accepts `{"meters": null}`; cache persists with `meters: None` and crashes every downstream consumer until hand-fixed~~ |
 | **Medium** | 8 | **RV‑1** | render | Dock-icon ring returns before drawing the tick when `pct == 0`; popup bar still draws it — popup vs dock disagree at 0% mid-period |
 | **Medium** | 9 | **AS‑1** | chrome-ext | `_autoScrapeIfEligible` seizes `_fetching` *before* the storage-backed eligibility check; ineligible auto-scrapes can starve a legitimate alarm fire for the next 7 min |
 | **Medium** | 10 | **RD‑1** | chrome-ext | `chrome.idle.onStateChanged` 'active' fires on every screen unlock, not just wake-from-suspend; no debounce → claude.ai burn on every lockscreen toggle |
 | **Medium** | 11 | **PRT‑1** | chrome-ext | `probePorts()` uses `Promise.all` + `.find(p => p !== null)` — winner is array-index lowest port, not the fastest responder; a slow-but-valid squatter on 7331 beats a real server on 7332 |
 | **Medium** | 12 | **PVS‑1** | gnome-ext | `pacingSegments` rounds both `fill` and `elapsedPos` to int — at e.g. pct=51 / elapsedFrac=0.5 / w=10 both become 5, so the over-pace cell renders as a `tick` (on-pace signal) instead of `over_pace` |
 | **Medium** | 13 | **LC‑1** | gnome-ext | `_monitor.connect('changed', …)` handler ID is never stored — can't be disconnected on `destroy()`; small leak per Wayland session lock/unlock |
-| **Medium** | 14 | **SH‑1** | shells | `claude-usage-setup -h` actually re-runs the full setup (writes desktop entry, restarts systemd unit). Same on `build-deb.sh -h`, `build-chrome-zip.sh -h`. SRC CLAUDE.md rule violated |
-| **Medium** | 15 | **VR‑1** | build | `VERSION` Taskfile var silently fills empty if `packaging/control:Version:` is malformed — builds `claude-usage__all.deb` with double underscore |
-| **Medium** | 16 | **PYC‑1** | build | `.deb` chrome-extension rsync excludes `test/` but NOT `__pycache__/`, `*.pyc`, `.DS_Store`; chrome-zip excludes them. Asymmetry leaks dev artifacts into user .deb |
+| **Medium** | 14 | ~~**SH‑1**~~ | shells | ~~`claude-usage-setup -h` actually re-runs the full setup (writes desktop entry, restarts systemd unit). Same on `build-deb.sh -h`, `build-chrome-zip.sh -h`. SRC CLAUDE.md rule violated~~ |
+| **Medium** | 15 | ~~**VR‑1**~~ | build | ~~`VERSION` Taskfile var silently fills empty if `packaging/control:Version:` is malformed — builds `claude-usage__all.deb` with double underscore~~ |
+| **Medium** | 16 | ~~**PYC‑1**~~ | build | ~~`.deb` chrome-extension rsync excludes `test/` but NOT `__pycache__/`, `*.pyc`, `.DS_Store`; chrome-zip excludes them. Asymmetry leaks dev artifacts into user .deb~~ |
 | **Medium** | 17 | **SV‑1** | gnome-ext | `metadata.json:shell-version` whitelists 45-49; Ubuntu 26.04 (~Apr 2026, GNOME 50) silently fails to enable with no postinst warning |
 | **Medium** | 18 | **PL‑3** | lints | Scraper parity lint diffs only regex literals — section anchors (`'Plan usage limits'`, `'Extra usage'`) and DOM selectors are unchecked |
 | **Medium** | 19 | **TSP‑1** | tests | No regression test pins `pid_position` semantics — a future refactor moving the field could silently re-introduce TS-2's class |
-| **Low** | 20 | **SC‑1** | server | `signal.signal(SIGCHLD, SIG_IGN)` runs at module import — every test that imports `usage-server.py` silently mutates the global handler |
-| **Low** | 21 | **UD‑1** | server | `update_desktop` rewrites every `Name=`/`Icon=` line including those inside `[Desktop Action …]` subgroups — latent today, breaks the moment we add an action |
+| **Low** | 20 | ~~**SC‑1**~~ | server | ~~`signal.signal(SIGCHLD, SIG_IGN)` runs at module import — every test that imports `usage-server.py` silently mutates the global handler~~ |
+| **Low** | 21 | ~~**UD‑1**~~ | server | ~~`update_desktop` rewrites every `Name=`/`Icon=` line including those inside `[Desktop Action …]` subgroups — latent today, breaks the moment we add an action~~ |
 | **Low** | 22 | **PP‑1** | server | `render_panel_label` (popup-preview) picks the primary meter without the `is_sonnet_hidden` filter that `get_primary` applies three functions over — silent panel/popup drift |
 | **Low** | 23 | **TC‑1** | chrome-ext | Tab-load 30 s timeout resolves on `info.status === 'complete'` even for `chrome-error://` error pages; user sees mysterious "empty meters" not "claude.ai is down" |
 | **Low** | 24 | **PR‑2** | chrome-ext | `postUpdate` retries exactly once on cache miss; a 5 s server restart strands the buffered scrape for the next 7-minute alarm tick |
@@ -219,7 +219,10 @@ To be filled in as fixes land.
 
 | ID | Title | Resolution |
 |----|-------|-----------|
-| ... | ... | pending |
+| RL‑1 | `task release` pre-tag test gate | Fixed — prepended `task: test` as first cmd in `release` task (`Taskfile.yml`) |
+| SH‑1 | `-h`/`--help` guards missing on 3 scripts | Fixed — added 6-line `--help` stanza to `packaging/claude-usage-setup`, `packaging/build-deb.sh`, `packaging/build-chrome-zip.sh` |
+| VR‑1 | `VERSION` var silently empty on malformed control | Fixed — `sh:` block now validates non-empty and exits 1 with a diagnostic (`Taskfile.yml`) |
+| PYC‑1 | `.deb` rsync missing `__pycache__/` / `*.pyc` / `.DS_Store` excludes | Fixed — added all three missing excludes to `packaging/build-deb.sh` and `install.sh` rsync calls |
 
 ---
 
