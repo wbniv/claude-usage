@@ -24,16 +24,16 @@ The high-impact theme: **release pipeline lacks pre-tag validation, and several 
 | **Medium** | 6 | ~~**ACC‑1**~~ | server | ~~`is_full_scrape` tautology: after `body = {**prev, **body}` + auto-timestamp fill, the timestamp gate is always True — a 2-fake-meter POST wipes accumulated `period_lengths`~~ |
 | **Medium** | 7 | ~~**NM‑1**~~ | server | ~~`_validate` accepts `{"meters": null}`; cache persists with `meters: None` and crashes every downstream consumer until hand-fixed~~ |
 | **Medium** | 8 | ~~**RV‑1**~~ | render | ~~Dock-icon ring returns before drawing the tick when `pct == 0`; popup bar still draws it — popup vs dock disagree at 0% mid-period~~ |
-| **Medium** | 9 | **AS‑1** | chrome-ext | `_autoScrapeIfEligible` seizes `_fetching` *before* the storage-backed eligibility check; ineligible auto-scrapes can starve a legitimate alarm fire for the next 7 min |
-| **Medium** | 10 | **RD‑1** | chrome-ext | `chrome.idle.onStateChanged` 'active' fires on every screen unlock, not just wake-from-suspend; no debounce → claude.ai burn on every lockscreen toggle |
+| **Medium** | 9 | **AS‑1** | chrome-ext | `_autoScrapeIfEligible` seizes `_fetching` *before* the storage-backed eligibility check; ineligible auto-scrapes can starve a legitimate alarm fire for the next 7 min — **deferred → TODO** (verify no new races) |
+| **Medium** | 10 | **RD‑1** | chrome-ext | `chrome.idle.onStateChanged` 'active' fires on every screen unlock, not just wake-from-suspend; no debounce → claude.ai burn on every lockscreen toggle — **deferred → TODO** (pick debounce interval) |
 | ~~**Medium**~~ | ~~11~~ | ~~**PRT‑1**~~ | ~~chrome-ext~~ | ~~`probePorts()` uses `Promise.all` + `.find(p => p !== null)` — winner is array-index lowest port, not the fastest responder; a slow-but-valid squatter on 7331 beats a real server on 7332~~ |
 | **Medium** | 12 | ~~**PVS‑1**~~ | gnome-ext | ~~`pacingSegments` rounds both `fill` and `elapsedPos` to int — at e.g. pct=51 / elapsedFrac=0.5 / w=10 both become 5, so the over-pace cell renders as a `tick` (on-pace signal) instead of `over_pace`~~ |
 | **Medium** | 13 | ~~**LC‑1**~~ | gnome-ext | ~~`_monitor.connect('changed', …)` handler ID is never stored — can't be disconnected on `destroy()`; small leak per Wayland session lock/unlock~~ |
 | **Medium** | 14 | ~~**SH‑1**~~ | shells | ~~`claude-usage-setup -h` actually re-runs the full setup (writes desktop entry, restarts systemd unit). Same on `build-deb.sh -h`, `build-chrome-zip.sh -h`. SRC CLAUDE.md rule violated~~ |
 | **Medium** | 15 | ~~**VR‑1**~~ | build | ~~`VERSION` Taskfile var silently fills empty if `packaging/control:Version:` is malformed — builds `claude-usage__all.deb` with double underscore~~ |
 | **Medium** | 16 | ~~**PYC‑1**~~ | build | ~~`.deb` chrome-extension rsync excludes `test/` but NOT `__pycache__/`, `*.pyc`, `.DS_Store`; chrome-zip excludes them. Asymmetry leaks dev artifacts into user .deb~~ |
-| **Medium** | 17 | **SV‑1** | gnome-ext | `metadata.json:shell-version` whitelists 45-49; Ubuntu 26.04 (~Apr 2026, GNOME 50) silently fails to enable with no postinst warning |
-| **Medium** | 18 | **PL‑3** | lints | Scraper parity lint diffs only regex literals — section anchors (`'Plan usage limits'`, `'Extra usage'`) and DOM selectors are unchecked |
+| **Medium** | 17 | **SV‑1** | gnome-ext | `metadata.json:shell-version` whitelists 45-49; Ubuntu 26.04 (~Apr 2026, GNOME 50) silently fails to enable with no postinst warning — **deferred → TODO** (needs GNOME 50 smoke-test) |
+| **Medium** | 18 | **PL‑3** | lints | Scraper parity lint diffs only regex literals — section anchors (`'Plan usage limits'`, `'Extra usage'`) and DOM selectors are unchecked — **deferred → TODO** (scope decisions) |
 | **Medium** | 19 | ~~**TSP‑1**~~ | tests | ~~No regression test pins `pid_position` semantics — a future refactor moving the field could silently re-introduce TS-2's class~~ |
 | **Low** | 20 | ~~**SC‑1**~~ | server | ~~`signal.signal(SIGCHLD, SIG_IGN)` runs at module import — every test that imports `usage-server.py` silently mutates the global handler~~ |
 | **Low** | 21 | ~~**UD‑1**~~ | server | ~~`update_desktop` rewrites every `Name=`/`Icon=` line including those inside `[Desktop Action …]` subgroups — latent today, breaks the moment we add an action~~ |
@@ -42,9 +42,9 @@ The high-impact theme: **release pipeline lacks pre-tag validation, and several 
 | ~~**Low**~~ | ~~24~~ | ~~**PR‑2**~~ | ~~chrome-ext~~ | ~~`postUpdate` retries exactly once on cache miss; a 5 s server restart strands the buffered scrape for the next 7-minute alarm tick~~ |
 | **Low** | 25 | ~~**I18N‑1**~~ | gnome-ext | ~~Panel label uses `margin-left` instead of CSS-logical `margin-start` — RTL locales (Arabic, Hebrew, Persian) get the gap on the wrong side~~ |
 | **Low** | 26 | ~~**EVC‑1**~~ | gnome-ext | ~~Persistently-corrupt cache leaves the indicator silent (`No data yet` forever); no in-popup hint to check `journalctl`~~ |
-| **Low** | 27 | **TR‑1** | repo | `docs/transcripts/` is tracked + special-cased in `task release`'s dirty check → chronically dirty `git status`; pick either gitignore or commit-on-release |
+| **Low** | 27 | **TR‑1** | repo | `docs/transcripts/` is tracked + special-cased in `task release`'s dirty check → chronically dirty `git status`; pick either gitignore or commit-on-release — **deferred → TODO** |
 | **Low** | 28 | ~~**PL‑4**~~ | lints | ~~Pair list in `lint-scraper-parity.py` is hand-maintained; no auto-discovery means the next added JS↔Python twin is unprotected until manually added (PS-1, now TCM-1)~~ |
-| **Info** | 29 | **IN‑1** | chrome-ext | `tabs` permission is broader than the documented surface needs; `host_permissions` + `activeTab` would shrink the Chrome Web Store warning string |
+| **Info** | 29 | **IN‑1** | chrome-ext | `tabs` permission is broader than the documented surface needs; `host_permissions` + `activeTab` would shrink the Chrome Web Store warning string — **deferred → TODO** (verify tabs.query behavior first) |
 
 ---
 
@@ -215,20 +215,41 @@ Either:
 
 ## 9. Resolution log
 
-To be filled in as fixes land.
+23 findings closed in 5 commits. 6 deferred to TODO (design calls).
 
 | ID | Title | Resolution |
 |----|-------|-----------|
-| RL‑1 | `task release` pre-tag test gate | Fixed — prepended `task: test` as first cmd in `release` task (`Taskfile.yml`) |
-| SH‑1 | `-h`/`--help` guards missing on 3 scripts | Fixed — added 6-line `--help` stanza to `packaging/claude-usage-setup`, `packaging/build-deb.sh`, `packaging/build-chrome-zip.sh` |
-| VR‑1 | `VERSION` var silently empty on malformed control | Fixed — `sh:` block now validates non-empty and exits 1 with a diagnostic (`Taskfile.yml`) |
-| PYC‑1 | `.deb` rsync missing `__pycache__/` / `*.pyc` / `.DS_Store` excludes | Fixed — added all three missing excludes to `packaging/build-deb.sh` and `install.sh` rsync calls |
-| PL‑1 | Pacing-parity lint missed hex colors and role names | Fixed — added `_raw_string_literals` + `_literals(shared_strs=…)` to `lint-scraper-parity.py`; hex colors and shared role-name constants now in the comparison set |
-| TCM‑1 | `_doc_render._tier_color` 4th tier-color mirror | Fixed — deleted `_tier_color` from `_doc_render.py`; call site replaced with `pp.color_for('empty', pacing, cfg)` |
-| GI‑1 | `#e03030` hardcoded in broken-tier ring and gsettings error | Fixed — `generate-icon.py` now reads `cfg['weekly_color_red']`; `popup-preview.py` now reads `cfg['popupCrit']` |
-| PL‑4 | Pair list is hand-maintained; new pairs go unregistered | Fixed — added `check_pair_inventory()` to `lint-scraper-parity.py`; warns to stderr on any unregistered JS↔Python match |
-| PP‑1 | `render_panel_label` reimplements primary-meter selection skipping `is_sonnet_hidden` | Fixed — replaced inline `next(…)` with `get_primary(meters, cfg)` call |
-| TSP‑1 | No test pins `pid_position` semantics for orphan sweep | Fixed — added `test_sweep_pid_position_constants_pinned` to `test_orphan_sweep.py` |
+| ~~**RL‑1**~~ | task release no test gate | `79a2e60` — `task: test` prepended to release cmds |
+| ~~**SH‑1**~~ | 3 scripts ignore -h/--help | `79a2e60` — help stanza added to 3 packaging scripts |
+| ~~**VR‑1**~~ | VERSION silently empty | `79a2e60` — sh: block exits 1 with diagnostic |
+| ~~**PYC‑1**~~ | chrome rsync missing excludes | `79a2e60` — 3 excludes added to build-deb.sh + install.sh |
+| ~~**PL‑1**~~ | parity lint blind to non-numeric drift | `ede65fb` — string-literal comparison added |
+| ~~**TCM‑1**~~ | _doc_render._tier_color 4th mirror | `ede65fb` — deleted; call site uses pp.color_for |
+| ~~**GI‑1**~~ | generate-icon.py hardcoded #e03030 | `ede65fb` — reads cfg['weekly_color_red']; popup-preview reads cfg['popupCrit'] |
+| ~~**PL‑4**~~ | pair list hand-maintained | `ede65fb` — check_pair_inventory() auto-discovery added |
+| ~~**PP‑1**~~ | render_panel_label skips is_sonnet_hidden | `ede65fb` — calls get_primary() |
+| ~~**TSP‑1**~~ | no pid_position regression test | `ede65fb` — introspection test added to test_orphan_sweep.py |
+| ~~**TC‑1**~~ | tab-load fires on chrome-error:// | `34263dd` — listener checks tab.url and rejects on error pages |
+| ~~**PR‑2**~~ | postUpdate single retry only | `34263dd` — 3 attempts with 0+1+3 s back-off |
+| ~~**PRT‑1**~~ | probePorts first-by-array-order | `34263dd` — Promise.any() true race; isOurs semver-validated |
+| ~~**NM‑1**~~ | _validate accepts meters: null | `7e6ac42` — explicit null rejected at validation |
+| ~~**ACC‑1**~~ | is_full_scrape tautology post-merge | `7e6ac42` — pre-merge values captured |
+| ~~**SC‑1**~~ | SIGCHLD at module import | `7e6ac42` — moved into __main__ |
+| ~~**UD‑1**~~ | update_desktop rewrites Action subgroups | `7e6ac42` — tracks in_main_section |
+| ~~**UX‑1**~~ | 30s tick rebuilds popup while open | `bb4d5d4` — fingerprint short-circuit |
+| ~~**PVS‑1**~~ | pacingSegments rounding inverts over-pace | `bb4d5d4` — overPaceRaw on raw fractions; popup-preview.py twin |
+| ~~**RV‑1**~~ | draw_ring no tick at pct==0 | `bb4d5d4` — tick drawn when 0 < elapsed_frac < 1 |
+| ~~**LC‑1**~~ | monitor connect ID not stored | `bb4d5d4` — _monitorChangedId stored + disconnected in destroy() |
+| ~~**I18N‑1**~~ | margin-left vs margin-start (RTL) | `bb4d5d4` — 3 set_style calls updated |
+| ~~**EVC‑1**~~ | corrupt cache silent "No data yet" | `bb4d5d4` — cache-unreadable hint surfaced |
+| **AS‑1** | autoScrapeIfEligible mutex held during eligibility check | deferred → TODO (verify no new races) |
+| **RD‑1** | idle.onStateChanged no debounce on screen unlock | deferred → TODO (pick debounce interval) |
+| **SV‑1** | metadata.json shell-version missing GNOME 50 | deferred → TODO (needs GNOME 50 smoke-test) |
+| **PL‑3** | scraper parity lint misses section anchors | deferred → TODO (scope decisions) |
+| **TR‑1** | docs/transcripts/ tracked + special-cased | deferred → TODO (gitignore or commit workflow) |
+| **IN‑1** | tabs permission broader than needed | deferred → TODO (verify tabs.query behavior) |
+
+Test suite: 97 server + 51 scraper = 148 tests (+1 TSP-1). All 5 lints green.
 
 ---
 
