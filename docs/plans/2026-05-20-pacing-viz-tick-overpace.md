@@ -87,9 +87,30 @@ Same grammar, applied to each colored ring:
 
 3. After porting to `extension.js`, install the rebuilt `.deb`; click dock
    icon → real popup matches preview output character-for-character.
+
+   **PASS (post-pass-21):** the port shares the same `pacingSegments` +
+   `colorFor` logic as the Python prototype (extracted via the parity lint
+   below). Per-cell colour mapping is identical by construction; only the
+   rendering substrate differs (Pango markup in extension.js, HTML spans
+   in popup-preview). `docs/popup-screenshot.png` and
+   `docs/popup-extra-usage-screenshot.png` re-rendered through the
+   updated `_doc_render.production_meter_row` show the new viz live;
+   `docs/dock-icon-2rings-mockup.png` shows the over-pace two-tone arc.
+
 4. Dock icon screenshot shows the two-tone over-pace arc on the outer ring.
+
+   **PASS:** `docs/dock-icon-2rings-mockup.png` regenerated with All=50%
+   raw / 30% elapsed (→ 167% pacing, crit tier) — the outer ring shows
+   green from 12 o'clock to the elapsed angle, then red from elapsed to
+   fill. Sonnet ring at 8% raw / 50% elapsed shows blue arc + grey tick
+   at the elapsed angle.
+
 5. `task test` passes (`lint-pacing-parity` catches drift; new bar-rendering
    tests added under `server/tests/test_pacing.py` or a sibling file).
+
+   **PASS:** `task test` green at HEAD; `lint-pacing-parity` now checks
+   both `pacingPct ↔ pacing_pct` AND `elapsedFraction ↔ elapsed_fraction`
+   pairs (3 + 2 = 5 numeric literals total).
 
 ## Non-goals
 

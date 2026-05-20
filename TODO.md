@@ -1,11 +1,11 @@
 # TODO
 
 ## Fixes
-- [verify] **Pacing visualization — tick + over-pace highlight.** Add a `┊` tick to bars/rings at the elapsed-fraction position when under-pace; split fills into normal/warn-color two-tone when over-pace. Applies to popup (`popup-preview.py` → `extension.js`) and dock icon (`generate-icon.py`). [Plan](docs/plans/2026-05-20-pacing-viz-tick-overpace.md).
 
 ## Deferred
 
 ## Done
+- [x] 2026-05-20 — Pacing visualization landed: `extension.js` and `generate-icon.py` now render the tick (`┊` in the popup bar, radial grey marker on the dock ring) when under-pace, and a two-tone split (on-pace green/blue + over-pace tier color) when over-pace. Floor (max(15, period*0.05)) suppresses both. `lint-pacing-parity` extended to also check `elapsedFraction ↔ elapsed_fraction`. Docs PNGs regenerated. [Plan](docs/plans/2026-05-20-pacing-viz-tick-overpace.md).
 - [x] 2026-05-20 — JS-1: `gnome-extension/_defaults.js` is now generated from the gschema XML (`scripts/gen-js-defaults.py`); `extension.js`'s `safeColor` reads from it instead of hardcoded hex literals. New `task lint-js-defaults` asserts the artifact stays in sync; `install.sh` + `build-deb.sh` regenerate on every install/build. [Review](docs/investigations/2026-05-20-code-review-pass18.md).
 - [x] 2026-05-20 — UT-1: Statuspage `trunc` is now code-point-aware (`[...s].slice(0, 117)`); UTF-16 surrogate-pair splits can no longer produce invalid output. [Review](docs/investigations/2026-05-20-code-review-pass18.md).
 - [x] 2026-05-20 — TT-1: `format_tooltip` "no recognisable meter labels" warning is now one-shot per process (was firing 1440×/day from `_tooltip_tick`). [Review](docs/investigations/2026-05-20-code-review-pass18.md).

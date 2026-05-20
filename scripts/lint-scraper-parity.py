@@ -174,6 +174,11 @@ def check_scraper_parity():
 
 
 def check_pacing_parity():
+    """Check the hand-synced pacing functions stay in numeric-literal sync.
+    Two function pairs (post-pass-21 viz port added the second):
+      pacingPct        ↔ pacing_pct           (the existing pair)
+      elapsedFraction  ↔ elapsed_fraction     (the floor + ratio for tick / two-tone)
+    """
     js_raw = _strip_comments((REPO / 'gnome-extension' / 'extension.js').read_text())
     py_raw = _strip_py_docstrings(
         _strip_py_comments_tokenize(
@@ -181,28 +186,36 @@ def check_pacing_parity():
         )
     )
 
-    js_nums = _numeric_literals(_extract_js_function(js_raw, 'pacingPct'))
-    py_nums = _numeric_literals(_extract_py_function(py_raw, 'pacing_pct'))
+    pairs = [
+        ('pacingPct',       'pacing_pct'),
+        ('elapsedFraction', 'elapsed_fraction'),
+    ]
 
-    only_js = js_nums - py_nums
-    only_py = py_nums - js_nums
+    rc = 0
+    for js_name, py_name in pairs:
+        js_nums = _numeric_literals(_extract_js_function(js_raw, js_name))
+        py_nums = _numeric_literals(_extract_py_function(py_raw, py_name))
 
-    if not only_js and not only_py:
-        print(f'lint-pacing-parity: OK ({len(js_nums)} numeric literals match between pacingPct and pacing_pct)')
-        return 0
+        only_js = js_nums - py_nums
+        only_py = py_nums - js_nums
 
-    print('lint-pacing-parity: DIVERGENCE between pacingPct (extension.js) and pacing_pct (generate-icon.py)', file=sys.stderr)
-    if only_js:
-        print('\n  Literals in pacingPct (JS) but NOT pacing_pct (Python):', file=sys.stderr)
-        for n in sorted(only_js, key=float):
-            print(f'    {n}', file=sys.stderr)
-    if only_py:
-        print('\n  Literals in pacing_pct (Python) but NOT pacingPct (JS):', file=sys.stderr)
-        for n in sorted(only_py, key=float):
-            print(f'    {n}', file=sys.stderr)
-    print('\n  A constant change in one file likely missed the other.', file=sys.stderr)
-    print('  Update both, or update the lint if the divergence is intentional.', file=sys.stderr)
-    return 1
+        if not only_js and not only_py:
+            print(f'lint-pacing-parity: OK ({len(js_nums)} numeric literals match between {js_name} and {py_name})')
+            continue
+
+        rc = 1
+        print(f'lint-pacing-parity: DIVERGENCE between {js_name} (extension.js) and {py_name} (generate-icon.py)', file=sys.stderr)
+        if only_js:
+            print(f'\n  Literals in {js_name} (JS) but NOT {py_name} (Python):', file=sys.stderr)
+            for n in sorted(only_js, key=float):
+                print(f'    {n}', file=sys.stderr)
+        if only_py:
+            print(f'\n  Literals in {py_name} (Python) but NOT {js_name} (JS):', file=sys.stderr)
+            for n in sorted(only_py, key=float):
+                print(f'    {n}', file=sys.stderr)
+        print('\n  A constant change in one file likely missed the other.', file=sys.stderr)
+        print('  Update both, or update the lint if the divergence is intentional.', file=sys.stderr)
+    return rc
 
 
 def main():

@@ -106,6 +106,57 @@ function pacingPct(meter, periodLens) {
     return pct / (elapsed / period);
 }
 
+// Pacing-viz (post-pass-21 port from scripts/popup-preview.py):
+//   • Under-pace → tick `┊` at the elapsed-fraction position in the bar
+//   • On-pace    → tick at the fill/empty boundary
+//   • Over-pace  → on-pace blocks in popupNorm, over-pace blocks in tier color
+// Floor mirrors pacingPct: when elapsed < max(15, period*0.05), no tick / no two-tone.
+
+function elapsedFraction(meter, periodLens) {
+    const rm = meter.reset_minutes;
+    const period = periodLens?.[meter.label];
+    if (rm == null || !period) return null;
+    const elapsed = period - rm;
+    if (elapsed < Math.max(15, period * 0.05)) return null;
+    return elapsed / period;
+}
+
+function pacingSegments(pct, elapsedFrac, width) {
+    pct = Math.max(0, Math.min(100, pct ?? 0));
+    const fill = Math.round((pct * width) / 100);
+    const elapsedPos = elapsedFrac != null
+        ? Math.min(Math.round(elapsedFrac * width), width)
+        : null;
+    const segs = [];
+    for (let i = 0; i < width; i++) {
+        if (i < fill) {
+            if (elapsedPos != null && i >= elapsedPos) segs.push({c: '█', role: 'over_pace'});
+            else segs.push({c: '█', role: 'on_pace'});
+        } else {
+            if (elapsedPos != null && i === elapsedPos && fill <= elapsedPos) {
+                segs.push({c: '┊', role: 'tick'});
+            } else {
+                segs.push({c: '░', role: 'empty'});
+            }
+        }
+    }
+    return segs;
+}
+
+function colorFor(role, pacing, cfg) {
+    if (role === 'on_pace') return cfg.popupNorm;
+    if (role === 'over_pace') return pacing >= cfg.tCrit ? cfg.popupCrit : cfg.popupWarn;
+    if (role === 'tick') return '#888';
+    // 'empty' and the row's surrounding text — tier color.
+    if (pacing >= cfg.tCrit) return cfg.popupCrit;
+    if (pacing >= cfg.tWarn) return cfg.popupWarn;
+    return cfg.popupNorm;
+}
+
+function pangoEscape(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 function formatRows(meters, barWidth) {
     const maxLen = Math.max(0, ...meters.map(m => (m.label || '').length));
     const maxCol2 = Math.max(4, ...meters.map(m =>
@@ -116,25 +167,36 @@ function formatRows(meters, barWidth) {
     for (const m of meters) {
         const label = (m.label || '').padEnd(maxLen);
         const isExtra = m.spent !== undefined;
-        let text;
+        // Returned fields:
+        //   text — plain-text fallback (markup consumers ignore)
+        //   pre  — everything before the bar (label + col2 padding)
+        //   post — everything after the bar (reset hint or '')
+        //   barWidth — segment count; null when there's no bar (count rows)
+        // The renderer composes per-character markup over the bar between
+        // pre and post. Pacing-viz port (post-pass-21).
         if (m.count !== undefined && m.total !== undefined) {
             const col2 = `${m.count}/${m.total}`.padStart(maxCol2);
-            const col3 = ' '.repeat(barWidth);
-            text = `${label}  ${col2}  ${col3}`;
+            const pre = `${label}  ${col2}  `;
+            const filler = ' '.repeat(barWidth);
+            rows.push({text: pre + filler, pre, post: '', barWidth: null,
+                       meter: m, isSub: false, isExtra});
         } else {
             const pct = m.pct ?? 0;
             const col2 = `${pct}%`.padStart(maxCol2);
+            const pre = `${label}  ${col2}  `;
             const col3 = bar(pct, barWidth);
-            const col4 = m.reset ? `  ${formatReset(m.reset)}` : '';
-            text = `${label}  ${col2}  ${col3}${col4}`;
+            const post = m.reset ? `  ${formatReset(m.reset)}` : '';
+            rows.push({text: pre + col3 + post, pre, post, barWidth,
+                       meter: m, isSub: false, isExtra});
         }
-        rows.push({text, meter: m, isSub: false, isExtra});
         if (m.spent !== undefined || m.balance !== undefined) {
             const parts = [];
             if (m.spent)   parts.push(`${m.spent} spent`);
             if (m.balance) parts.push(`${m.balance} balance`);
             if (parts.length)
-                rows.push({text: parts.join(' · '), meter: m, isSub: true, isExtra: true});
+                rows.push({text: parts.join(' · '), pre: parts.join(' · '),
+                           post: '', barWidth: null,
+                           meter: m, isSub: true, isExtra: true});
         }
     }
     return rows;
@@ -510,6 +572,7 @@ class ClaudeIndicator extends PanelMenu.Button {
         // Popup: separator widget before extra section
         this._metersSection.removeAll();
         let sawExtra = false;
+        const cfg = {tWarn, tCrit, popupNorm, popupWarn, popupCrit};
         for (const row of rows) {
             if (row.isExtra && !sawExtra) {
                 this._metersSection.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
@@ -525,8 +588,29 @@ class ClaudeIndicator extends PanelMenu.Button {
                     this._settings.set_string('panel-metric', row.meter.label);
                 });
             }
-            const color = row.isSub ? popupNorm : pctColor(pacingPct(row.meter, periodLens));
-            item.label.set_style(`${style} color: ${color};`);
+            // Pacing-viz markup (post-pass-21 port). Sub-rows render in
+            // popupNorm; bar cells get per-character colors via Pango spans;
+            // surrounding text (prefix/label/col2/reset) gets the row's
+            // tier color.
+            const pacing = pacingPct(row.meter, periodLens);
+            const rowColor = row.isSub ? popupNorm : colorFor('empty', pacing, cfg);
+            let markup;
+            if (row.isSub || row.barWidth == null) {
+                markup = `<span foreground="${rowColor}">${pangoEscape(prefix + row.text)}</span>`;
+            } else {
+                const ef = elapsedFraction(row.meter, periodLens);
+                const segs = pacingSegments(row.meter.pct ?? 0, ef, row.barWidth);
+                const barMarkup = segs.map(s =>
+                    `<span foreground="${colorFor(s.role, pacing, cfg)}">${s.c}</span>`
+                ).join('');
+                markup = `<span foreground="${rowColor}">${pangoEscape(prefix + row.pre)}</span>`
+                       + barMarkup
+                       + `<span foreground="${rowColor}">${pangoEscape(row.post)}</span>`;
+            }
+            item.label.clutter_text.set_markup(markup);
+            // set_style retains font sizing/family; color is overridden by
+            // markup spans above, so we drop `color:` from the style string.
+            item.label.set_style(style);
             this._metersSection.addMenuItem(item);
         }
     }

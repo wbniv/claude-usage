@@ -120,20 +120,39 @@ def _tier_color(pacing, cfg):
 
 
 def production_meter_row(m, cfg, *, primary, period_lens, anchor_ts, label_w, pp):
-    """Render a single popup row in production style (single-color, no tick,
-    no two-tone). `pp` is the popup-preview module (for header_line, reset_text,
-    pacing_pct — the parts we still share with the prototype)."""
+    """Render a single popup row.
+
+    Post-pass-21 pacing-viz port: extension.js now does per-character
+    Pango markup for the bar (on-pace cells in popupNorm, over-pace cells
+    in tier color, tick `┊` when under-pace). The doc renderer mirrors
+    that by emitting per-cell <span>s. `pp` is the popup-preview module
+    — we reuse its `pacing_segments` + `color_for` so the doc stays
+    pixel-identical to the prototype that was approved."""
     import html
     label = (m.get('label') or '').ljust(label_w)
     pct = m.get('pct') or 0
     width = cfg['barWidth']
-    if m.get('count') is not None and m.get('total') is not None:
+    is_count_only = (m.get('count') is not None
+                     and m.get('total') is not None
+                     and m.get('pct') is None)
+    pacing = pp.pacing_pct(m, period_lens)
+    row_color = _tier_color(pacing, cfg)
+
+    if is_count_only:
         col2 = f'{m["count"]}/{m["total"]}'
-        bar = ' ' * width                # count-only rows show no bar
+        bar_html = '&nbsp;' * width
+    elif m.get('count') is not None and m.get('total') is not None:
+        col2 = f'{m["count"]}/{m["total"]}'
+        bar_html = '&nbsp;' * width
     else:
         col2 = f'{pct}%'
-        fill = round(max(0, min(100, pct)) * width / 100)
-        bar = '█' * fill + '░' * (width - fill)
+        ef = pp.elapsed_fraction(m, period_lens)
+        segs = pp.pacing_segments(pct, ef, width)
+        bar_html = ''.join(
+            f'<span style="color: {pp.color_for(s_role, pacing, cfg)}">{ch}</span>'
+            for ch, s_role in segs
+        )
+
     # extension.js:formatReset (line 65) falls back to the raw `reset` field
     # verbatim when none of the recognized patterns match (e.g. "Resets Jun
     # 1"). pp.reset_text returns '' in that case — mirror the fallback so
@@ -142,14 +161,12 @@ def production_meter_row(m, cfg, *, primary, period_lens, anchor_ts, label_w, pp
     # ones is also production behavior, not a bug.
     rt = pp.reset_text(m, anchor_ts) or (m.get('reset') or '')
     prefix = '✴ ' if m is primary else '  '
-    pacing = pp.pacing_pct(m, period_lens)
-    color = _tier_color(pacing, cfg)
     head = f'{prefix}{label}  {col2:>6}  '
     tail = f'  {rt}' if rt else ''
-    text = f'{head}{bar}{tail}'
     return (
-        f'<div class="popup-row" style="color: {color}">'
-        f'{html.escape(text)}</div>'
+        f'<div class="popup-row" style="color: {row_color}">'
+        f'{html.escape(head)}{bar_html}{html.escape(tail)}'
+        f'</div>'
     )
 
 

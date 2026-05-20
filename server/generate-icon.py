@@ -142,21 +142,111 @@ def rounded_rect_path(cr, x, y, w, h, r):
     cr.arc(x + r,     y + h - r, r, math.pi/2,   math.pi)
     cr.close_path()
 
-def draw_ring(cr, cx, cy, radius, thick, pct, color, track=True):
+def draw_ring(cr, cx, cy, radius, thick, pct, color, track=True,
+              elapsed_frac=None, over_pace_color=None):
+    """Draw a percentage arc.
+
+    Pacing-viz port (post-pass-21):
+      • elapsed_frac=None      → legacy single-color arc (backwards-compat,
+                                 used for the broken-tier red rendering).
+      • elapsed_frac + under-pace (fill < elapsed) → arc in `color`, plus a
+                                 thin radial tick at the elapsed angle.
+      • elapsed_frac + over-pace (fill > elapsed)  → arc 0→elapsed in
+                                 `color`, then elapsed→fill in `over_pace_color`.
+    """
     cr.set_line_width(thick)
     cr.set_line_cap(cairo.LINE_CAP_BUTT)
     if track:
         cr.set_source_rgba(*TRACK)
         cr.arc(cx, cy, radius, 0, 2 * math.pi)
         cr.stroke()
-    if pct > 0:
-        cr.set_line_cap(cairo.LINE_CAP_BUTT)
-        cr.set_source_rgba(*color)
-        cr.arc(cx, cy, radius, -math.pi / 2,
-               -math.pi / 2 + 2 * math.pi * (pct / 100))
-        cr.stroke()
+    if pct <= 0:
+        return
 
-def _render(all_pct, sonnet_pct, cfg, draw_rings=True, tier='normal'):
+    start = -math.pi / 2
+    fill_angle = start + 2 * math.pi * (pct / 100)
+
+    if elapsed_frac is None:
+        # Legacy single-color arc.
+        cr.set_source_rgba(*color)
+        cr.arc(cx, cy, radius, start, fill_angle)
+        cr.stroke()
+        return
+
+    elapsed_angle = start + 2 * math.pi * elapsed_frac
+    fill_frac = pct / 100.0
+    over_pacing = fill_frac > elapsed_frac
+
+    if over_pacing and over_pace_color is not None:
+        # Over-pace: split arc — on-pace portion in `color`, over-pace
+        # portion in `over_pace_color`. The boundary IS the spatial cue;
+        # no separate tick needed.
+        cr.set_source_rgba(*color)
+        cr.arc(cx, cy, radius, start, elapsed_angle)
+        cr.stroke()
+        cr.set_source_rgba(*over_pace_color)
+        cr.arc(cx, cy, radius, elapsed_angle, fill_angle)
+        cr.stroke()
+        return
+
+    # Single-color arc otherwise.
+    cr.set_source_rgba(*color)
+    cr.arc(cx, cy, radius, start, fill_angle)
+    cr.stroke()
+
+    if over_pacing:
+        # Fill is past the elapsed boundary but the caller asked for
+        # color-invariant rendering (Sonnet ring: blue stays blue per the
+        # wont-fix BUG-5 design rule). No tick — the tick would land
+        # inside the filled portion and read as visual noise.
+        return
+
+    # Under-pace or on-pace: short radial tick at the elapsed-angle
+    # position so the user can see "where you'd be at sustainable burn".
+    # Slightly transparent grey so it reads as a marker, not another ring.
+    tick_inner = radius - thick / 2
+    tick_outer = radius + thick / 2
+    cr.set_source_rgba(0.55, 0.55, 0.55, 0.85)
+    cr.set_line_width(max(1.5, thick * 0.18))
+    cr.move_to(cx + tick_inner * math.cos(elapsed_angle),
+               cy + tick_inner * math.sin(elapsed_angle))
+    cr.line_to(cx + tick_outer * math.cos(elapsed_angle),
+               cy + tick_outer * math.sin(elapsed_angle))
+    cr.stroke()
+
+def elapsed_fraction(meter, period_lens):
+    """Fraction of period elapsed for a meter, or None if the pacing floor
+    applies (early-period noise). Mirrors popup-preview.py:elapsed_fraction
+    and extension.js:elapsedFraction.
+
+    Kept in sync by hand with gnome-extension/extension.js:elapsedFraction
+    — the parity lint also checks the numeric constants."""
+    if not meter:
+        return None
+    rm = meter.get('reset_minutes')
+    period = period_lens.get(meter.get('label'))
+    if rm is None or not period:
+        return None
+    elapsed = period - rm
+    if elapsed < max(15, period * 0.05):
+        return None
+    return elapsed / period
+
+
+def viz_colors(pacing, cfg):
+    """Return (on_pace, over_pace) rgba pairs for the dock ring's pacing-viz
+    rendering. Mirrors color_for() in popup-preview.py / extension.js:
+      on_pace  = always the safe ("green") tier color
+      over_pace = warn or crit color depending on pacing"""
+    on_pace = hex_to_rgba(cfg['weekly_color_green'])
+    if pacing >= cfg['threshold_critical']:
+        return on_pace, hex_to_rgba(cfg['weekly_color_red'])
+    return on_pace, hex_to_rgba(cfg['weekly_color_amber'])
+
+
+def _render(all_pct, sonnet_pct, cfg, draw_rings=True, tier='normal',
+            all_pacing=None, sonnet_pacing=None,
+            all_elapsed=None, sonnet_elapsed=None):
     """Cairo + PIL pipeline; returns the rendered PIL Image at CANVAS px.
     No I/O. Callers resize and save."""
     cx = cy = CANVAS // 2
@@ -191,15 +281,33 @@ def _render(all_pct, sonnet_pct, cfg, draw_rings=True, tier='normal'):
     if draw_rings:
         if tier == 'broken':
             # Both rings rendered in a solid alarm-red, baseline tile unchanged
-            # so the Claude brand stays recognisable.
+            # so the Claude brand stays recognisable. No pacing-viz on broken
+            # tier — the tier IS the message.
             red = hex_to_rgba('#e03030')
             draw_ring(cr, cx, cy, R_OUTER, THICK_OUTER, max(all_pct, 100), red)
             draw_ring(cr, cx, cy, R_INNER, THICK_INNER, max(sonnet_pct, 100), red)
         else:
-            draw_ring(cr, cx, cy, R_OUTER, THICK_OUTER, all_pct, ring_color(all_pct, cfg))
+            # Pacing-viz port (post-pass-21): all_pct is now RAW pct, not
+            # paced. The arc fills to raw, the color is tier-driven via
+            # all_pacing, and elapsed_frac drives the tick / two-tone split.
+            ap = all_pacing if all_pacing is not None else all_pct
+            on_pace, over_pace = viz_colors(ap, cfg)
+            # Backwards-compat: if main() didn't compute elapsed_frac (legacy
+            # callers), fall back to the pre-viz behavior — single arc in
+            # ring_color(pacing).
+            if all_elapsed is None:
+                draw_ring(cr, cx, cy, R_OUTER, THICK_OUTER, all_pct, ring_color(ap, cfg))
+            else:
+                draw_ring(cr, cx, cy, R_OUTER, THICK_OUTER, all_pct, on_pace,
+                          elapsed_frac=all_elapsed, over_pace_color=over_pace)
             if sonnet_pct > 0:
-                # Sonnet ring intentionally uses a fixed blue — color family distinguishes it from the outer ring.
-                draw_ring(cr, cx, cy, R_INNER, THICK_INNER, sonnet_pct, hex_to_rgba(cfg['sonnet_color']))
+                # Sonnet ring intentionally uses fixed blue (wont-fix BUG-5).
+                # Pass elapsed_frac to get the tick when under-pace, but no
+                # over_pace_color — draw_ring will show single-color when
+                # over (the tick disappears, blue stays blue).
+                draw_ring(cr, cx, cy, R_INNER, THICK_INNER, sonnet_pct,
+                          hex_to_rgba(cfg['sonnet_color']),
+                          elapsed_frac=sonnet_elapsed)
 
     surface.flush()
     img = Image.frombytes('RGBA', (CANVAS, CANVAS),
@@ -340,13 +448,22 @@ def main(tier_override=None):
         (m for m in meters if kw in (m.get('label') or '').lower()), None)
     all_m    = find_meter('all')
     sonnet_m = find_meter('sonnet')
-    all_pct    = min(100.0, pacing_pct(all_m,    period_lens))
-    sonnet_pct = min(100.0, pacing_pct(sonnet_m, period_lens))
+    # Pacing-viz port (post-pass-21): arc fill = RAW pct (0..100); color and
+    # over-pace split decision = pacing; tick/two-tone position = elapsed_frac.
+    all_raw     = (all_m or {}).get('pct') or 0
+    sonnet_raw  = (sonnet_m or {}).get('pct') or 0
+    all_pacing  = pacing_pct(all_m,    period_lens)
+    sonnet_pacing = pacing_pct(sonnet_m, period_lens)
+    all_elapsed    = elapsed_fraction(all_m,    period_lens)
+    sonnet_elapsed = elapsed_fraction(sonnet_m, period_lens)
     tier = tier_override or derive_tier(data)
-    img = _render(all_pct, sonnet_pct, cfg, tier=tier)
+    img = _render(all_raw, sonnet_raw, cfg, tier=tier,
+                  all_pacing=all_pacing, sonnet_pacing=sonnet_pacing,
+                  all_elapsed=all_elapsed, sonnet_elapsed=sonnet_elapsed)
     _atomic_write_multisize(img)
     update_desktop(meters, scrape_ts=data.get('_timestamp'))
-    print(f'Icon: All={all_pct:.0f}% Sonnet={sonnet_pct:.0f}% (pacing) tier={tier} sizes={ICON_SIZES}', flush=True)
+    print(f'Icon: All={all_raw}%/{all_pacing:.0f}p Sonnet={sonnet_raw}%/{sonnet_pacing:.0f}p '
+          f'tier={tier} sizes={ICON_SIZES}', flush=True)
 
 if __name__ == '__main__':
     # --baseline DEST: render the placeholder tile (rounded-rect + orange + star,

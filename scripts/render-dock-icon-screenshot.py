@@ -24,17 +24,24 @@ def _load(name, path):
 g = _load('generate_icon', REPO / 'server/generate-icon.py')
 
 
-# Representative healthy-mid-week state: outer ring visible-but-not-alarming,
-# Sonnet inner ring at a fraction of that. Uses DEFAULTS so the mockup
-# reflects the shipped color/threshold defaults regardless of what the user
-# may have customized via GSettings.
-ALL_PCT    = 20
-SONNET_PCT = 10
-CFG        = dict(g.DEFAULTS)
+# Representative state showing the pacing-viz: outer ring is over-paced
+# (50% raw used at 30% elapsed → pacing 167% → crit tier, green-then-red
+# two-tone arc); inner Sonnet ring is under-paced (8% raw at 50% elapsed
+# → pacing 16%, tick visible at the 50% angle). One image demonstrating
+# both visual states the pacing-viz design introduced.
+ALL_PCT          = 50
+SONNET_PCT       = 8
+ALL_ELAPSED      = 0.30     # 30 % into the period
+SONNET_ELAPSED   = 0.50     # mid-period
+ALL_PACING       = ALL_PCT / ALL_ELAPSED           # 167
+SONNET_PACING    = SONNET_PCT / SONNET_ELAPSED     # 16
+CFG              = dict(g.DEFAULTS)
 
 
 def main():
-    img = g._render(ALL_PCT, SONNET_PCT, CFG)
+    img = g._render(ALL_PCT, SONNET_PCT, CFG,
+                    all_pacing=ALL_PACING, sonnet_pacing=SONNET_PACING,
+                    all_elapsed=ALL_ELAPSED, sonnet_elapsed=SONNET_ELAPSED)
     # 128 px matches one of the hicolor sizes generate-icon.py emits at
     # runtime (~/.local/share/icons/hicolor/128x128/apps/claude-usage.png).
     # Big enough to read the rings, small enough to embed in MANUAL.md at
