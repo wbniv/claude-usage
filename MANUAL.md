@@ -253,10 +253,20 @@ claude-usage/
   systemd/            User service definition
   desktop/            Dock launcher entry template
   packaging/          .deb and Chrome Web Store build scripts
+  scripts/            Build + maintenance utilities. Includes one
+                      render-*.py per docs/*.png so screenshots are
+                      regenerable from source, not hand-captured.
   install.sh          Source install; run once per machine
   PRIVACY.md          Chrome Web Store privacy policy
   MANUAL.md           This file
 ```
+
+To regenerate any documentation image, run its dedicated script — e.g.
+`python3 scripts/render-popup-screenshot.py` for `docs/popup-screenshot.png`.
+Each script builds a synthetic state and pipes through headless Chrome (or
+Cairo, for the dock icon) so the image matches what the live code produces
+at those values. When extension.js or generate-icon.py changes rendering,
+re-run every `render-*.py` and commit the refreshed PNGs.
 
 ---
 
