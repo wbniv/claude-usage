@@ -12,7 +12,7 @@ Shows your Claude.ai weekly usage percentage in the GNOME top panel and dock.
 
 The icon is the static Anthropic star logo. The percentage label is color-coded: green below the warning threshold · amber at or above it · red at or above the critical threshold (defaults: 70 / 90, applied to current pacing — see *Color semantics* under Configuration). On the *broken* tier the icon itself swaps to a red-tinted variant.
 
-**Scroll** on the panel label to toggle between **All models** and **Sonnet only**.
+**Scroll** on the panel label to cycle the displayed metric through every eligible meter — Current session, All models, Sonnet only, Claude Design, the daily routine-run counter, Extra usage if active. The popup's `✴` marker tracks which one is currently in the panel. (Sonnet at 0 % is skipped so the panel doesn't show "0 %" for a meter the popup also hides.)
 
 **Click** the panel label to open the popup:
 
