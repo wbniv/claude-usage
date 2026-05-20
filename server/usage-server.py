@@ -564,13 +564,16 @@ def _sweep_orphan_tmps():
     # Desktop file: claude-usage.desktop.tmp.<PID>.<NS> — PID at index -2.
     _sweep(Path.home() / '.local/share/applications',
            'claude-usage.desktop.tmp.*', -2)
-    # Icon files: .claude-usage.tmp.<PID>.<NS>.<SIZE>.png — PID at index 2
-    # (after the leading-dot "" and "claude-usage"); per-size dirs.
+    # Icon files: .claude-usage.tmp.<PID>.<NS>.<SIZE>.png. Splitting on '.':
+    #   parts[0]='', [1]='claude-usage', [2]='tmp', [3]=PID, [4]=NS, [5]=SIZE, [6]='png'
+    # TS-2 (pass-18): was pid_position=2 — that's the literal 'tmp', so int()
+    # raised and the except clause unconditionally unlinked the file,
+    # including live in-flight tmps from concurrent generate-icon.py runs.
     data_home = Path(os.environ.get('XDG_DATA_HOME') or Path.home() / '.local/share')
     hicolor = data_home / 'icons/hicolor'
     if hicolor.is_dir():
         for size_dir in hicolor.glob('*x*/apps'):
-            _sweep(size_dir, '.claude-usage.tmp.*.png', 2)
+            _sweep(size_dir, '.claude-usage.tmp.*.png', 3)
 
 
 if __name__ == '__main__':
