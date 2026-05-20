@@ -46,6 +46,13 @@ def test_accepts_empty_dict():
 
 # ── meters ───────────────────────────────────────────────────────────────────
 
+def test_meters_null_rejected():
+    # NM-1 (pass-26): explicit null previously bypassed the isinstance check
+    # and poisoned the cache with meters=None, crashing every downstream consumer.
+    err = _validate({'meters': None})
+    assert err is not None and 'meters' in err
+
+
 def test_meters_must_be_list():
     assert _validate({'meters': {}}) == "'meters' must be a list when present"
 
