@@ -6,6 +6,7 @@
 ## Deferred
 
 ## Done
+- [x] 2026-05-20 — Dock icon size fix: `generate-icon.py` now emits at 48/64/96/128/256 hicolor sizes (was 128 only) so XDG lookup stops falling through to the .deb's ringless 64x64 baseline; auto-rebuilds the user-local icon-theme cache when a new size dir appears. Commits: `da6a2ac` (multi-size), `0dc6243` (cache refresh).
 - [x] 2026-05-20 — Pacing parity lint: extended `scripts/lint-scraper-parity.py` to compare numeric constants in `pacingPct` (extension.js) vs `pacing_pct` (generate-icon.py); catches constant drift on `15`, `0.05`, etc.
 - [x] 2026-05-20 — Pacing-aware threshold range → 0.11.19 (`<range max>` 99 → 500 on threshold-warning + threshold-critical; pacing is uncapped, schema cap was stale from pre-pacing semantics). [Plan](docs/plans/2026-05-20-pacing-threshold-range-0-11-19.md).
 - [x] 2026-05-19 — Pass-16 L+I findings + TF‑1 → 0.11.18 (R‑1 autoscrape race, WP‑1 period-scaled pacing floor, D‑1/TF‑1 stable Icon=claude-usage via icon-theme dir, D‑2 startup icon refresh, N‑1 toast reword, I‑1 nuke-and-recreate install dirs; 3 new pacing tests). [Plan](docs/plans/2026-05-19-fix-pass-16-medium-bugs-0-11-17.md). Commit: `095c3e1`.
