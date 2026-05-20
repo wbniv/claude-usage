@@ -1,53 +1,41 @@
 #!/usr/bin/env python3
 """Render docs/panel-screenshot.png — the GNOME top-panel indicator.
 
-extension.js builds the panel widget from an St.Icon (`claude-usage`,
-sized via the panel-icon-size gsetting — default 16) and an St.Label
-(`{pct}%`, sized via panel-font-size — default 11, coloured by the
-panel-color-* triplet according to the pacing tier).
+extension.js (line 151) loads its panel St.Icon from the static
+gnome-extension/icons/claude-22.png — the bare Anthropic star, NOT the
+ring-painted dock icon. The accompanying St.Label shows `{pct}%`,
+colour-flipped via the panel-color-* triplet based on pacing tier.
+On the broken tier the icon swaps to claude-22-red.png; this script
+renders the normal-tier path.
 
-This script reproduces that compose: generates the dock icon via
-generate-icon.py:_render at the pct value, embeds it in an HTML strip
-with a label coloured by tier, and screenshots via headless Chrome.
-
-74% is chosen as a representative warning-tier value (≥ 70 = warn,
-< 90 = not crit), so the rendering exercises the colour-flip the
-section text discusses.
+74% is chosen as a representative warning-tier value (≥ schema-default
+70 = warn, < 90 = crit) so the rendered strip exercises the colour
+flip the surrounding MANUAL paragraph discusses.
 """
 import base64
-import importlib.util
 import io
 import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(REPO / 'server'))
 sys.path.insert(0, str(REPO / 'scripts'))
 
 from _doc_render import html_to_png
+from PIL import Image
 
 
-def _load(name, path):
-    spec = importlib.util.spec_from_file_location(name, path)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
-
-
-g = _load('generate_icon', REPO / 'server/generate-icon.py')
-
-
-# Match schema defaults for thresholds + colours (generate-icon.py's DEFAULTS
-# drift from gschema.xml — schema is the user-facing source of truth).
-PCT_VALUE = 74
-CFG = dict(g.DEFAULTS, threshold_warning=70, threshold_critical=90)
-
+# Source-of-truth panel icon: the bare star bundled with the GNOME extension.
+# extension.js loads this same file via Gio.icon_new_for_string at line 151.
+PANEL_ICON  = REPO / 'gnome-extension' / 'icons' / 'claude-22.png'
+PCT_VALUE   = 74
 PANEL_WARN_COLOR = '#d07000'   # schema panel-color-warning default
 
 
 def icon_data_uri():
-    img = g._render(PCT_VALUE, 10, CFG)
-    img = img.resize((128, 128), g.RESAMPLE)
+    """Embed claude-22.png upscaled to 64 px so it stays crisp at the larger
+    HTML font-size; downscales cleanly when MANUAL.md displays at width=160."""
+    img = Image.open(PANEL_ICON).convert('RGBA')
+    img = img.resize((64, 64), Image.LANCZOS)
     buf = io.BytesIO()
     img.save(buf, format='PNG')
     return 'data:image/png;base64,' + base64.b64encode(buf.getvalue()).decode()
