@@ -59,14 +59,14 @@ CANVAS = 96 * SCALE
 ANTHRO_ORANGE = (216/255, 119/255, 88/255, 1.0)
 TRACK         = (0.0, 0.0, 0.0, 0.25)   # subtle dark on orange
 
-DEFAULTS = {  # keep in sync with gschema.xml default= attributes
-    'weekly_color_green': '#8cff8c',
-    'weekly_color_amber': '#ffe033',
-    'weekly_color_red':   '#ff5933',
-    'sonnet_color':       '#4dbfff',
-    'threshold_warning':  50,
-    'threshold_critical': 80,
-}
+# Pulled from the gschema at import time — see server/schema_defaults.py.
+# Previously a hand-copied dict that drifted (threshold_warning was 50, schema
+# says 70; threshold_critical was 80, schema says 90). Pass-17 DG-1.
+from schema_defaults import DEFAULTS as _SCHEMA_DEFAULTS
+DEFAULTS = {k: _SCHEMA_DEFAULTS[k] for k in (
+    'weekly_color_green', 'weekly_color_amber', 'weekly_color_red',
+    'sonnet_color', 'threshold_warning', 'threshold_critical',
+)}
 
 def load_config():
     try:

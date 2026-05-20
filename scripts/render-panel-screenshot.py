@@ -22,13 +22,18 @@ sys.path.insert(0, str(REPO / 'scripts'))
 
 from _doc_render import html_to_png
 from PIL import Image
+from schema_defaults import DEFAULTS as _SCHEMA
 
 
 # Source-of-truth panel icon: the bare star bundled with the GNOME extension.
 # extension.js loads this same file via Gio.icon_new_for_string at line 151.
 PANEL_ICON  = REPO / 'gnome-extension' / 'icons' / 'claude-22.png'
-PCT_VALUE   = 74
-PANEL_WARN_COLOR = '#d07000'   # schema panel-color-warning default
+# PCT_VALUE is chosen to land between the schema's warn/crit thresholds so
+# the rendered strip exercises the colour-flip the surrounding MANUAL prose
+# discusses. Reading the threshold from the schema means a future schema
+# tweak (e.g. crit lowered to 80) still produces a warning-tier render.
+PCT_VALUE = _SCHEMA['threshold_warning'] + 4
+PANEL_WARN_COLOR = _SCHEMA['panel_color_warning']
 
 
 def icon_data_uri():

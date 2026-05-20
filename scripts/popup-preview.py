@@ -25,7 +25,7 @@ from pathlib import Path
 
 # ── module imports for shared logic ─────────────────────────────────────────
 
-REPO = Path('/home/will/SRC/claude-usage')
+REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / 'server'))
 
 # Stub heavy imports we don't need (mirrors test_pacing.py + render-mockups.py).
@@ -75,7 +75,8 @@ def read_cache():
 
 def read_gsettings():
     """Mirror gnome-extension's GSettings reads. Returns dict, all defaults
-    on failure (matches the extension's fallback path)."""
+    on failure (matches the extension's fallback path). Fallback values come
+    from server/schema_defaults — never drifts from the gschema."""
     try:
         from gi.repository import Gio
         s = Gio.Settings.new('org.gnome.shell.extensions.claude-usage')
@@ -92,11 +93,16 @@ def read_gsettings():
             'panelMetric': s.get_string('panel-metric'),
         }
     except Exception as e:
+        from schema_defaults import DEFAULTS as _D
         return {
-            'tWarn': 70, 'tCrit': 90,
-            'popupNorm': '#cccccc', 'popupWarn': '#d07000', 'popupCrit': '#e03030',
-            'panelNorm': '#cccccc', 'panelWarn': '#d07000', 'panelCrit': '#e03030',
-            'barWidth': 10, 'panelMetric': '',
+            'tWarn': _D['threshold_warning'], 'tCrit': _D['threshold_critical'],
+            'popupNorm': _D['popup_color_normal'],
+            'popupWarn': _D['popup_color_warning'],
+            'popupCrit': _D['popup_color_critical'],
+            'panelNorm': _D['panel_color_normal'],
+            'panelWarn': _D['panel_color_warning'],
+            'panelCrit': _D['panel_color_critical'],
+            'barWidth': _D['bar_width'], 'panelMetric': _D['panel_metric'],
             '_gsettings_error': str(e),
         }
 

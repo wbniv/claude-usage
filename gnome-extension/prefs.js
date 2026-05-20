@@ -56,7 +56,19 @@ function addColorRow(group, settings, key, title, subtitle, isDockColor = false)
     group.add(row);
 }
 
-function addSpinRow(group, settings, key, title, subtitle, lower, upper, regen = false) {
+// Pull <range min/max> from the gschema for `key` so spinner bounds can't
+// drift from the schema. Closes pass-17 PR-1 (prefs upper-bound stuck at 99
+// after 0.11.19 widened the schema to 500): one source of truth.
+function schemaRange(settings, key) {
+    const k = settings.settings_schema.get_key(key);
+    const rangeVariant = k.get_range();              // GVariant '(sv)'
+    const [, inner] = rangeVariant.deepUnpack();     // [type, GVariant<(uu)>]
+    const [lo, hi] = inner.deepUnpack();             // [min, max]
+    return [lo, hi];
+}
+
+function addSpinRow(group, settings, key, title, subtitle, regen = false) {
+    const [lower, upper] = schemaRange(settings, key);
     const adj = new Gtk.Adjustment({lower, upper, step_increment: 1, value: settings.get_uint(key)});
     const row = new Adw.SpinRow({title, subtitle, adjustment: adj});
     adj.connect('value-changed', () => {
@@ -111,9 +123,9 @@ export default class ClaudeUsagePreferences extends ExtensionPreferences {
         const popupDisplayGroup = new Adw.PreferencesGroup({title: 'Popup Display'});
         page.add(popupDisplayGroup);
         const warningAdj  = addSpinRow(popupDisplayGroup, settings, 'threshold-warning',
-            'Warning threshold',  '% at which color flips to warning (must be below Critical)', 1, 99, true);
+            'Warning threshold',  'Pacing % at which color flips to warning (must be below Critical)', true);
         const criticalAdj = addSpinRow(popupDisplayGroup, settings, 'threshold-critical',
-            'Critical threshold', '% at which color flips to critical (must exceed Warning)', 1, 99, true);
+            'Critical threshold', 'Pacing % at which color flips to critical (must exceed Warning)', true);
         warningAdj.connect('value-changed', () => {
             if (Math.round(warningAdj.get_value()) >= Math.round(criticalAdj.get_value()))
                 criticalAdj.set_value(Math.round(warningAdj.get_value()) + 1);
@@ -123,9 +135,9 @@ export default class ClaudeUsagePreferences extends ExtensionPreferences {
                 warningAdj.set_value(Math.round(criticalAdj.get_value()) - 1);
         });
         addSpinRow(popupDisplayGroup, settings, 'bar-width',
-            'Bar width', 'Character count of the █░ usage bar', 1, 20);
+            'Bar width', 'Character count of the █░ usage bar');
         addSpinRow(popupDisplayGroup, settings, 'popup-font-size',
-            'Font size', 'Popup meter row font size (px)', 8, 20);
+            'Font size', 'Popup meter row font size (px)');
 
         // ── Popup Font ───────────────────────────────────────────────────────
         const popupFontGroup = new Adw.PreferencesGroup({title: 'Popup Font'});
@@ -145,11 +157,11 @@ export default class ClaudeUsagePreferences extends ExtensionPreferences {
         addColorRow(panelGroup, settings, 'panel-color-warning',  'Label — warning',  'Label color at or above warning threshold');
         addColorRow(panelGroup, settings, 'panel-color-critical', 'Label — critical', 'Label color at or above critical threshold');
         addSpinRow(panelGroup, settings, 'panel-font-size',
-            'Label font size', 'Panel percentage label font size (px)', 8, 20);
+            'Label font size', 'Panel percentage label font size (px)');
         addSpinRow(panelGroup, settings, 'panel-label-spacing',
-            'Icon–label gap', 'Pixels between the icon and the percentage label', 0, 20);
+            'Icon–label gap', 'Pixels between the icon and the percentage label');
         addSpinRow(panelGroup, settings, 'panel-icon-size',
-            'Icon size', 'Panel icon pixel size', 8, 32);
+            'Icon size', 'Panel icon pixel size');
 
         // ── Setup ────────────────────────────────────────────────────────────
         const infoGroup = new Adw.PreferencesGroup({title: 'Setup'});

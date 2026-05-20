@@ -17,6 +17,28 @@ from pathlib import Path
 
 from PIL import Image
 
+# Single source of truth for schema-tied constants; closes pass-17 DR-2/DR-4.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'server'))
+from schema_defaults import DEFAULTS as _SCHEMA  # noqa: E402
+
+
+def default_cfg():
+    """Build the popup/panel CFG dict that production_meter_row + the popup
+    HTML renderer expect, populated from the gschema. Render scripts call this
+    instead of hand-copying the colours so a future schema edit propagates."""
+    return {
+        'tWarn': _SCHEMA['threshold_warning'],
+        'tCrit': _SCHEMA['threshold_critical'],
+        'popupNorm': _SCHEMA['popup_color_normal'],
+        'popupWarn': _SCHEMA['popup_color_warning'],
+        'popupCrit': _SCHEMA['popup_color_critical'],
+        'panelNorm': _SCHEMA['panel_color_normal'],
+        'panelWarn': _SCHEMA['panel_color_warning'],
+        'panelCrit': _SCHEMA['panel_color_critical'],
+        'barWidth':  _SCHEMA['bar_width'],
+        'panelMetric': _SCHEMA['panel_metric'],
+    }
+
 
 def html_to_png(html, dest, *, viewport=(800, 600), scale=2, padding=8):
     """Render `html` to `dest` via headless Chrome, crop trailing background.

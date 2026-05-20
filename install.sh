@@ -43,10 +43,11 @@ uninstall() {
     rm -rf "$XDG_CONFIG_HOME/claude-usage"
     rm -rf "$XDG_CACHE_HOME/claude-usage"
     rm -f "$XDG_DATA_HOME/applications/claude-usage.desktop"
-    # TF-1 (pass-16 §13): icon-theme files we now own. Remove both the baseline
-    # (64x64 from install.sh) and the dynamic version (128x128 from generate-icon.py).
-    rm -f "$XDG_DATA_HOME/icons/hicolor/64x64/apps/claude-usage.png"
-    rm -f "$XDG_DATA_HOME/icons/hicolor/128x128/apps/claude-usage.png"
+    # Pass-17 I-1: generate-icon.py emits at 48/64/96/128/256 (commit da6a2ac).
+    # Glob over all of them so the source-install uninstall matches MANUAL.md's
+    # cleanup recipe. Also clear the user-local icon-theme.cache.
+    rm -f "$XDG_DATA_HOME"/icons/hicolor/*/apps/claude-usage.png
+    rm -f "$XDG_DATA_HOME/icons/hicolor/icon-theme.cache"
     gtk-update-icon-cache -f "$XDG_DATA_HOME/icons/hicolor/" 2>/dev/null || true
     update-desktop-database "$XDG_DATA_HOME/applications/" 2>/dev/null || true
     echo "Done. Log out and back in to remove the panel indicator."
@@ -119,6 +120,12 @@ mkdir -p "$SERVER_DIR"
 cp "$REPO_DIR/server/usage-server.py" "$SERVER_DIR/"
 cp "$REPO_DIR/server/generate-icon.py" "$SERVER_DIR/"
 cp "$REPO_DIR/server/tooltip.py" "$SERVER_DIR/"
+cp "$REPO_DIR/server/schema_defaults.py" "$SERVER_DIR/"
+# schema_defaults.py parses the gschema XML at import time; copy a sibling
+# `schemas/` so the installed module can find it. Same idea as build-deb.sh.
+mkdir -p "$SERVER_DIR/schemas"
+cp "$REPO_DIR/gnome-extension/schemas/org.gnome.shell.extensions.claude-usage.gschema.xml" \
+   "$SERVER_DIR/schemas/"
 chmod +x "$SERVER_DIR/usage-server.py" "$SERVER_DIR/generate-icon.py"
 cp "$REPO_DIR/scripts/claude-usage-status.py" "$SERVER_DIR/claude-usage-status"
 chmod +x "$SERVER_DIR/claude-usage-status"

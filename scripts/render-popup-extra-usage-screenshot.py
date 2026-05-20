@@ -15,7 +15,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _doc_render import (
-    html_to_png, load_popup_preview, production_popup, wrap_popup_html,
+    default_cfg, html_to_png, load_popup_preview, production_popup,
+    wrap_popup_html,
 )
 
 REPO = Path(__file__).resolve().parent.parent
@@ -53,12 +54,7 @@ CACHE = {
     },
 }
 
-CFG = {
-    'tWarn': 70, 'tCrit': 90,
-    'popupNorm': '#2a9a2a', 'popupWarn': '#d07000', 'popupCrit': '#e03030',
-    'panelNorm': '#ffffff', 'panelWarn': '#d07000', 'panelCrit': '#e03030',
-    'barWidth': 10, 'panelMetric': 'All models',
-}
+CFG = {**default_cfg(), 'panelMetric': 'All models'}
 
 
 def extra_sub_row(m):

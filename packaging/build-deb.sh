@@ -27,11 +27,20 @@ mkdir -p \
 cp -r "$REPO_DIR/gnome-extension/." \
     "$PKG/usr/share/gnome-shell/extensions/claude-usage@indri.studio/"
 
-# Python server
+# Python server. schema_defaults.py parses the gschema XML at import time to
+# expose every <default>/<range> as a Python constant — it needs the schema
+# file to be discoverable from /usr/share/claude-usage, so we copy it to a
+# `schemas/` sibling. The same XML is already installed under
+# /usr/share/gnome-shell/extensions/<uuid>/schemas/ for gnome-extension use;
+# the schemas/ sibling here is the Python-side lookup path.
 cp "$REPO_DIR/server/usage-server.py" \
    "$REPO_DIR/server/generate-icon.py" \
    "$REPO_DIR/server/tooltip.py" \
+   "$REPO_DIR/server/schema_defaults.py" \
    "$PKG/usr/share/claude-usage/"
+mkdir -p "$PKG/usr/share/claude-usage/schemas"
+cp "$REPO_DIR/gnome-extension/schemas/org.gnome.shell.extensions.claude-usage.gschema.xml" \
+   "$PKG/usr/share/claude-usage/schemas/"
 
 # Chrome extension (for load-unpacked until CWS listing is live).
 # Drop test/ — dev-only fixture, irrelevant once installed and Chrome would

@@ -36,14 +36,16 @@ jobs:
       - name: Install go-task
         uses: arduino/setup-task@v2
 
-      - name: Test Chrome extension
-        run: task test-scraper
-
       - name: Install pytest
         run: python3 -m pip install --user pytest
 
-      - name: Test server validator
-        run: task test-validate
+      - name: Run all tests + parity lints
+        # Was two separate steps (test-scraper + test-validate). The aggregate
+        # `task test` now also runs `lint-scraper-parity` (which covers the
+        # pacingPct↔pacing_pct numeric-constant lint added in pass-16) and the
+        # new test_schema_defaults.py (closes pass-17 DG-1 + drift class).
+        # Pass-17 CI-1: a parity lint that doesn't run in CI is documentation.
+        run: task test
 
       # CI-4 (pass-15 §13): rotate the docker test-image cache weekly so
       # upstream Ubuntu drift (security patches, Python point releases) is

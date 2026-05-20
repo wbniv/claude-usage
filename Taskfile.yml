@@ -94,6 +94,26 @@ tasks:
           /usr/local/bin/verify
         '
 
+  bump:
+    desc: "Bump version across packaging/control + chrome-extension/manifest.json (NEW=X.Y.Z). Pass-17 P-2: kills the manual two-place sync that auto-memory used to track."
+    cmds:
+      - |
+        set -euo pipefail
+        if [ -z "{{.NEW}}" ]; then
+          echo "Usage: task bump NEW=X.Y.Z" >&2
+          exit 1
+        fi
+        if ! echo "{{.NEW}}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+          echo "Invalid version {{.NEW}} (expected X.Y.Z)" >&2
+          exit 1
+        fi
+        sed -i "s/^Version: .*/Version: {{.NEW}}/" packaging/control
+        python3 -c "import json,pathlib; p=pathlib.Path('chrome-extension/manifest.json'); d=json.loads(p.read_text()); d['version']='{{.NEW}}'; p.write_text(json.dumps(d,indent=2)+'\n')"
+        echo "Bumped to {{.NEW}}. Review:"
+        grep '^Version:' packaging/control
+        grep '"version"' chrome-extension/manifest.json
+        echo "Note: gnome-extension/metadata.json's integer version is bumped automatically by 'task release'."
+
   release:
     desc: Preflight checks, tag, and push — CI builds and publishes the release (VERSION= to override)
     vars:
