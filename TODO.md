@@ -6,6 +6,7 @@
 ## Deferred
 
 ## Done
+- [x] 2026-05-20 — Pass-17 full landing: all 39 findings closed in 10 commits (`6533877`..`282a996`). Architectural change: `server/schema_defaults.py` is now the SOT for every gschema-tied constant; 8 drift findings collapsed at once. Test suite: 57 → 87. [Review](docs/investigations/2026-05-20-code-review-pass17.md).
 - [x] 2026-05-20 — Dock icon size fix: `generate-icon.py` now emits at 48/64/96/128/256 hicolor sizes (was 128 only) so XDG lookup stops falling through to the .deb's ringless 64x64 baseline; auto-rebuilds the user-local icon-theme cache when a new size dir appears. Commits: `da6a2ac` (multi-size), `0dc6243` (cache refresh).
 - [x] 2026-05-20 — Pacing parity lint: extended `scripts/lint-scraper-parity.py` to compare numeric constants in `pacingPct` (extension.js) vs `pacing_pct` (generate-icon.py); catches constant drift on `15`, `0.05`, etc.
 - [x] 2026-05-20 — Pacing-aware threshold range → 0.11.19 (`<range max>` 99 → 500 on threshold-warning + threshold-critical; pacing is uncapped, schema cap was stale from pre-pacing semantics). [Plan](docs/plans/2026-05-20-pacing-threshold-range-0-11-19.md).

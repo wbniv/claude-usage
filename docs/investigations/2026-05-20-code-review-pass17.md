@@ -458,3 +458,53 @@ After 0.11.20–0.11.22 land, the remaining findings are individually small enou
 4. **`scripts/popup-preview.py` is hardening surface, not just debug.** It started as scaffolding but is now the prototype substrate for the next pacing-viz release. PP-1, DR-2, DR-3, DR-5 all point at the same thing: this script needs to graduate from "maintainer-local" to "any-contributor". Either commit to that and clean it up, or extract the renderer into something more durable and let the prototype rot.
 
 5. **The pacing-viz prototype is not in extension.js yet — keep documentation accurate.** Today's docs/screenshots correctly render production style (single-tone bars). When the prototype lands in extension.js, every `render-*.py` script and the production_meter_row helper in `_doc_render.py` must switch to `pp.render_meter_row` in the same commit. Track as a single-commit migration, not gradual.
+
+---
+
+## 9. Resolution log
+
+All 39 findings closed in the same session that opened the review. The user opted out of the by-hand review loop; landings done as autonomous commits.
+
+| ID | Title | Commit |
+|----|-------|--------|
+| PR‑1  | Prefs spinner upper bound stuck at 99 | `6533877` |
+| L‑1   | Flash timer no `_destroyed` guard | `2ae190b` |
+| DG‑1  | `DEFAULTS` thresholds drift from gschema | `6533877` |
+| CI‑1  | `lint-scraper-parity` never runs in CI | `6533877` |
+| CM‑1  | Non-dict cache JSON crashes every POST | `8ae9cef` |
+| M‑1   | Multi-size icon write not transactional | `b83547e` |
+| LC‑1  | `_getPrimary` idle source not stored | `a968970` |
+| S‑1   | Scroll EVENT_STOP for nothing-to-do | `a968970` |
+| LK‑1  | Python `#` regex eats hex strings | `9b894ad` |
+| I‑1   | `install.sh --uninstall` misses 3 of 5 sizes | `6533877` |
+| PP‑1  | `popup-preview.py` hardcoded `/home/will` | `6533877` |
+| T‑1   | No tests for tier/tooltip/reset/ring | `02e20ba` |
+| IPC‑1 | Loopback IPC has no auth | `5c1b033` (SECURITY.md doc) |
+| L‑2   | Scraper hardcodes English | `5c1b033` (`_parse_failure` signal) |
+| AS‑1  | Statuspage description > MAX_STR_LEN | `9b894ad` |
+| O‑1   | Chrome ext has no observable state | `5c1b033` (`chrome.action.setTitle`) |
+| DR‑1  | `tWarn > tCrit` permitted | `a968970` (clamp in extension.js) |
+| DR‑2  | popup-preview fallback colours wrong | `6533877` |
+| DR‑3  | popup-preview line ref `:458` → `:472` | `9b894ad` (textual anchor) |
+| DR‑4  | render-panel hardcoded `#d07000` | `6533877` |
+| L‑3   | `load_contents_async` not cancellable | `a968970` |
+| L‑4   | Spinner GSettings writes not debounced | `5c1b033` (120 ms) |
+| L‑5   | `_regenTimer` module scope | `a968970` |
+| L‑6   | `_stopFlash` no `_destroyed` guard | `2ae190b` |
+| MS‑1  | Multi-size tmps leak on crash | `b83547e` |
+| MS‑2  | Corrupt icon-theme.cache never rebuilt | `b83547e` (log timeout) |
+| V‑1   | `_buffered_at` not validated | `8ae9cef` |
+| V‑2   | `meters` list length not capped | `8ae9cef` (cap at 50) |
+| V‑3   | Empty-string status → broken tier | `8ae9cef` (`derive_tier` normalize) |
+| D‑1   | `update_desktop` silently drops `Name=` | `8ae9cef` (append if missing) |
+| DG‑2  | `load_config` silent GIO fallback | `8ae9cef` (log to stderr) |
+| DR‑5  | popup-preview predictable `/tmp` path | `9b894ad` (UID+PID suffix) |
+| N‑1   | CI Node version unpinned | `02e20ba` (`setup-node@v4 24`) |
+| P‑1   | `cp -r` + `rm -rf test` race | `02e20ba` (`rsync --exclude`) |
+| P‑2   | Version triple two-place automation | `6533877` (`task bump`) |
+| L‑7   | Color settings no validation | `a968970` (`safeColor` regex) |
+| L‑8   | `anyCrit` scans unfiltered meters | `5c1b033` (documented intent) |
+| L‑9   | `_clearingMetric` ordering undocumented | `a968970` (comment) |
+| CI‑2  | No `chrome.idle` wake listener | `282a996` (adds `idle` permission) |
+
+**Structural change carried by `6533877`:** `server/schema_defaults.py` is now the single source of truth for every gschema-tied constant. Eight findings — DG‑1, PR‑1, DR‑1..4, I‑1, PP‑1, P‑2, CI‑1 — closed at the architecture level instead of patching each site. The drift class doesn't keep recurring because there's only one place to drift from now, and `test_schema_defaults.py` fails CI on any hand-copy that doesn't match.
