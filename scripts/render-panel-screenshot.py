@@ -19,6 +19,10 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / 'scripts'))
+# RP-2 (pass-19): explicit path for schema_defaults. Previously the import
+# only worked because `_doc_render` happens to perform `sys.path.insert` for
+# the server/ dir as an import side effect. Don't rely on that.
+sys.path.insert(0, str(REPO / 'server'))
 
 from _doc_render import html_to_png
 from PIL import Image

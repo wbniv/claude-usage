@@ -64,18 +64,32 @@ async function getServerUrl({ forceProbe = false } = {}) {
 // now"; this rewrites it after every postUpdate outcome so the user can hover
 // the toolbar icon and see whether the last cycle succeeded — and if not, why.
 // First line of triage when the GNOME panel goes grey: hover the Chrome icon.
+/**
+ * Update the toolbar-icon tooltip after every postUpdate outcome.
+ *
+ * Per-kind arg semantics (OT-2, pass-19):
+ *   kind='ok'             — uses meterCount
+ *   kind='partial'        — no other args; tooltip points at `claude-usage-status`
+ *   kind='rejected'       — uses errorMsg (the 4xx body); points at the server journal
+ *   kind='unavailable'    — no other args; points at the systemd unit
+ *   kind='recovered'      — no other args; offline buffer was flushed
+ *   kind='scrape-failed'  — uses errorMsg (scrape exception); shown verbatim
+ *
+ * errorMsg is capped at 80 chars (AT-1, pass-18) to prevent oversized tooltips.
+ */
 async function setActionStatus(kind, meterCount, errorMsg) {
   if (typeof chrome === 'undefined' || !chrome.action) return;
   const stamp = new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
-  // AT-1 (pass-18): cap interpolated errorMsg so a long network-stack
-  // message can't produce a massive tooltip.
   const cap = s => (typeof s === 'string' && s.length > 80 ? s.slice(0, 77) + '...' : s);
   let title;
   if (kind === 'ok') {
     title = `Claude Usage: OK · ${meterCount} meters · last fetch ${stamp}`;
   } else if (kind === 'partial') {
+    // OT-3 (pass-19): drop `(see _parse_failure)` — _parse_failure is an
+    // internal cache key name end users can't act on. Point at the actual
+    // triage tool instead.
     title = `Claude Usage: ⚠ no meters scraped at ${stamp}\n`
-          + `Page may be in a non-English locale (see _parse_failure)`;
+          + `Run claude-usage-status for diagnosis`;
   } else if (kind === 'rejected') {
     title = `Claude Usage: ⚠ local server rejected payload (${cap(errorMsg)}) at ${stamp}\n`
           + `Check: journalctl --user-unit=claude-usage-fetch.service`;

@@ -91,12 +91,15 @@ def _load():
 # tracebacks from inside _load were unhelpful for users hitting a missing
 # schema XML (e.g. partial install, broken build). Hint at the fix, then
 # re-raise so callers still know the module isn't usable.
+# MD-3 (pass-19): broaden the except — ParseError (corrupt XML), permission
+# errors, and IsADirectoryError were all silently producing bare tracebacks
+# from inside _parse_default / ET.parse.
 try:
     DEFAULTS, RANGES = _load()
-except FileNotFoundError as _e:
+except (FileNotFoundError, ET.ParseError, PermissionError, IsADirectoryError) as _e:
     import sys as _sys
     _sys.stderr.write(
-        f"schema_defaults: schema XML missing — reinstall the .deb or "
-        f"run install.sh to populate it ({_e})\n"
+        f"schema_defaults: failed to load schema XML "
+        f"({type(_e).__name__}: {_e}) — reinstall the .deb or run install.sh\n"
     )
     raise

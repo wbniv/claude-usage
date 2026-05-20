@@ -541,6 +541,12 @@ class ClaudeIndicator extends PanelMenu.Button {
         });
     }
 
+    // LC-3 (pass-19): reachable from three contexts —
+    //   • normal flash-state transition (_anyCrit cleared)
+    //   • _startFlash (cleans up any previous flash before starting a new one)
+    //   • destroy() (via LC-2; _destroyed is already true here)
+    // The L-6 guard handles the destroy case; the cleanup is idempotent
+    // (no-op when _flashId is null).
     _stopFlash() {
         if (this._flashId) {
             GLib.source_remove(this._flashId);

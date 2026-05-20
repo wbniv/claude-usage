@@ -3,8 +3,12 @@ set -euo pipefail
 
 # RS-1 (pass-18): rsync is required for the transactional chrome-extension copy.
 # Bail loudly here rather than failing partway through the install.
+# RS-2 (pass-19): distro-agnostic install advice — the rest of install.sh
+# detects apt/dnf/pacman; the previous "sudo apt install" message was
+# misleading on Fedora/Arch.
 command -v rsync >/dev/null 2>&1 || {
-    echo "install.sh: rsync is required but not installed. Run: sudo apt install rsync" >&2
+    echo "install.sh: rsync is required but not installed." >&2
+    echo "    Install via your distribution's package manager (apt/dnf/pacman/zypper)." >&2
     exit 1
 }
 

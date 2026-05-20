@@ -38,7 +38,16 @@ python3 -m py_compile /usr/share/claude-usage/schema_defaults.py
 # VD-1: py_compile parses but doesn't execute imports. Actually load
 # schema_defaults so a missing/malformed schema XML fails CI loudly here,
 # not at first icon-render on a user's box.
-python3 -c "import sys; sys.path.insert(0, '/usr/share/claude-usage'); import schema_defaults; assert schema_defaults.DEFAULTS"
+# VD-2 (pass-19): assertion messages + a specific key check so a CI failure
+# tells you which guarantee broke. threshold_warning has historically been
+# the canary key (pass-17 DG-1 was an out-of-sync value for it).
+python3 -c "
+import sys; sys.path.insert(0, '/usr/share/claude-usage')
+import schema_defaults
+assert schema_defaults.DEFAULTS, 'schema_defaults.DEFAULTS empty — XML parsed but produced no keys'
+assert 'threshold_warning' in schema_defaults.DEFAULTS, \
+    'threshold_warning missing from schema_defaults.DEFAULTS — schema XML drift?'
+"
 bash -n /usr/bin/claude-usage-setup
 python3 -m py_compile /usr/bin/claude-usage-status
 # Removal must clear the system-wide schema (postrm)

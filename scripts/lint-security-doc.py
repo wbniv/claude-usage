@@ -48,13 +48,22 @@ def _https_hosts_from_manifest():
 
 
 def _https_urls_from_doc():
-    """Set of https:// URLs mentioned in SECURITY.md (any form)."""
+    """Set of https:// URLs in SECURITY.md, scoped to the outbound section.
+
+    SL-3 (pass-19): previously scanned the whole file, so incidental URLs
+    (GitHub issue links, RFC references) could mask a real divergence in
+    concert with H-1's substring bypass. Now we look only inside the
+    "outbound" paragraph block — bounded by the line "No outbound network
+    calls other than:" and the next blank line."""
     text = SECURITY.read_text()
+    m = re.search(
+        r'No outbound network calls other than:\s*\n((?:.+\n)+?)\n',
+        text,
+    )
+    section = m.group(1) if m else text  # fall back to whole-doc if heading missing
     found = set()
-    for m in re.finditer(r'https://[a-z0-9.\-/_?=&]+', text):
-        url = m.group(0).rstrip('.,;:)`')
-        # Same normalization as manifest side — drop trailing slash.
-        url = url.rstrip('/')
+    for hit in re.finditer(r'https://[a-z0-9.\-/_?=&]+', section):
+        url = hit.group(0).rstrip('.,;:)`').rstrip('/')
         found.add(url)
     return found
 

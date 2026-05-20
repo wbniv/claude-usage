@@ -406,17 +406,30 @@ def test_cache_reset_on_non_dict_prev():
     legacy schema, hand-edit), the merge layer must reset prev to {} rather
     than crashing on the dict-comprehension that strips unknown keys.
 
+    CV-2/CV-3 (pass-19): test originally included a `None` case that doesn't
+    exercise the reset path — `_do_post(prev_cache=None)` skips writing the
+    file entirely, hitting the no-prev branch. Dropped. Also strengthened
+    the assertions: verify meters lands in the cache, not just _scrape_fail_count.
+
     Before the fix: prev.items() raised AttributeError → every subsequent
     POST died until the user manually deleted usage.json. After the fix:
     the type check resets and the POST succeeds normally."""
-    # Each case is a JSON-valid root that's NOT a dict.
-    for bad_prev in ([], [1, 2, 3], 'not a dict', 42, None):
+    # Each case is a JSON-valid root that's NOT a dict. Excludes None
+    # because the test harness skips writing a None prev_cache to disk —
+    # which would test the no-prev path, not the reset path.
+    for bad_prev in ([], [1, 2, 3], 'not a dict', 42):
         result = _do_post(
             {'_scrape_fail_count': 1, 'meters': [{'pct': 9, 'label': 'x'}]},
             prev_cache=bad_prev,
         )
         assert result.get('_scrape_fail_count') == 1, (
             f'POST should succeed against corrupt prev={bad_prev!r}, got {result!r}')
+        assert result.get('meters') == [{'pct': 9, 'label': 'x'}], (
+            f'meters from body should land in cache after reset; '
+            f'corrupt prev={bad_prev!r}, got {result.get("meters")!r}')
+        assert '_schema' in result, (
+            f'server stamps _schema on every write; missing after reset path '
+            f'(corrupt prev={bad_prev!r})')
 
 
 def test_partial_post_does_not_wipe_period_lengths():

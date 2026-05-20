@@ -61,10 +61,11 @@ function addColorRow(group, settings, key, title, subtitle, isDockColor = false)
 // drift from the schema. Closes pass-17 PR-1 (prefs upper-bound stuck at 99
 // after 0.11.19 widened the schema to 500): one source of truth.
 //
-// PRECONDITION: `key` is a numeric (uint) key with an explicit <range>
-// element in the gschema. Calling on a string-typed key, or a numeric key
-// without <range>, throws a clear error rather than the underlying
-// "deepUnpack on non-tuple" stack trace (PR-2, PR-3 pass-18).
+// PRECONDITION: `key` has an explicit `<range>` element in the gschema.
+// Throws a clear error otherwise (PR-2, PR-3 pass-18). PR-4 (pass-19):
+// the rejection is "non-`<range>`-typed key" — strictly broader than
+// "non-numeric key". A uint key with `<choices>` (no `<range>`) would
+// also be rejected. Today only ranged keys are passed.
 function schemaRange(settings, key) {
     const k = settings.settings_schema.get_key(key);
     if (!k)

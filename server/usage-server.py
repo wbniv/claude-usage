@@ -553,12 +553,16 @@ def _sweep_orphan_tmps():
         if not directory.is_dir():
             return
         for orphan in directory.glob(pattern):
+            # OS-1 (pass-19): parse failure should NOT fall through to unlink.
+            # If the filename doesn't match our scheme, it's not ours to delete.
+            # (TS-2 was this exact failure mode wearing a different mask —
+            # parse raised, except passed, unlink ran on a live tmp.)
             try:
                 pid = int(orphan.name.split('.')[pid_position])
-                if Path(f'/proc/{pid}').exists():
-                    continue  # process still alive — not an orphan
             except (ValueError, IndexError):
-                pass
+                continue
+            if Path(f'/proc/{pid}').exists():
+                continue  # process still alive — not an orphan
             try:
                 orphan.unlink()
             except OSError:

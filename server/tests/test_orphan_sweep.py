@@ -14,6 +14,14 @@ from pathlib import Path
 
 import pytest
 
+# TS-3 (pass-19): the sweep's liveness check uses /proc/<pid>/ existence,
+# which is Linux-only. The product itself is Linux-only (.deb + GNOME), so
+# we skip this whole module rather than fail on macOS dev machines.
+pytestmark = pytest.mark.skipif(
+    not Path('/proc').is_dir(),
+    reason='_sweep_orphan_tmps uses /proc/<pid>; Linux-only',
+)
+
 REPO = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(REPO / 'server'))
 
