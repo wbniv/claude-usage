@@ -18,7 +18,7 @@ tasks:
       - python3 -m pytest server/tests/ -v
 
   lint-scraper-parity:
-    desc: "Verify scraper.js's exported parsers match background.js's inlined copies (SC-3: prevents the dual-implementation drift that ships green tests with broken prod scrape)"
+    desc: "Parity lints for hand-synced pairs: scraper.js↔background.js inline (regex sets) and pacingPct↔pacing_pct (numeric constants)"
     cmds:
       - python3 scripts/lint-scraper-parity.py
 
