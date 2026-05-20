@@ -20,6 +20,13 @@ REPO = Path(__file__).resolve().parent.parent
 SCHEMA = REPO / 'gnome-extension/schemas/org.gnome.shell.extensions.claude-usage.gschema.xml'
 OUT = REPO / 'gnome-extension/_defaults.js'
 
+# GD-1 (pass-23): import the gschema parser from server/schema_defaults
+# instead of duplicating it. JS-1's original landing inlined a copy of
+# `_parse_default` and `_kebab_to_snake`; the duplication recreated the
+# very drift surface JS-1 was meant to close.
+sys.path.insert(0, str(REPO / 'server'))
+from schema_defaults import _parse_default, _kebab_to_snake  # noqa: E402
+
 HEADER = """\
 // AUTO-GENERATED from gnome-extension/schemas/org.gnome.shell.extensions.claude-usage.gschema.xml
 // DO NOT HAND-EDIT — regenerate with `task gen-js-defaults`.
@@ -31,22 +38,6 @@ HEADER = """\
 // stay synced to the schema XML.
 
 """
-
-
-def _parse_default(text, type_attr):
-    """Mirror server/schema_defaults._parse_default's three-type handling."""
-    text = text.strip()
-    if type_attr == 's':
-        return text.strip("'\"")
-    if type_attr == 'u':
-        return int(text)
-    if type_attr == 'b':
-        return text.lower() == 'true'
-    raise ValueError(f'unsupported gschema type {type_attr!r}')
-
-
-def _kebab_to_snake(key):
-    return key.replace('-', '_')
 
 
 def _load():
@@ -88,7 +79,18 @@ def render(defaults):
 
 
 def main():
-    defaults = _load()
+    # GD-2 (pass-23): mirror schema_defaults.py's helpful-error wrapper.
+    # Malformed schema or missing file previously surfaced as a bare
+    # ParseError/FileNotFoundError traceback; emit a hint first.
+    try:
+        defaults = _load()
+    except (FileNotFoundError, ET.ParseError, PermissionError,
+            IsADirectoryError, ValueError, KeyError) as e:
+        sys.stderr.write(
+            f'gen-js-defaults: failed to load schema XML '
+            f'({type(e).__name__}: {e}) — reinstall the .deb or run install.sh\n'
+        )
+        raise
     content = render(defaults)
     if len(sys.argv) > 1 and sys.argv[1] == '--check':
         existing = OUT.read_text() if OUT.exists() else ''

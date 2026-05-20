@@ -18,8 +18,8 @@ No Critical/High/Medium. **8 Lows** (mostly maintenance + drift between sibling 
 | Low | 2 | ~~**PS‑1**~~ | ~~Parity lint covers `pacingPct↔pacing_pct` and `elapsedFraction↔elapsed_fraction` but NOT `pacingSegments↔pacing_segments` or `colorFor↔color_for` — the two functions with the most semantic surface in the viz port. Drift is invisible to CI.~~ | ✓ |
 | Low | 3 | ~~**EF‑1**~~ | ~~JS `elapsedFraction` is missing the `if (!meter) return null` guard the Python twin has. Parity lint only diffs numeric literals; structural divergence is undetected. Not currently exploitable (sole caller passes a non-null meter).~~ | ✓ |
 | Low | 4 | ~~**DR‑1**~~ | ~~`extension.js:14` comment points at `lint-js-defaults-parity.py` — a file that doesn't exist. Actual lint is `gen-js-defaults.py --check` invoked via `task lint-js-defaults`. Doc drift.~~ | ✓ |
-| Low | 5 | **GD‑1** | `scripts/gen-js-defaults.py:36-63` duplicates `_parse_default` + `_kebab_to_snake` from `server/schema_defaults.py`. The JS-1 SOT story has two parsers now; a future schema-type addition needs the same edit in both places. | ✓ |
-| Low | 6 | **GD‑2** | `gen-js-defaults.py` lacks the helpful-error wrapper `schema_defaults.py` grew over MD-2/MD-3/MD-4. Malformed XML produces a bare `ParseError` traceback rather than the "reinstall the .deb" hint its Python sibling emits. | ✓ |
+| Low | 5 | ~~**GD‑1**~~ | ~~`scripts/gen-js-defaults.py:36-63` duplicates `_parse_default` + `_kebab_to_snake` from `server/schema_defaults.py`. The JS-1 SOT story has two parsers now; a future schema-type addition needs the same edit in both places.~~ | ✓ |
+| Low | 6 | ~~**GD‑2**~~ | ~~`gen-js-defaults.py` lacks the helpful-error wrapper `schema_defaults.py` grew over MD-2/MD-3/MD-4. Malformed XML produces a bare `ParseError` traceback rather than the "reinstall the .deb" hint its Python sibling emits.~~ | ✓ |
 | Low | 7 | ~~**DR‑2**~~ | ~~`_doc_render.py:135-146` has a dead branch — the `is_count_only` check splits into two identical bodies. Either collapse or wire the split to actually do something different for count rows.~~ | ✓ |
 | Low | 8 | ~~**DR‑3**~~ | ~~`docs/investigations/2026-05-20-no-pass22-needed.md:20-22` lists JS-1/TT-1/UT-1 as carry-forward, but all three have landed since. Doc is historically accurate at write-time; reads as stale at HEAD.~~ | ✓ |
 | Info | 9 | ~~**GI‑1**~~ | ~~`.claude/scheduled_tasks.lock` is untracked + not in `.gitignore`. Per-process state; should be ignored.~~ | ✓ |
@@ -66,4 +66,26 @@ After: pass-24 fires per step 12.
 
 ## 9. Resolution log
 
-_To be populated after fixes land._
+All 8 Lows + 1 Info closed in 3 commits. TX-1 and CT-1 (Info) were assessed and intentionally left as-is — TX-1 is defensive plain-text fallback; CT-1's count-row blank bars match production extension.js behaviour and the stale comment was incidentally swept in DR-2.
+
+| ID | Title | Resolution |
+|----|-------|-----------|
+| **CAP‑1** | `cap()` had UT-1's surrogate-pair bug | `112d1f3` — code-point-aware via `[...s].slice(...).join('')` |
+| **EF‑1** | JS `elapsedFraction` missing null guard | `112d1f3` — `if (!meter) return null;` |
+| **DR‑1** | extension.js:14 referenced non-existent file | `112d1f3` — comment updated |
+| **DR‑2** | dead `is_count_only` branch in `_doc_render` | `112d1f3` — collapsed |
+| **DR‑3** | no-pass22 doc stale on carry-forward state | `112d1f3` — footer added |
+| **GI‑1** | `.claude/scheduled_tasks.lock` not gitignored | `112d1f3` — added to .gitignore |
+| **PS‑1** | parity lint missing pacingSegments + colorFor | `9d7c1eb` — pairs list extended (4 pairs now, popup-preview.py twin loaded) |
+| **GD‑1** | `gen-js-defaults.py` duplicates parser from `schema_defaults.py` | `<this commit>` — imports `_parse_default`, `_kebab_to_snake` from server/schema_defaults |
+| **GD‑2** | `gen-js-defaults.py` lacks helpful-error wrapper | `<this commit>` — mirrors schema_defaults.py's wrapper |
+| **TX‑1** | `formatRows.text` field dead on bar rows | kept as defensive fallback; no action |
+| **CT‑1** | Count rows render blank bar | confirmed matches extension.js; stale doc comment swept by DR-2 |
+
+Test suite: 96 server + 51 scraper = 147; 4 lints (added the two new pacing-parity pairs).
+
+---
+
+## 10. Loop status
+
+All findings closed. Pass-24 fires next per the slash command's step 12 to confirm these fixes didn't introduce regressions.
