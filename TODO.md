@@ -1,6 +1,7 @@
 # TODO
 
 ## Fixes
+- [ ] **Pacing visualization — tick + over-pace highlight.** Add a `┊` tick to bars/rings at the elapsed-fraction position when under-pace; split fills into normal/warn-color two-tone when over-pace. Applies to popup (`popup-preview.py` → `extension.js`) and dock icon (`generate-icon.py`). [Plan](docs/plans/2026-05-20-pacing-viz-tick-overpace.md).
 
 ## Deferred
 
