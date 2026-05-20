@@ -373,6 +373,11 @@ class ClaudeIndicator extends PanelMenu.Button {
         const panelColor = panelPacing >= tCrit ? panelCrit : panelPacing >= tWarn ? panelWarn : panelNorm;
         // If any meter is critical (even a non-primary one), force label red so
         // the user gets a signal even when watching a different metric.
+        // L-8 (pass-17): scans the UNFILTERED list intentionally — we want a
+        // crit signal from popup-hidden meters too (e.g. a Sonnet meter with
+        // non-zero pct that's pacing > tCrit). Today Sonnet-0% rows yield
+        // pacingPct=0 (short-circuit at line 88), so the visibility-filter
+        // case is functionally inert; the intent is to alarm on anything.
         const anyCrit = d.meters.some(m => pacingPct(m, periodLens) >= tCrit);
         const labelColor = anyCrit ? panelCrit : panelColor;
         this._label.set_text(`${pct}%`);

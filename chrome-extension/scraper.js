@@ -112,5 +112,18 @@ export function doScrape(textContent, extraToggleChecked = false) {
     }
   }
 
-  return { meters, plan, _timestamp: Math.floor(Date.now() / 1000) };
+  // L-2 (pass-17): if meters is empty AND the page text contains percent
+  // signs, the scrape ran on a page that probably HAD usage data but our
+  // English anchors (`Plan usage limits`, `Additional features`, etc.)
+  // didn't match — most likely a translated locale. Surface a distinguished
+  // signal so the panel-grey troubleshooter can say "set browser language
+  // to English" instead of "is the server running".
+  const _parse_failure = (meters.length === 0 && /\d+\s*%/.test(textContent))
+      ? 'locale_or_layout' : null;
+
+  return {
+      meters, plan,
+      _timestamp: Math.floor(Date.now() / 1000),
+      ...(_parse_failure && { _parse_failure }),
+  };
 }

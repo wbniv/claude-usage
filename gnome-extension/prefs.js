@@ -72,8 +72,19 @@ function addSpinRow(group, settings, key, title, subtitle, regen = false, holder
     const [lower, upper] = schemaRange(settings, key);
     const adj = new Gtk.Adjustment({lower, upper, step_increment: 1, value: settings.get_uint(key)});
     const row = new Adw.SpinRow({title, subtitle, adjustment: adj});
+    // L-4 (pass-17): debounce the GSettings write itself, not just the icon
+    // regen. Click-and-hold on the spinner used to fire set_uint per step
+    // (10+/sec), and each set_uint dispatches 'changed' synchronously to the
+    // main process, which re-runs the full popup _updateDisplay every step.
+    // 120 ms means held-down still feels responsive but each "stop spinning"
+    // is a single render.
+    let writeTimer = null;
     adj.connect('value-changed', () => {
-        settings.set_uint(key, Math.round(adj.get_value()));
+        if (writeTimer) clearTimeout(writeTimer);
+        writeTimer = setTimeout(() => {
+            writeTimer = null;
+            settings.set_uint(key, Math.round(adj.get_value()));
+        }, 120);
         if (regen && holder) {
             if (holder.regenTimer) clearTimeout(holder.regenTimer);
             holder.regenTimer = setTimeout(() => {

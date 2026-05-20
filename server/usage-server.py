@@ -89,6 +89,10 @@ _VALID_TOP_KEYS = frozenset({
     '_period_lengths',
     '_schema',
     '_buffered_at',                       # written by Chrome ext during offline-buffer flush
+    '_parse_failure',                     # L-2 (pass-17): scraper distinguishes
+                                          # locale/layout failure from "no data"
+                                          # so claude-usage-status can surface
+                                          # a useful cause for the grey panel.
 })
 
 
@@ -231,6 +235,11 @@ def _validate(body):
     sv = body.get('_schema')
     if sv is not None and (isinstance(sv, bool) or not isinstance(sv, int) or sv < 0 or sv > 1000):
         return "'_schema' must be a non-negative integer ≤ 1000"
+    # L-2 (pass-17): _parse_failure is a short enum-ish string ('locale_or_layout'
+    # today; future could add 'rate_limited', 'page_changed'). Bounded string.
+    err = _bounded_str(body.get('_parse_failure'), '_parse_failure')
+    if err:
+        return err
     # V-1 (pass-17): _buffered_at is whitelisted in _VALID_TOP_KEYS but was
     # never bounded — asymmetric with siblings (_timestamp, _scrape_fail_count
     # all enforce plausibility). It's epoch-ms per the Chrome ext.

@@ -60,6 +60,29 @@ async function getServerUrl({ forceProbe = false } = {}) {
 // a response missing the claude-usage signature header (squatter on the
 // cached port), invalidate the cache and re-probe once. 4xx WITH the signature
 // is treated as a real server response (validator rejection) — return the
+// O-1 (pass-17): observable error state. Default-title says "click to refresh
+// now"; this rewrites it after every postUpdate outcome so the user can hover
+// the toolbar icon and see whether the last cycle succeeded — and if not, why.
+// First line of triage when the GNOME panel goes grey: hover the Chrome icon.
+async function setActionStatus(kind, meterCount, errorMsg) {
+  if (typeof chrome === 'undefined' || !chrome.action) return;
+  const stamp = new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+  let title;
+  if (kind === 'ok') {
+    title = `Claude Usage: OK · ${meterCount} meters · last fetch ${stamp}`;
+  } else if (kind === 'rejected') {
+    title = `Claude Usage: ⚠ local server rejected payload (${errorMsg}) at ${stamp}\n`
+          + `Check: journalctl --user-unit=claude-usage-fetch.service`;
+  } else if (kind === 'unavailable') {
+    title = `Claude Usage: ⚠ local server unreachable at ${stamp}\n`
+          + `Check: systemctl --user status claude-usage-fetch.service`;
+  } else {
+    title = `Claude Usage: ⚠ ${kind} at ${stamp}`;
+  }
+  try { await chrome.action.setTitle({title}); } catch (_) {}
+}
+
+
 // Response so callers can decide whether to discard the payload. Throws only
 // if both attempts fail.
 async function postUpdate(body) {
@@ -274,7 +297,17 @@ async function scrapeAndPost(tabId) {
           }
         }
 
-        return { meters, plan, _timestamp: Math.floor(Date.now() / 1000) };
+        // L-2 (pass-17): empty meters + page-has-percent ⇒ likely a translated
+        // locale or layout change that defeated our English anchors. Signal so
+        // claude-usage-status can surface a useful cause instead of "no data".
+        const text = document.body.innerText;
+        const _parse_failure = (meters.length === 0 && /\d+\s*%/.test(text))
+            ? 'locale_or_layout' : null;
+        return {
+            meters, plan,
+            _timestamp: Math.floor(Date.now() / 1000),
+            ...(_parse_failure && { _parse_failure }),
+        };
       }
 
       if (isHydrated()) { resolve(doScrape()); return; }
@@ -336,6 +369,10 @@ async function scrapeAndPost(tabId) {
     const resp = await postUpdate(data);
     if (!resp.ok) throw new Error(`server ${resp.status}`);
     console.log(`Claude Usage: sent ${data.meters.length} meters to local server`);
+    // O-1 (pass-17): observable error state. Hovering the toolbar icon now
+    // shows the last outcome, so a stale GNOME panel can be triaged from
+    // inside Chrome without opening the SW DevTools.
+    await setActionStatus('ok', data.meters.length);
   } catch (e) {
     // 4xx with the claude-usage signature means the server is up but rejected
     // the payload (validator caught something). Route the user to the journal,
@@ -343,8 +380,10 @@ async function scrapeAndPost(tabId) {
     if (e.message?.startsWith('server 4')) {
       console.warn('Claude Usage: server rejected POST:', e.message,
                    '— see journalctl --user-unit=claude-usage-fetch.service');
+      await setActionStatus('rejected', null, e.message);
     } else {
       console.warn('Claude Usage: local server unavailable, buffering offline:', e.message);
+      await setActionStatus('unavailable', null, e.message);
     }
     await chrome.storage.local.set({ claude_usage: { ...data, _buffered_at: Date.now() } });
   }
