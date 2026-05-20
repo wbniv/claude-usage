@@ -56,16 +56,15 @@ async function getServerUrl({ forceProbe = false } = {}) {
   return `http://127.0.0.1:${port}/update`;
 }
 
-// POST to the local server with auto-rediscovery. On network error, 5xx, or
-// a response missing the claude-usage signature header (squatter on the
-// cached port), invalidate the cache and re-probe once. 4xx WITH the signature
-// is treated as a real server response (validator rejection) — return the
-// AR-2 (pass-20): declared up here so restoreActionStatus()'s top-level
-// invocation can read it without hitting the Temporal Dead Zone. AR-1
-// added an `if (_fetching) return;` to restoreActionStatus, but at module
-// load the top-level `restoreActionStatus()` call runs synchronously
-// before `let _fetching = false;` was reached — ReferenceError, unhandled
-// rejection, AT-2 broken on every SW wake.
+// ── module-scope mutable flags (declared here for TDZ-safety) ───────────────
+//
+// AR-2 (pass-20): these declarations live ABOVE setActionStatus /
+// restoreActionStatus because restoreActionStatus() is called at module
+// top-level and reads `_fetching` synchronously. With the declarations
+// below the call site, the `let` would be in the Temporal Dead Zone at
+// read time → ReferenceError → unhandled rejection → AT-2 broken on every
+// SW wake.
+
 let _fetching = false;
 // One-shot guard for the tabs.query swallow in fetchUsage. If Chrome ever
 // tightens permission semantics so tabs.query throws, we'd otherwise silently
@@ -73,10 +72,12 @@ let _fetching = false;
 let _tabQueryWarned = false;
 
 
-// O-1 (pass-17): observable error state. Default-title says "click to refresh
-// now"; this rewrites it after every postUpdate outcome so the user can hover
-// the toolbar icon and see whether the last cycle succeeded — and if not, why.
-// First line of triage when the GNOME panel goes grey: hover the Chrome icon.
+// ── observable error state (O-1, pass-17) ───────────────────────────────────
+//
+// Default-title says "click to refresh now"; this rewrites it after every
+// postUpdate outcome so the user can hover the toolbar icon and see whether
+// the last cycle succeeded — and if not, why. First line of triage when the
+// GNOME panel goes grey: hover the Chrome icon.
 /**
  * Update the toolbar-icon tooltip after every postUpdate outcome.
  *
@@ -150,6 +151,10 @@ async function restoreActionStatus() {
 restoreActionStatus();
 
 
+// POST to the local server with auto-rediscovery. On network error, 5xx, or
+// a response missing the claude-usage signature header (squatter on the
+// cached port), invalidate the cache and re-probe once. 4xx WITH the signature
+// is treated as a real server response (validator rejection) — return the
 // Response so callers can decide whether to discard the payload. Throws only
 // if both attempts fail.
 async function postUpdate(body) {

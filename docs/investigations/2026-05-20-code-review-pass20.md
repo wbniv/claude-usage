@@ -105,7 +105,7 @@ All 5 findings closed in 2 commits. The strikethrough markers in the §1 executi
 | **CV‑4** | Cache-reset test exact-equality too brittle | `e2a6256` — subset check on meters |
 | **MD‑4** | schema_defaults except still missed ValueError/KeyError | `e2a6256` — added both to the tuple |
 
-Test suite: 94 server + 50 scraper + 1 background-load = 95 + 50 = 145 (was 94 + 50). 3 lints still green.
+Test suite: 95 server + 51 scraper = 146 (was 94 + 50 = 144; +1 OS-2, +1 background-load smoke). 3 lints still green. _DC-2 (pass-21) corrected the previous arithmetic._
 
 ---
 

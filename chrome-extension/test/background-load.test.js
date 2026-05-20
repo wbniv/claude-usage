@@ -98,16 +98,18 @@ describe('background.js — load-time invariants', () => {
       vm.runInContext(src, context, {filename: 'background.js'});
     } catch (e) {
       topLevelError = e;
-    } finally {
-      process.off('unhandledRejection', rejectionHandler);
     }
 
     assert.equal(topLevelError, null,
       `background.js threw at module load: ${topLevelError?.message}`);
 
     // Drain the microtask queue so any unhandled rejection from top-level
-    // async calls (restoreActionStatus(), etc.) surfaces.
+    // async calls (restoreActionStatus(), etc.) surfaces. BL-1 (pass-21):
+    // remove the handler AFTER the drain — previously the finally above
+    // removed it synchronously, before any rejection could fire, leaving
+    // the assertion's diagnostic message unreachable.
     return new Promise((resolve) => setTimeout(() => {
+      process.off('unhandledRejection', rejectionHandler);
       assert.equal(unhandledRejection, null,
         `background.js produced an unhandled rejection at load: ${unhandledRejection?.message}`);
       resolve();
