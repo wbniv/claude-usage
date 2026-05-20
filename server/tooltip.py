@@ -133,11 +133,18 @@ def update_desktop(meters, scrape_ts=None):
     text = DESKTOP.read_text()
     out = []
     saw_name = saw_icon = False
+    # UD-1 (pass-26): only rewrite Name=/Icon= inside [Desktop Entry], not
+    # inside [Desktop Action ...] subgroups which have their own Name= lines.
+    in_main_section = True
     for line in text.splitlines():
-        if line.startswith('Name='):
+        if line.startswith('[') and line.endswith(']'):
+            in_main_section = (line == '[Desktop Entry]')
+            out.append(line)
+            continue
+        if in_main_section and line.startswith('Name='):
             out.append(f'Name={name}')
             saw_name = True
-        elif line.startswith('Icon='):
+        elif in_main_section and line.startswith('Icon='):
             # Stable icon-theme name. Resolves via XDG icon lookup to
             # ~/.local/share/icons/hicolor/128x128/apps/claude-usage.png
             # (written by generate-icon.py) with /usr/share/pixmaps/claude-usage.png

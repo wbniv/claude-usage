@@ -6,11 +6,6 @@ from pathlib import Path
 
 import tooltip
 
-# Auto-reap exited child processes (generate-icon.py spawns). The Popen
-# objects are discarded after dispatch, so without SIGCHLD ignored the
-# kernel keeps zombies around until the next subprocess._cleanup() sweep.
-signal.signal(signal.SIGCHLD, signal.SIG_IGN)
-
 _CACHE_HOME = Path(os.environ.get('XDG_CACHE_HOME') or Path.home() / '.cache')
 _DATA_HOME  = Path(os.environ.get('XDG_DATA_HOME')  or Path.home() / '.local' / 'share')
 OUTPUT        = _CACHE_HOME / 'claude-usage' / 'usage.json'
@@ -118,6 +113,8 @@ def _validate(body):
     if not isinstance(body, dict):
         return "body must be a JSON object"
     meters = body.get('meters')
+    if 'meters' in body and meters is None:
+        return "'meters' must not be null (omit the key to indicate no meter data)"
     if meters is not None:
         if not isinstance(meters, list):
             return "'meters' must be a list when present"
@@ -375,6 +372,16 @@ class Handler(BaseHTTPRequestHandler):
                 prev = {k: v for k, v in prev.items() if k in _VALID_TOP_KEYS}
                 body = {k: v for k, v in body.items() if k in _VALID_TOP_KEYS}
 
+                # ACC-1 (pass-26): capture whether the INCOMING request carries a
+                # timestamp and its meter count BEFORE the merge. After
+                # {**prev, **body} + auto-timestamp fill, body['_timestamp'] is
+                # never None, so using it for is_full_scrape made the timestamp
+                # conjunct a tautology — only len(meters) >= 2 actually gated
+                # eviction. A bogus 2-meter POST could wipe accumulated
+                # period_lengths. Fix: compute from pre-merge incoming values.
+                _incoming_has_ts = ('_timestamp' in body) or ('timestamp' in body)
+                _incoming_meters = body.get('meters') if isinstance(body.get('meters'), list) else []
+
                 # Period-lengths merge: start from prev's accumulated dict and
                 # dict-update with body's _period_lengths if present, NEVER
                 # replace with an empty/missing one. A naive {**prev, **body}
@@ -415,11 +422,9 @@ class Handler(BaseHTTPRequestHandler):
                 # always ships ≥ 2 meters on the usage page, so `_timestamp set
                 # AND meters ≥ 2` is a reliable "this is a real scrape, not a
                 # status-only POST" signal.
+                # ACC-1 (pass-26): use pre-merge _incoming_has_ts / _incoming_meters.
                 current_labels = {m.get('label') for m in body.get('meters', []) or [] if m.get('label')}
-                is_full_scrape = (
-                    body.get('_timestamp') is not None
-                    and len(body.get('meters', []) or []) >= 2
-                )
+                is_full_scrape = _incoming_has_ts and len(_incoming_meters) >= 2
                 if current_labels and is_full_scrape:
                     period_lengths = {k: v for k, v in period_lengths.items() if k in current_labels}
                 body['_period_lengths'] = period_lengths
@@ -584,6 +589,13 @@ def _sweep_orphan_tmps():
 
 
 if __name__ == '__main__':
+    # SC-1 (pass-26): install SIGCHLD handler here, not at module import. The
+    # server is only ever run directly; keeping this at import-time silently
+    # mutates the global handler in every test process that exec_modules this
+    # file. Auto-reap exited child processes (generate-icon.py spawns). The
+    # Popen objects are discarded after dispatch, so without SIGCHLD ignored
+    # the kernel keeps zombies around until the next subprocess._cleanup() sweep.
+    signal.signal(signal.SIGCHLD, signal.SIG_IGN)
     _sweep_orphan_tmps()
     server, port = _bind()
     _write_port_file(port)
