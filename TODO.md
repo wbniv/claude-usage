@@ -2,10 +2,14 @@
 
 ## Fixes
 - [ ] **Pacing visualization — tick + over-pace highlight.** Add a `┊` tick to bars/rings at the elapsed-fraction position when under-pace; split fills into normal/warn-color two-tone when over-pace. Applies to popup (`popup-preview.py` → `extension.js`) and dock icon (`generate-icon.py`). [Plan](docs/plans/2026-05-20-pacing-viz-tick-overpace.md).
+- [ ] **JS-1 (pass-18):** add a CI lint that cross-checks `extension.js`'s `safeColor` fallback hex literals against `server/schema_defaults.py`. JS can't import the Python SOT directly; could grep both sides, or generate a `_defaults.js` from the gschema XML at build time. Design call. [Review](docs/investigations/2026-05-20-code-review-pass18.md).
+- [ ] **TT-1 (pass-18):** `tooltip.format_tooltip`'s "no recognisable meters" stderr warning fires every 60 s from `_tooltip_tick` (1440/day) if claude.ai ever renames its meter labels in a way our substring match misses. Either move the log to a one-shot caller, throttle, or remove. Pre-existing, surfaced by the new test. [Review](docs/investigations/2026-05-20-code-review-pass18.md).
+- [ ] **UT-1 (pass-18):** Statuspage description `.slice(0, 117)` cuts by UTF-16 code unit; a surrogate-pair split produces invalid UTF-16. Theoretical (English Statuspage today). Move to code-point-aware truncation if Anthropic localises status descriptions. [Review](docs/investigations/2026-05-20-code-review-pass18.md).
 
 ## Deferred
 
 ## Done
+- [x] 2026-05-20 — Pass-18 landing: closed 23 of 26 findings in 6 commits (`a1c012e`..`cd81ca5`); 3 deferred (JS-1, TT-1, UT-1 — design calls). Headline: TS-2 critical (orphan sweep PID-guard bypassed by wrong field index, silently deleting live in-flight tmps — a regression I introduced in pass-17 MS-1). New CI lint: `lint-security-doc.py`. Suite: 87 → 94. [Review](docs/investigations/2026-05-20-code-review-pass18.md).
 - [x] 2026-05-20 — Pass-17 full landing: all 39 findings closed in 10 commits (`6533877`..`282a996`). Architectural change: `server/schema_defaults.py` is now the SOT for every gschema-tied constant; 8 drift findings collapsed at once. Test suite: 57 → 87. [Review](docs/investigations/2026-05-20-code-review-pass17.md).
 - [x] 2026-05-20 — Dock icon size fix: `generate-icon.py` now emits at 48/64/96/128/256 hicolor sizes (was 128 only) so XDG lookup stops falling through to the .deb's ringless 64x64 baseline; auto-rebuilds the user-local icon-theme cache when a new size dir appears. Commits: `da6a2ac` (multi-size), `0dc6243` (cache refresh).
 - [x] 2026-05-20 — Pacing parity lint: extended `scripts/lint-scraper-parity.py` to compare numeric constants in `pacingPct` (extension.js) vs `pacing_pct` (generate-icon.py); catches constant drift on `15`, `0.05`, etc.

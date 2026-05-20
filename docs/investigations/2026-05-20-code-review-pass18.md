@@ -189,4 +189,38 @@ python3 -c "import sys; sys.path.insert(0, '/usr/share/claude-usage'); import sc
 
 ## 9. Resolution log
 
-_To be populated after fixes land._
+23 of 26 findings closed in 6 commits since the review (`a1c012e..cd81ca5`). Three deferred as TODO entries — all are design decisions, not mechanical fixes.
+
+| ID | Title | Resolution |
+|----|-------|-----------|
+| **TS‑2**  | orphan-sweep PID guard bypassed | `a1c012e` + 5-test regression suite (`test_orphan_sweep.py`) |
+| **DT‑1**  | derive_tier on non-int sfc | `3d6f2a2` + 4 test cases in `test_icon.py` |
+| **PT‑1**  | prefs window-close timer leak | `3d6f2a2` (per-row Set tracked on holder, drained on close-request) |
+| **OT‑1**  | setActionStatus at only 1 of 4 sites | `abdc37b` — now at all 4 with kinds: partial / recovered / scrape-failed |
+| **L2‑2**  | _parse_failure has no consumer | `ff8ba90` — wired into claude-usage-status |
+| **VD‑1**  | py_compile doesn't catch import | `ff8ba90` — test-deb-verify.sh now imports schema_defaults |
+| **MD‑1**  | M-1 docstring overclaim | `2d1185a` — reworded to "shrinks from … to … — not zero" |
+| **MD‑2**  | schema_defaults bare import error | `2d1185a` — wrap with stderr hint |
+| **SD‑1**  | SECURITY.md outbound-URL has no CI guard | `cd81ca5` — new `scripts/lint-security-doc.py`, wired into `task test` |
+| **PF‑1**  | _parse_failure predicate too wide | `2d1185a` — tightened to `\d+\s*%\s*used` |
+| **MV‑1**  | version unchanged after permission change | `2d1185a` — `task bump NEW=0.11.20` |
+| **AT‑1**  | setActionStatus title unbounded | `abdc37b` — cap errorMsg at 80 chars |
+| **AT‑2**  | setActionStatus doesn't survive SW restart | `abdc37b` — persist+restore via chrome.storage.local |
+| **PR‑2/3** | schemaRange lacks defensive guards | `2d1185a` — clear errors on no-range / unknown key |
+| **RL‑1**  | pass-17 resolution log overclaim | `2d1185a` — pass-17 doc amended |
+| **LC‑2**  | destroy() inlines partial _stopFlash | `3d6f2a2` — replace with `this._stopFlash()` |
+| **LL‑1**  | L-9 missing _clearMetricIdleId ordering note | `cd81ca5` — comment extended |
+| **CE‑1**  | cancelled load logs as generic error | `cd81ca5` — special-case Gio.IOErrorEnum.CANCELLED |
+| **ID‑1**  | rsync --delete clobbers user edits | `cd81ca5` — install.sh comment |
+| **UG‑1**  | uninstall glob matches by name | `cd81ca5` — install.sh comment about namespace |
+| **RP‑1**  | render-panel can overflow >100 | `cd81ca5` — `min(99, threshold_warning + 4)` |
+| **BA‑1**  | _buffered_at float arithmetic | `cd81ca5` — int() the anchor |
+| **RS‑1**  | rsync prereq not asserted | `cd81ca5` — install.sh fails loudly at start if missing |
+| **CV‑1**  | CM-1 reset path unguarded by test | `cd81ca5` — new `test_cache_reset_on_non_dict_prev` |
+| **JS‑1**  | safeColor JS-side drift surface | **deferred** → [TODO](../../TODO.md) — needs design decision (JS lint or generate `_defaults.js` from schema) |
+| **TT‑1**  | format_tooltip stderr spam | **deferred** → [TODO](../../TODO.md) — design call on log throttling |
+| **UT‑1**  | UTF-16 surrogate-split | **deferred** → [TODO](../../TODO.md) — theoretical; English Statuspage today |
+
+Test suite: 87 → 94. Lints: 2 → 3 (added `lint-security-doc`).
+
+**Lessons for next pass:** the test stub setup (XDG_DATA_HOME tempdir + cairo/PIL stubs) is duplicated across `test_pacing.py`, `test_schema_defaults.py`, `test_icon.py`. A shared `conftest.py` would deduplicate ~30 lines × 3 files. Not a finding — just an opportunity. The new `test_orphan_sweep.py` skipped the stub block by using a `tmp_path` + `monkeypatch` fixture pattern; that's cleaner and probably worth migrating the others to.
