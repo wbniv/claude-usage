@@ -95,4 +95,20 @@ After those land, **loop** — pass-21 should fire to confirm the AR-2 fix didn'
 
 ## 9. Resolution log
 
-_To be populated after fixes land._
+All 5 findings closed in 2 commits. The strikethrough markers in the §1 executive summary table were applied live as each fix landed (per the slash-command step 5 addition in `4cb1a6d`).
+
+| ID | Title | Resolution |
+|----|-------|-----------|
+| **AR‑2** | TDZ `ReferenceError` killed AT-2 on every SW load | `8ca7b9a` — declarations moved above `restoreActionStatus`; new `chrome-extension/test/background-load.test.js` as regression guard |
+| **SS‑1** | SL-3 regex silently falls back on EOF/no-blank-line | `e2a6256` — terminate on `\n\s*\n` or `\Z`; raise loudly when heading present but match fails |
+| **OS‑2** | OS-1 had no regression test | `e2a6256` — `test_sweep_preserves_unparseable_filenames` |
+| **CV‑4** | Cache-reset test exact-equality too brittle | `e2a6256` — subset check on meters |
+| **MD‑4** | schema_defaults except still missed ValueError/KeyError | `e2a6256` — added both to the tuple |
+
+Test suite: 94 server + 50 scraper + 1 background-load = 95 + 50 = 145 (was 94 + 50). 3 lints still green.
+
+---
+
+## 10. Loop status
+
+Pass-20 closed every substantive finding. Per the slash-command step 12, **pass-21 fires next** on this commit's HEAD to confirm the AR-2 fix didn't introduce regressions. Expected: either step 2's `<3 commits` fires (we have ~5 commits ahead) → not this time, OR pass-21 surfaces nothing → loop terminates.
