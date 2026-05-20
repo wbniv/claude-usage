@@ -319,6 +319,12 @@ class ClaudeIndicator extends PanelMenu.Button {
                 }
                 this._updateDisplay();
             } catch (e) {
+                // CE-1 (pass-18): cancellation is the normal path when a
+                // new _loadData fires while the previous read is in flight
+                // (file monitor coalescing). Don't log it as an error —
+                // it would spam journalctl on every rapid file change.
+                if (e.matches?.(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED))
+                    return;
                 console.error('ClaudeUsage: failed to read cache', e);
             }
         });
@@ -567,10 +573,15 @@ class ClaudeIndicator extends PanelMenu.Button {
             // _updateDisplay() and trigger a duplicate render in the same tick.
             // Guarded so a clear in flight doesn't queue a second clear.
             // LC-1 (pass-17): store the source ID so destroy() can cancel it.
-            // L-9 (pass-17): _clearingMetric = false MUST come before set_string
-            // — set_string fires 'changed' synchronously and re-enters
-            // _updateDisplay → _getPrimary, which would otherwise see the guard
-            // still true and skip its own clear, locking the recovery path.
+            // L-9 (pass-17), LL-1 (pass-18): two ordering invariants inside
+            // this callback are load-bearing for re-entrance correctness:
+            //   • `_clearMetricIdleId = null` MUST come BEFORE set_string —
+            //     set_string fires 'changed' synchronously and re-enters
+            //     _updateDisplay → _getPrimary; clearing the id first means
+            //     re-entry can't see a stale handle.
+            //   • `_clearingMetric = false` MUST also come BEFORE set_string —
+            //     otherwise the re-entrant _getPrimary skips its own clear,
+            //     locking the orphan-recovery path forever.
             if (!this._clearingMetric) {
                 this._clearingMetric = true;
                 this._clearMetricIdleId = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {

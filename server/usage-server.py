@@ -243,11 +243,14 @@ def _validate(body):
     # V-1 (pass-17): _buffered_at is whitelisted in _VALID_TOP_KEYS but was
     # never bounded — asymmetric with siblings (_timestamp, _scrape_fail_count
     # all enforce plausibility). It's epoch-ms per the Chrome ext.
+    # BA-1 (pass-18): int() the comparison anchor to mirror _timestamp's
+    # pure-int comparison style (cosmetic — floats at epoch-ms magnitude
+    # have ~0.0002 ms precision, well under bound resolution).
     ba = body.get('_buffered_at')
     if ba is not None:
         if isinstance(ba, bool) or not isinstance(ba, (int, float)):
             return "'_buffered_at' must be a number"
-        now_ms = time.time() * 1000
+        now_ms = int(time.time() * 1000)
         if not (now_ms - 365 * 86400 * 1000 < ba < now_ms + 86400 * 1000):
             return "'_buffered_at' implausibly far from server time"
     return None

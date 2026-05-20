@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# RS-1 (pass-18): rsync is required for the transactional chrome-extension copy.
+# Bail loudly here rather than failing partway through the install.
+command -v rsync >/dev/null 2>&1 || {
+    echo "install.sh: rsync is required but not installed. Run: sudo apt install rsync" >&2
+    exit 1
+}
+
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # XDG base directories (with spec defaults)
@@ -46,6 +53,8 @@ uninstall() {
     # Pass-17 I-1: generate-icon.py emits at 48/64/96/128/256 (commit da6a2ac).
     # Glob over all of them so the source-install uninstall matches MANUAL.md's
     # cleanup recipe. Also clear the user-local icon-theme.cache.
+    # UG-1 (pass-18): matches by filename; `claude-usage` is the IconName we
+    # registered for the .desktop launcher and we own it.
     rm -f "$XDG_DATA_HOME"/icons/hicolor/*/apps/claude-usage.png
     rm -f "$XDG_DATA_HOME/icons/hicolor/icon-theme.cache"
     gtk-update-icon-cache -f "$XDG_DATA_HOME/icons/hicolor/" 2>/dev/null || true
@@ -140,6 +149,10 @@ echo "  ✓ Diagnostics installed — run 'claude-usage-status' to check service
 # (CWS zip already excludes via build-chrome-zip.sh). P-1 (pass-17): rsync
 # --exclude does this in one transactional op — no cp-then-rm window where
 # test/ briefly exists at the destination.
+# ID-1 (pass-18): `--delete` removes anything in $SERVER_DIR/chrome-extension/
+# that isn't in the source. If you hand-edit installed files (debug console.log
+# in background.js, drop-in temp files), they'll be wiped on next install.sh
+# run — that's intentional, and the only way to make the install reproducible.
 mkdir -p "$SERVER_DIR/chrome-extension"
 rsync -a --delete --exclude='test/' "$REPO_DIR/chrome-extension/" \
     "$SERVER_DIR/chrome-extension/"

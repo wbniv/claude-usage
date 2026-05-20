@@ -22,12 +22,18 @@ tasks:
     cmds:
       - python3 scripts/lint-scraper-parity.py
 
+  lint-security-doc:
+    desc: "SD-1 (pass-18): assert SECURITY.md's outbound-URL claim matches chrome-extension/manifest.json host_permissions"
+    cmds:
+      - python3 scripts/lint-security-doc.py
+
   test:
-    desc: Run all unit tests (scraper + validator + scraper parity lint)
+    desc: Run all unit tests + parity/security lints
     cmds:
       - task: test-scraper
       - task: test-validate
       - task: lint-scraper-parity
+      - task: lint-security-doc
 
   build:
     desc: Build the .deb package

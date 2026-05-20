@@ -401,6 +401,24 @@ def test_unknown_top_level_keys_filtered_from_cache():
     assert 'A' in (result.get('_period_lengths') or {}), "legit period_lengths must survive"
 
 
+def test_cache_reset_on_non_dict_prev():
+    """CM-1 (pass-17): if the cache file's JSON root is not a dict (corruption,
+    legacy schema, hand-edit), the merge layer must reset prev to {} rather
+    than crashing on the dict-comprehension that strips unknown keys.
+
+    Before the fix: prev.items() raised AttributeError → every subsequent
+    POST died until the user manually deleted usage.json. After the fix:
+    the type check resets and the POST succeeds normally."""
+    # Each case is a JSON-valid root that's NOT a dict.
+    for bad_prev in ([], [1, 2, 3], 'not a dict', 42, None):
+        result = _do_post(
+            {'_scrape_fail_count': 1, 'meters': [{'pct': 9, 'label': 'x'}]},
+            prev_cache=bad_prev,
+        )
+        assert result.get('_scrape_fail_count') == 1, (
+            f'POST should succeed against corrupt prev={bad_prev!r}, got {result!r}')
+
+
 def test_partial_post_does_not_wipe_period_lengths():
     """PL-1: a single-meter POST without _timestamp / with < 2 meters should
     NOT evict the period_lengths accumulator. Previously, any POST with

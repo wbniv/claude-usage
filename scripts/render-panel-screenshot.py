@@ -31,8 +31,10 @@ PANEL_ICON  = REPO / 'gnome-extension' / 'icons' / 'claude-22.png'
 # PCT_VALUE is chosen to land between the schema's warn/crit thresholds so
 # the rendered strip exercises the colour-flip the surrounding MANUAL prose
 # discusses. Reading the threshold from the schema means a future schema
-# tweak (e.g. crit lowered to 80) still produces a warning-tier render.
-PCT_VALUE = _SCHEMA['threshold_warning'] + 4
+# tweak still produces a warning-tier render.
+# RP-1 (pass-18): cap at 99 so the rendered strip never reads "100%+" if
+# threshold_warning ever climbs above 96 in a future schema edit.
+PCT_VALUE = min(99, _SCHEMA['threshold_warning'] + 4)
 PANEL_WARN_COLOR = _SCHEMA['panel_color_warning']
 
 
