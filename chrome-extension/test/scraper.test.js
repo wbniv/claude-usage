@@ -329,3 +329,62 @@ describe('doScrape — Section 3 (Extra usage)', () => {
     assert.equal(extra.pct, 0);  // 99% was after boundary; pct still null → defaults to 0
   });
 });
+
+
+// ── doScrape — _parse_failure signal (PF-2, pass-19) ──────────────────────────
+//
+// PF-1 (pass-18) tightened the predicate from `/\d+\s*%/` to
+// `/\d+\s*%\s*used/i`. Without these tests, a regression that loosens or
+// breaks the predicate lands green. The signal is the panel-grey
+// troubleshooting hint surfaced by claude-usage-status.
+
+describe('doScrape — _parse_failure', () => {
+  it('emits locale_or_layout when meters is empty but page has "% used" text', () => {
+    // Page text has a usage-shaped meter but doesn't match the English
+    // section anchors (`Plan usage limits` etc.) — simulating a locale
+    // where Anthropic has translated the section headers.
+    const text = [
+      'Some translated header',
+      '85% used',
+      'Some translated footer',
+    ].join('\n');
+    const { meters, _parse_failure } = doScrape(text);
+    assert.equal(meters.length, 0);
+    assert.equal(_parse_failure, 'locale_or_layout');
+  });
+
+  it('matches the spaced form "5 % used"', () => {
+    const text = 'Foo\n5 % used\nBar';
+    const { _parse_failure } = doScrape(text);
+    assert.equal(_parse_failure, 'locale_or_layout');
+  });
+
+  it('matches case-insensitive "Used"', () => {
+    const text = 'Foo\n42% Used\nBar';
+    const { _parse_failure } = doScrape(text);
+    assert.equal(_parse_failure, 'locale_or_layout');
+  });
+
+  it('does NOT fire on marketing copy with "% off" (no "used")', () => {
+    const text = 'Save 20% off our annual plans';
+    const { meters, _parse_failure } = doScrape(text);
+    assert.equal(meters.length, 0);
+    assert.equal(_parse_failure, undefined,
+      '_parse_failure should be omitted, not set, when only marketing % is present');
+  });
+
+  it('does NOT fire when meters are present (regardless of other % text)', () => {
+    const text = makePageText({
+      plan: 'Pro',
+      section1: [
+        'Claude.ai Current session',
+        'Resets in 1 hr 0 min',
+        '50% used',
+      ],
+      section3: ['Save 50% off this week'],  // marketing % present too
+    });
+    const { meters, _parse_failure } = doScrape(text, true);
+    assert.ok(meters.length > 0);
+    assert.equal(_parse_failure, undefined);
+  });
+});

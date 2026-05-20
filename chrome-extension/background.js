@@ -103,11 +103,21 @@ async function setActionStatus(kind, meterCount, errorMsg) {
 // AT-2 (pass-18): re-apply the last tooltip on SW startup. Called at
 // top-level so every SW wake (cold start, alarm fire after dormancy)
 // restores observable state.
+//
+// AR-1 (pass-19): guard against the race where the SW wake that triggers
+// us is the same wake that's about to call setActionStatus. Without the
+// guard, the worst-case interleaving is: restore's storage.get resolves
+// → fresh setActionStatus runs and writes → restore's later setTitle
+// overwrites with the stale title. We check `_fetching` both before and
+// after the storage read so a live fetch's setActionStatus wins.
 async function restoreActionStatus() {
   if (typeof chrome === 'undefined' || !chrome.action) return;
+  if (_fetching) return;
   try {
     const {_last_action_title} = await chrome.storage.local.get('_last_action_title');
-    if (_last_action_title) await chrome.action.setTitle({title: _last_action_title});
+    if (_last_action_title && !_fetching) {
+      await chrome.action.setTitle({title: _last_action_title});
+    }
   } catch (_) {}
 }
 restoreActionStatus();
@@ -373,7 +383,17 @@ async function scrapeAndPost(tabId) {
       _anthropic_status: anthropic_status,
       _ext_version: EXT_VERSION,
     };
-    try { await postUpdate(partial); } catch (_) {}
+    // LP-1 (pass-19): the scraper sets `_parse_failure` exactly when
+    // meters is empty AND the page text looks like it should have had
+    // meters (the `\d+\s*%\s*used` heuristic). The partial POST below
+    // is the only path that fires when scraping returned no meters, so
+    // it's the only path that can carry the signal to the server cache.
+    // Without this propagation, the L2-2 consumer in claude-usage-status
+    // never sees the field — the whole feature was dead before this fix.
+    const partial_with_pf = data?._parse_failure
+        ? { ...partial, _parse_failure: data._parse_failure }
+        : partial;
+    try { await postUpdate(partial_with_pf); } catch (_) {}
     // OT-1 (pass-18): empty-meters path — tell the user the scrape ran
     // but found nothing parseable. Distinguishes from the success path's
     // "OK · N meters" so the hover triage isn't misleading.
