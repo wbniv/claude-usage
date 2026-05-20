@@ -112,13 +112,14 @@ export function doScrape(textContent, extraToggleChecked = false) {
     }
   }
 
-  // L-2 (pass-17): if meters is empty AND the page text contains percent
-  // signs, the scrape ran on a page that probably HAD usage data but our
-  // English anchors (`Plan usage limits`, `Additional features`, etc.)
-  // didn't match — most likely a translated locale. Surface a distinguished
-  // signal so the panel-grey troubleshooter can say "set browser language
-  // to English" instead of "is the server running".
-  const _parse_failure = (meters.length === 0 && /\d+\s*%/.test(textContent))
+  // L-2 (pass-17, tightened pass-18 PF-1): if meters is empty AND the page
+  // text contains the actual usage-meter pattern "<N>% used", the scrape
+  // ran on a page that probably HAD usage data but our English anchors
+  // (`Plan usage limits`, `Additional features`, etc.) didn't match —
+  // most likely a translated locale. The previous predicate `/\d+\s*%/`
+  // fired on marketing copy and footer text; anchoring on `% used` is the
+  // pattern claude.ai actually emits for meters.
+  const _parse_failure = (meters.length === 0 && /\d+\s*%\s*used/i.test(textContent))
       ? 'locale_or_layout' : null;
 
   return {

@@ -60,11 +60,20 @@ function addColorRow(group, settings, key, title, subtitle, isDockColor = false)
 // Pull <range min/max> from the gschema for `key` so spinner bounds can't
 // drift from the schema. Closes pass-17 PR-1 (prefs upper-bound stuck at 99
 // after 0.11.19 widened the schema to 500): one source of truth.
+//
+// PRECONDITION: `key` is a numeric (uint) key with an explicit <range>
+// element in the gschema. Calling on a string-typed key, or a numeric key
+// without <range>, throws a clear error rather than the underlying
+// "deepUnpack on non-tuple" stack trace (PR-2, PR-3 pass-18).
 function schemaRange(settings, key) {
     const k = settings.settings_schema.get_key(key);
+    if (!k)
+        throw new Error(`schemaRange: key '${key}' not in schema — typo or missing gschema entry`);
     const rangeVariant = k.get_range();              // GVariant '(sv)'
-    const [, inner] = rangeVariant.deepUnpack();     // [type, GVariant<(uu)>]
-    const [lo, hi] = inner.deepUnpack();             // [min, max]
+    const [type, inner] = rangeVariant.deepUnpack();
+    if (type !== 'range')
+        throw new Error(`schemaRange: key '${key}' has no <range> (type=${type}) — call only on numeric ranged keys`);
+    const [lo, hi] = inner.deepUnpack();
     return [lo, hi];
 }
 

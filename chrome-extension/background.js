@@ -327,11 +327,11 @@ async function scrapeAndPost(tabId) {
           }
         }
 
-        // L-2 (pass-17): empty meters + page-has-percent ⇒ likely a translated
-        // locale or layout change that defeated our English anchors. Signal so
-        // claude-usage-status can surface a useful cause instead of "no data".
+        // L-2 (pass-17, tightened pass-18 PF-1): anchor on `\d+\s*%\s*used`
+        // — the actual meter pattern — not bare `\d+%`. Avoids false
+        // positives from marketing copy, footers, and login interstitials.
         const text = document.body.innerText;
-        const _parse_failure = (meters.length === 0 && /\d+\s*%/.test(text))
+        const _parse_failure = (meters.length === 0 && /\d+\s*%\s*used/i.test(text))
             ? 'locale_or_layout' : null;
         return {
             meters, plan,

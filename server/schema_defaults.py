@@ -87,4 +87,16 @@ def _load():
     return defaults, ranges
 
 
-DEFAULTS, RANGES = _load()
+# MD-2 (pass-18): wrap so the failure mode is debuggable — bare ImportError
+# tracebacks from inside _load were unhelpful for users hitting a missing
+# schema XML (e.g. partial install, broken build). Hint at the fix, then
+# re-raise so callers still know the module isn't usable.
+try:
+    DEFAULTS, RANGES = _load()
+except FileNotFoundError as _e:
+    import sys as _sys
+    _sys.stderr.write(
+        f"schema_defaults: schema XML missing — reinstall the .deb or "
+        f"run install.sh to populate it ({_e})\n"
+    )
+    raise

@@ -286,12 +286,14 @@ def _atomic_write_multisize(img, sizes=ICON_SIZES):
     avoids collisions when two generate-icon.py invocations race (POST
     handler + GNOME extension tier-transition spawn).
 
-    M-1 (pass-17): two-phase commit. Phase 1 writes every tmp (the slow
-    work — PIL resize at 5 sizes). Phase 2 renames all into place back-to-
-    back. If any save fails in phase 1, no destinations are touched yet, so
-    the dock can't end up with split-vintage icons across sizes. Window
-    where consumers see inconsistent state shrinks from "PIL save + rename"
-    (hundreds of ms) to "5 sequential renames" (microseconds).
+    M-1 (pass-17, refined pass-18 MD-1): two-phase commit. Phase 1 writes
+    every tmp (the slow work — PIL resize at 5 sizes). Phase 2 renames all
+    into place back-to-back. If any save fails in phase 1, no destinations
+    are touched yet. The cross-size inconsistency window shrinks from
+    "PIL save + rename" (hundreds of ms) to "5 sequential renames"
+    (microseconds) — not zero: a SIGKILL between renames in phase 2 still
+    leaves N committed and (5-N) on the old vintage. Self-corrects on the
+    next icon render.
 
     MS-1 (pass-17): use BaseException + finally so SIGINT/SIGTERM during
     the loop don't leak tmp files."""
