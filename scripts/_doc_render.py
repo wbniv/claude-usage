@@ -132,16 +132,13 @@ def production_meter_row(m, cfg, *, primary, period_lens, anchor_ts, label_w, pp
     label = (m.get('label') or '').ljust(label_w)
     pct = m.get('pct') or 0
     width = cfg['barWidth']
-    is_count_only = (m.get('count') is not None
-                     and m.get('total') is not None
-                     and m.get('pct') is None)
     pacing = pp.pacing_pct(m, period_lens)
     row_color = _tier_color(pacing, cfg)
 
-    if is_count_only:
-        col2 = f'{m["count"]}/{m["total"]}'
-        bar_html = '&nbsp;' * width
-    elif m.get('count') is not None and m.get('total') is not None:
+    # DR-2 (pass-23): count-meter rows render blank bars, matching
+    # extension.js:formatRows. Previous version split this into two
+    # identical branches via a dead `is_count_only` flag — collapsed.
+    if m.get('count') is not None and m.get('total') is not None:
         col2 = f'{m["count"]}/{m["total"]}'
         bar_html = '&nbsp;' * width
     else:

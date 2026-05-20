@@ -14,15 +14,15 @@ No Critical/High/Medium. **8 Lows** (mostly maintenance + drift between sibling 
 
 | Sev | # | ID | Title | New this pass? |
 |-----|---|----|-------|----------------|
-| Low | 1 | **CAP‑1** | `chrome-extension/background.js:97` `cap()` has the **same UTF-16 surrogate-pair split bug UT-1 just fixed** in the sibling `trunc()`. Used on error messages (4xx body, scrape exceptions); identical-class fix. | ✓ (missed by UT-1) |
+| Low | 1 | ~~**CAP‑1**~~ | ~~`chrome-extension/background.js:97` `cap()` has the **same UTF-16 surrogate-pair split bug UT-1 just fixed** in the sibling `trunc()`. Used on error messages (4xx body, scrape exceptions); identical-class fix.~~ | ✓ (missed by UT-1) |
 | Low | 2 | **PS‑1** | Parity lint covers `pacingPct↔pacing_pct` and `elapsedFraction↔elapsed_fraction` but NOT `pacingSegments↔pacing_segments` or `colorFor↔color_for` — the two functions with the most semantic surface in the viz port. Drift is invisible to CI. | ✓ |
-| Low | 3 | **EF‑1** | JS `elapsedFraction` is missing the `if (!meter) return null` guard the Python twin has. Parity lint only diffs numeric literals; structural divergence is undetected. Not currently exploitable (sole caller passes a non-null meter). | ✓ |
-| Low | 4 | **DR‑1** | `extension.js:14` comment points at `lint-js-defaults-parity.py` — a file that doesn't exist. Actual lint is `gen-js-defaults.py --check` invoked via `task lint-js-defaults`. Doc drift. | ✓ |
+| Low | 3 | ~~**EF‑1**~~ | ~~JS `elapsedFraction` is missing the `if (!meter) return null` guard the Python twin has. Parity lint only diffs numeric literals; structural divergence is undetected. Not currently exploitable (sole caller passes a non-null meter).~~ | ✓ |
+| Low | 4 | ~~**DR‑1**~~ | ~~`extension.js:14` comment points at `lint-js-defaults-parity.py` — a file that doesn't exist. Actual lint is `gen-js-defaults.py --check` invoked via `task lint-js-defaults`. Doc drift.~~ | ✓ |
 | Low | 5 | **GD‑1** | `scripts/gen-js-defaults.py:36-63` duplicates `_parse_default` + `_kebab_to_snake` from `server/schema_defaults.py`. The JS-1 SOT story has two parsers now; a future schema-type addition needs the same edit in both places. | ✓ |
 | Low | 6 | **GD‑2** | `gen-js-defaults.py` lacks the helpful-error wrapper `schema_defaults.py` grew over MD-2/MD-3/MD-4. Malformed XML produces a bare `ParseError` traceback rather than the "reinstall the .deb" hint its Python sibling emits. | ✓ |
-| Low | 7 | **DR‑2** | `_doc_render.py:135-146` has a dead branch — the `is_count_only` check splits into two identical bodies. Either collapse or wire the split to actually do something different for count rows. | ✓ |
-| Low | 8 | **DR‑3** | `docs/investigations/2026-05-20-no-pass22-needed.md:20-22` lists JS-1/TT-1/UT-1 as carry-forward, but all three have landed since. Doc is historically accurate at write-time; reads as stale at HEAD. | ✓ |
-| Info | 9 | **GI‑1** | `.claude/scheduled_tasks.lock` is untracked + not in `.gitignore`. Per-process state; should be ignored. | ✓ |
+| Low | 7 | ~~**DR‑2**~~ | ~~`_doc_render.py:135-146` has a dead branch — the `is_count_only` check splits into two identical bodies. Either collapse or wire the split to actually do something different for count rows.~~ | ✓ |
+| Low | 8 | ~~**DR‑3**~~ | ~~`docs/investigations/2026-05-20-no-pass22-needed.md:20-22` lists JS-1/TT-1/UT-1 as carry-forward, but all three have landed since. Doc is historically accurate at write-time; reads as stale at HEAD.~~ | ✓ |
+| Info | 9 | ~~**GI‑1**~~ | ~~`.claude/scheduled_tasks.lock` is untracked + not in `.gitignore`. Per-process state; should be ignored.~~ | ✓ |
 | Info | 10 | **TX‑1** | `formatRows`' `text` field on bar rows is now dead weight after the markup port — the consumer only reads it on the no-bar path. Harmless plain-text fallback; could be dropped or kept as defensive. | ✓ |
 | Info | 11 | **CT‑1** | Count rows (e.g. "Daily included routine runs 0/15") render with blank bar in both extension.js and the doc renderer. Pass-19's `_doc_render.py:106-112` comment is now stale relative to its own commit (says "[viz] not yet shipped" but it IS shipped, just not for count rows). Intentional or oversight? | ✓ |
 

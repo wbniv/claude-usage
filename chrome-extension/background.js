@@ -94,7 +94,16 @@ let _tabQueryWarned = false;
 async function setActionStatus(kind, meterCount, errorMsg) {
   if (typeof chrome === 'undefined' || !chrome.action) return;
   const stamp = new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
-  const cap = s => (typeof s === 'string' && s.length > 80 ? s.slice(0, 77) + '...' : s);
+  // CAP-1 (pass-23): same UTF-16 surrogate-split hazard UT-1 fixed in
+  // fetchAnthropicStatus's trunc(). cap() trims errorMsg for the toolbar
+  // tooltip — `errorMsg` is a server 4xx body or a scrape exception, both
+  // ASCII today, but locking in code-point-aware semantics keeps the bug
+  // class from re-emerging if anything ever produces a multibyte error.
+  const cap = s => {
+    if (typeof s !== 'string') return s;
+    const cps = [...s];
+    return cps.length > 80 ? cps.slice(0, 77).join('') + '...' : s;
+  };
   let title;
   if (kind === 'ok') {
     title = `Claude Usage: OK · ${meterCount} meters · last fetch ${stamp}`;

@@ -3,3 +3,6 @@ __pycache__/
 *.pyc
 dist/
 .task/
+# Claude Code per-process state (GI-1, pass-23) — ephemeral session tracking,
+# never belongs in commits.
+.claude/scheduled_tasks.lock

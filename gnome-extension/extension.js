@@ -11,7 +11,7 @@ import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 // JS-1 (pass-18, post-pass-21): single source of truth for gschema defaults.
 // Generated from gnome-extension/schemas/<schema>.xml by scripts/gen-js-defaults.py;
-// see lint-js-defaults-parity.py for the CI sync check.
+// CI sync check via `task lint-js-defaults` (which runs the generator with --check).
 import {DEFAULTS as SCHEMA_DEFAULTS} from './_defaults.js';
 
 const CACHE_DIR          = GLib.get_user_cache_dir() + '/claude-usage';
@@ -113,6 +113,10 @@ function pacingPct(meter, periodLens) {
 // Floor mirrors pacingPct: when elapsed < max(15, period*0.05), no tick / no two-tone.
 
 function elapsedFraction(meter, periodLens) {
+    // EF-1 (pass-23): null-meter guard matching the Python twin
+    // (generate-icon.py:elapsed_fraction). Sole caller passes a valid
+    // meter today; the guard is defensive symmetry.
+    if (!meter) return null;
     const rm = meter.reset_minutes;
     const period = periodLens?.[meter.label];
     if (rm == null || !period) return null;

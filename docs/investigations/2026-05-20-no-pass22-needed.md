@@ -24,3 +24,17 @@ Final state at `d0725d6`:
 These persist in every future review's carry-forward section until the user marks them `[x]` in `TODO.md`.
 
 The next time anyone runs `/review-and-fix`, the loop starts from this HEAD.
+
+---
+
+**Update (pass-23, after this doc landed):** the three carry-forward
+items above all closed within the same day, plus the pacing-viz prototype
+graduated to production:
+
+- JS-1 → `013ccea` (generated `_defaults.js` + lint + build hooks)
+- TT-1 → `624adb4` (one-shot warning guard)
+- UT-1 → `0e1f913` (code-point-aware Statuspage trunc)
+- Pacing viz → `77b518c` (tick + over-pace two-tone in popup + dock)
+
+Plus a sibling `cap()` UTF-16 fix (`CAP-1`, pass-23). Carry-forward
+backlog is now empty.
