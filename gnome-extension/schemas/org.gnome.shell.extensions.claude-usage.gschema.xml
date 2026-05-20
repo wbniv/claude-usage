@@ -33,12 +33,12 @@
     <key name="threshold-warning" type="u">
       <default>70</default>
       <summary>Pacing % (pct ÷ fraction-of-period-elapsed) at which color flips to warning</summary>
-      <range min="1" max="99"/>
+      <range min="1" max="500"/>
     </key>
     <key name="threshold-critical" type="u">
       <default>90</default>
       <summary>Pacing % (pct ÷ fraction-of-period-elapsed) at which color flips to critical</summary>
-      <range min="1" max="99"/>
+      <range min="1" max="500"/>
     </key>
     <key name="bar-width" type="u">
       <default>10</default>
