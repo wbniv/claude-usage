@@ -1,13 +1,13 @@
 # TODO
 
 ## Fixes
-- [ ] **Pacing visualization — tick + over-pace highlight.** Add a `┊` tick to bars/rings at the elapsed-fraction position when under-pace; split fills into normal/warn-color two-tone when over-pace. Applies to popup (`popup-preview.py` → `extension.js`) and dock icon (`generate-icon.py`). [Plan](docs/plans/2026-05-20-pacing-viz-tick-overpace.md).
-- [ ] **JS-1 (pass-18):** add a CI lint that cross-checks `extension.js`'s `safeColor` fallback hex literals against `server/schema_defaults.py`. JS can't import the Python SOT directly; could grep both sides, or generate a `_defaults.js` from the gschema XML at build time. Design call. [Review](docs/investigations/2026-05-20-code-review-pass18.md).
-- [ ] **UT-1 (pass-18):** Statuspage description `.slice(0, 117)` cuts by UTF-16 code unit; a surrogate-pair split produces invalid UTF-16. Theoretical (English Statuspage today). Move to code-point-aware truncation if Anthropic localises status descriptions. [Review](docs/investigations/2026-05-20-code-review-pass18.md).
+- [verify] **Pacing visualization — tick + over-pace highlight.** Add a `┊` tick to bars/rings at the elapsed-fraction position when under-pace; split fills into normal/warn-color two-tone when over-pace. Applies to popup (`popup-preview.py` → `extension.js`) and dock icon (`generate-icon.py`). [Plan](docs/plans/2026-05-20-pacing-viz-tick-overpace.md).
+- [verify] **JS-1 (pass-18):** add a CI lint that cross-checks `extension.js`'s `safeColor` fallback hex literals against `server/schema_defaults.py`. JS can't import the Python SOT directly; could grep both sides, or generate a `_defaults.js` from the gschema XML at build time. Design call. [Review](docs/investigations/2026-05-20-code-review-pass18.md).
 
 ## Deferred
 
 ## Done
+- [x] 2026-05-20 — UT-1: Statuspage `trunc` is now code-point-aware (`[...s].slice(0, 117)`); UTF-16 surrogate-pair splits can no longer produce invalid output. [Review](docs/investigations/2026-05-20-code-review-pass18.md).
 - [x] 2026-05-20 — TT-1: `format_tooltip` "no recognisable meter labels" warning is now one-shot per process (was firing 1440×/day from `_tooltip_tick`). [Review](docs/investigations/2026-05-20-code-review-pass18.md).
 - [x] 2026-05-20 — Pass-21 landing: closed 3 of 3 Lows in 1 commit; 0 deferred. BL-1 (load-test handler removed too early; intended diagnostic was dead code), DC-1 (AR-2 comment block stitched into postUpdate's doc), DC-2 (pass-20 doc arithmetic off-by-one). Slash command also gained the carry-forward-TODOs convention (commit `30b2f8e`). Suite still 146. [Review](docs/investigations/2026-05-20-code-review-pass21.md).
 - [x] 2026-05-20 — Pass-20 landing: closed 5 of 5 findings in 2 commits (`8ca7b9a`, `e2a6256`); 0 deferred. Headline: AR-2 Critical (pass-19's AR-1 added `if (_fetching) return;` to restoreActionStatus, but `_fetching` was declared AFTER the top-level call — Temporal Dead Zone ReferenceError on every SW load, AT-2 broken). Added a vm-sandboxed load-time smoke test (`background-load.test.js`) to catch the class. Slash command also gained the live strikethrough step (commit `4cb1a6d`). Suite: 95 server + 51 scraper = 146 (was 94 + 50 = 144). [Review](docs/investigations/2026-05-20-code-review-pass20.md).

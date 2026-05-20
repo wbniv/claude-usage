@@ -214,8 +214,18 @@ async function fetchAnthropicStatus() {
         // truncate, the server rejects the entire POST → cache never updates
         // → BROKEN tier during the exact outage the field exists to surface.
         // 120 leaves 8 chars of headroom under the validator's cap.
-        const trunc = s => (typeof s === 'string' && s.length > 120
-            ? s.slice(0, 117) + '...' : s);
+        // UT-1 (pass-18, fixed post-pass-21): code-point-aware truncation.
+        // `String.prototype.slice` cuts by UTF-16 code unit — if Anthropic
+        // ever ships an emoji or CJK character that lands a surrogate pair
+        // across position 117, the result is invalid UTF-16 (lone surrogate).
+        // Spreading into an array and slicing iterates by code point. Today
+        // Statuspage is English ASCII so this is theoretical; locks in
+        // correctness if localisation ever ships.
+        const trunc = s => {
+            if (typeof s !== 'string') return s;
+            const cps = [...s];
+            return cps.length > 120 ? cps.slice(0, 117).join('') + '...' : s;
+        };
         return {
             indicator: j.status?.indicator ?? null,
             description: trunc(j.status?.description ?? null),
