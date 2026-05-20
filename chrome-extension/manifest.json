@@ -3,7 +3,7 @@
   "name": "Claude Usage Tracker",
   "version": "0.11.19",
   "description": "Opens claude.ai/settings/usage in a background tab every 7 minutes, reads your usage meters, and forwards them to the local Claude Usage panel indicator.",
-  "permissions": ["tabs", "scripting", "alarms", "storage", "webNavigation"],
+  "permissions": ["tabs", "scripting", "alarms", "storage", "webNavigation", "idle"],
   "host_permissions": [
     "https://claude.ai/settings/usage*",
     "https://status.claude.com/api/v2/*",

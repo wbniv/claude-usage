@@ -587,6 +587,18 @@ chrome.runtime.onStartup.addListener(() => {
   fetchUsage();
 });
 
+// CI-2 (pass-17): chrome.alarms does NOT catch up on suspend/resume — one
+// fetch per resume, not one per missed period. After a laptop sleeps for
+// hours the GNOME panel hits BROKEN tier on wake until the first post-wake
+// fetch lands. Listen for the OS coming back to active and fire immediately.
+// "active" fires on screen unlock / wake-from-suspend. The `idle` permission
+// is required for chrome.idle.* to be defined.
+if (chrome.idle && chrome.idle.onStateChanged) {
+  chrome.idle.onStateChanged.addListener(state => {
+    if (state === 'active') fetchUsage();
+  });
+}
+
 chrome.alarms.onAlarm.addListener(async alarm => {
   if (alarm.name === 'fetch-usage') await fetchUsage();
 });
