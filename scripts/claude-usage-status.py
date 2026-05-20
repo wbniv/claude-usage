@@ -55,6 +55,17 @@ def _check_cache():
     elif sfc == 1:
         print('  Scrape:     1 recent failure (recoverable)')
 
+    # L2-2 (pass-18): surface the scraper's distinguished "parse failure"
+    # signal so panel-grey troubleshooting points at the actual cause.
+    # Today the only emitted value is 'locale_or_layout' (page hydrated but
+    # English string anchors missed); future values can extend.
+    pf = d.get('_parse_failure')
+    if pf == 'locale_or_layout':
+        print('  Scrape:     ⚠ scraper produced no meters; page may be in a non-English locale')
+        print('              Fix: set browser language to English in Chrome settings, then reload')
+    elif pf:
+        print(f'  Scrape:     ⚠ parse failure: {pf}')
+
     ind = astat.get('indicator')
     if ind and ind != 'none':
         desc = astat.get('description') or ind

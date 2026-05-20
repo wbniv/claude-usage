@@ -14,6 +14,12 @@ test -x /usr/bin/claude-usage-status
 test -f /usr/share/claude-usage/generate-icon.py
 test -f /usr/share/claude-usage/usage-server.py
 test -f /usr/share/claude-usage/tooltip.py
+# VD-1 (pass-18): schema_defaults.py and its sibling schemas/ XML must be
+# shipped together — generate-icon.py imports schema_defaults at module
+# load and the import crashes if the XML is missing. py_compile below
+# doesn't catch this (it parses but doesn't execute imports).
+test -f /usr/share/claude-usage/schema_defaults.py
+test -f /usr/share/claude-usage/schemas/org.gnome.shell.extensions.claude-usage.gschema.xml
 # Extension + compiled schema in both locations
 test -f /usr/share/gnome-shell/extensions/claude-usage@indri.studio/extension.js
 test -f /usr/share/gnome-shell/extensions/claude-usage@indri.studio/schemas/gschemas.compiled
@@ -28,6 +34,11 @@ test -f /usr/lib/systemd/user/claude-usage-fetch.service
 python3 -m py_compile /usr/share/claude-usage/generate-icon.py
 python3 -m py_compile /usr/share/claude-usage/usage-server.py
 python3 -m py_compile /usr/share/claude-usage/tooltip.py
+python3 -m py_compile /usr/share/claude-usage/schema_defaults.py
+# VD-1: py_compile parses but doesn't execute imports. Actually load
+# schema_defaults so a missing/malformed schema XML fails CI loudly here,
+# not at first icon-render on a user's box.
+python3 -c "import sys; sys.path.insert(0, '/usr/share/claude-usage'); import schema_defaults; assert schema_defaults.DEFAULTS"
 bash -n /usr/bin/claude-usage-setup
 python3 -m py_compile /usr/bin/claude-usage-status
 # Removal must clear the system-wide schema (postrm)
