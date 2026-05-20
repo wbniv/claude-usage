@@ -210,4 +210,39 @@ After all fixes land, run the **loop** — the slash-command step 12 contract: r
 
 ## 9. Resolution log
 
-_To be populated after fixes land._
+All 20 substantive findings closed in 3 commits (`862a5a3`, `432078f`, `86a2f56`). 0 deferred — none of the findings this pass needed design-call judgement; all were mechanical follow-ups to pass-18 fixes.
+
+| ID | Title | Resolution |
+|----|-------|-----------|
+| **SL‑1** | Lint substring bypass on confusable hosts | `862a5a3` — `u == base or u.startswith(base + '/')` |
+| **SL‑2** | Lint silent pass on missing host_permissions | `862a5a3` — explicit RuntimeError on missing key |
+| **PT‑2** | Close-request drain doesn't prevent re-population | `862a5a3` — `holder.closed` flag short-circuits the callback |
+| **LP‑1** | _parse_failure can never reach the cache | `432078f` — propagate `data._parse_failure` into the partial POST |
+| **RC‑1** | Pass-17 RL-1 amendment miscounted | `432078f` — s/Six/Eight/ |
+| **AR‑1** | restoreActionStatus races a live setActionStatus | `432078f` — `_fetching` guard before AND after the storage read |
+| **PF‑2** | PF-1 has no test coverage | `432078f` — 5 cases in scraper.test.js (suite: 45 → 50) |
+| **OS‑1** | _sweep parse failure falls through to unlink | `86a2f56` — `pass` → `continue` |
+| **TS‑3** | test_orphan_sweep requires Linux /proc | `86a2f56` — module-level `pytest.skipif` |
+| **CV‑2** | None case in cache-reset test doesn't exercise the path | `86a2f56` — drop the case |
+| **CV‑3** | Cache-reset test assertions too weak | `86a2f56` — also verify meters + _schema |
+| **MD‑3** | schema_defaults except too narrow | `86a2f56` — broaden to ParseError/Permission/IsADirectory |
+| **RS‑2** | install.sh rsync error is Debian-specific | `86a2f56` — distro-agnostic message |
+| **VD‑2** | test-deb verify assert has no message | `86a2f56` — message + threshold_warning canary |
+| **PR‑4** | schemaRange comment narrower than implementation | `86a2f56` — comment now says "non-`<range>`-typed", broader than "non-numeric" |
+| **OT‑2** | setActionStatus position-overloaded with no doc | `86a2f56` — JSDoc per-kind |
+| **OT‑3** | Tooltip mentions internal `_parse_failure` name | `86a2f56` — point at `claude-usage-status` instead |
+| **RP‑2** | render-panel relies on _doc_render's sys.path side effect | `86a2f56` — explicit `sys.path.insert` |
+| **SL‑3** | Doc URL regex unscoped | `86a2f56` — scope to "No outbound network calls" section |
+| **LC‑3** | _stopFlash dual-reachability undocumented | `86a2f56` — comment names all three call sites |
+
+Info-tier confirmations (DT-2, PF-3, MV-2, L8-1, TT-0) — no action required.
+
+Test suite: 94 server tests + 50 scraper tests + 3 lints, all green.
+
+---
+
+## 10. Loop status
+
+Per the slash-command step 12 (added this turn in `7102d20`): re-run Phase 1 against the new HEAD to confirm the fixes themselves didn't introduce regressions. If pass-20 surfaces zero substantive findings, the loop terminates. If it finds anything, the loop continues.
+
+→ **Loop continuation pending** — pass-20 will fire after this commit.
