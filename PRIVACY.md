@@ -21,7 +21,7 @@ All data stays on your own machine. It is sent only to `http://127.0.0.1:<port>`
 ## What is stored
 
 - `~/.cache/claude-usage/usage.json` — usage data, inferred per-meter period lengths (`_period_lengths`: integer minutes-per-meter-label, used for pacing-based color thresholds), consecutive-scrape-failure counter (`_scrape_fail_count`), and Anthropic public status-page snapshot (`_anthropic_status`: incident indicator + description). Updated every 7 minutes.
-- `~/.cache/claude-usage/icon-{epoch}.png` — generated dock icon (filename rotates to bust the pixbuf cache)
+- `~/.local/share/icons/hicolor/{48,64,96,128,256}x{N}/apps/claude-usage.png` — generated dock icon, emitted at each hicolor size so the XDG icon-theme lookup always picks the live ring-painted version regardless of what size the dock requests
 - GSettings (`org.gnome.shell.extensions.claude-usage`) — user color and threshold preferences
 - `chrome.storage.local` — fallback copy of the last fetch, used only when the local server is not running
 

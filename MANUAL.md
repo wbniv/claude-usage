@@ -278,9 +278,12 @@ sudo apt remove claude-usage
 
 ```bash
 rm -f  ~/.local/share/applications/claude-usage.desktop
-rm -f  ~/.local/share/icons/hicolor/128x128/apps/claude-usage.png
+rm -f  ~/.local/share/icons/hicolor/*/apps/claude-usage.png
+rm -f  ~/.local/share/icons/hicolor/icon-theme.cache
 rm -rf ~/.cache/claude-usage
 ```
+
+(The icon is emitted at five hicolor sizes — 48, 64, 96, 128, 256 — so XDG icon-theme lookup always finds a live ring-painted version. The glob clears all of them.)
 
 (The `org.gnome.shell.enabled-extensions` dconf entry is harmless once the extension files are gone — GNOME Shell silently ignores unknown UUIDs.)
 
