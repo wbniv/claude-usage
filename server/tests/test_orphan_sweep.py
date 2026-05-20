@@ -107,6 +107,25 @@ def test_sweep_handles_missing_dirs_gracefully(fake_home, server_module):
     server_module._sweep_orphan_tmps()  # should not raise
 
 
+def test_sweep_preserves_unparseable_filenames(fake_home, server_module):
+    """OS-2 (pass-20): a file matching the glob but with a non-integer in the
+    pid-position field (someone hand-creates a debug file, partial migration,
+    etc.) used to fall through the broad except → unlink. The OS-1 fix moved
+    to `continue` — verify a non-numeric field name preserves the file."""
+    size_dir = fake_home / '.local/share/icons/hicolor/64x64/apps'
+    size_dir.mkdir(parents=True, exist_ok=True)
+    # Filename matches `.claude-usage.tmp.*.png` but `garbage` isn't an int
+    garbage = size_dir / '.claude-usage.tmp.garbage.1.64.png'
+    garbage.write_bytes(b'\x89PNG fake')
+
+    server_module._sweep_orphan_tmps()
+
+    assert garbage.exists(), (
+        "Unparseable tmp filename should be left alone, not unlinked. "
+        "This is the OS-1 regression — sibling class to TS-2."
+    )
+
+
 def test_sweep_across_multiple_size_dirs(fake_home, server_module):
     """Sweep must visit every hicolor/*x*/apps subdir."""
     own_pid = os.getpid()

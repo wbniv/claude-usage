@@ -56,11 +56,21 @@ def _https_urls_from_doc():
     "outbound" paragraph block — bounded by the line "No outbound network
     calls other than:" and the next blank line."""
     text = SECURITY.read_text()
+    # SS-1 (pass-20): terminate on blank-line OR end-of-text so a future doc
+    # edit that ends the section at EOF (or an autoformatter that strips the
+    # trailing blank line) doesn't silently fall back to whole-doc scan.
     m = re.search(
-        r'No outbound network calls other than:\s*\n((?:.+\n)+?)\n',
+        r'No outbound network calls other than:\s*\n((?:.+\n?)+?)(?:\n\s*\n|\Z)',
         text,
     )
-    section = m.group(1) if m else text  # fall back to whole-doc if heading missing
+    if m is None and 'No outbound network calls' in text:
+        # Heading exists but the regex still didn't match — loud failure
+        # beats silent fallback.
+        raise RuntimeError(
+            "SECURITY.md has the 'No outbound network calls' heading but "
+            "the lint can't extract the section block. Check delimiters."
+        )
+    section = m.group(1) if m else text  # only reachable when heading is absent
     found = set()
     for hit in re.finditer(r'https://[a-z0-9.\-/_?=&]+', section):
         url = hit.group(0).rstrip('.,;:)`').rstrip('/')

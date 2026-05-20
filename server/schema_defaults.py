@@ -91,12 +91,15 @@ def _load():
 # tracebacks from inside _load were unhelpful for users hitting a missing
 # schema XML (e.g. partial install, broken build). Hint at the fix, then
 # re-raise so callers still know the module isn't usable.
-# MD-3 (pass-19): broaden the except — ParseError (corrupt XML), permission
-# errors, and IsADirectoryError were all silently producing bare tracebacks
-# from inside _parse_default / ET.parse.
+# MD-3 (pass-19): broaden to ParseError (corrupt XML), Permission, IsADirectory.
+# MD-4 (pass-20): also catch ValueError / KeyError — a malformed-but-XML-valid
+# schema (`<key type="i">` for an unsupported type → _parse_default raises
+# ValueError; missing `name`/`type` attr → key.attrib['type'] raises
+# KeyError) was still surfacing as a bare traceback.
 try:
     DEFAULTS, RANGES = _load()
-except (FileNotFoundError, ET.ParseError, PermissionError, IsADirectoryError) as _e:
+except (FileNotFoundError, ET.ParseError, PermissionError, IsADirectoryError,
+        ValueError, KeyError) as _e:
     import sys as _sys
     _sys.stderr.write(
         f"schema_defaults: failed to load schema XML "

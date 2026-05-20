@@ -424,9 +424,14 @@ def test_cache_reset_on_non_dict_prev():
         )
         assert result.get('_scrape_fail_count') == 1, (
             f'POST should succeed against corrupt prev={bad_prev!r}, got {result!r}')
-        assert result.get('meters') == [{'pct': 9, 'label': 'x'}], (
+        # CV-4 (pass-20): subset check instead of exact equality. The intent
+        # is "the meter survived the reset"; an exact-equality assertion
+        # would fail if any future commit enriches meters server-side (e.g.,
+        # adds a pacing_status field). Test the invariant, not the literal.
+        meters = result.get('meters') or []
+        assert len(meters) == 1 and meters[0].get('label') == 'x', (
             f'meters from body should land in cache after reset; '
-            f'corrupt prev={bad_prev!r}, got {result.get("meters")!r}')
+            f'corrupt prev={bad_prev!r}, got {meters!r}')
         assert '_schema' in result, (
             f'server stamps _schema on every write; missing after reset path '
             f'(corrupt prev={bad_prev!r})')
