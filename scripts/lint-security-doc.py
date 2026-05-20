@@ -21,9 +21,19 @@ SECURITY = REPO / 'SECURITY.md'
 
 def _https_hosts_from_manifest():
     """Set of https:// origins in manifest.host_permissions, excluding
-    loopback. Glob suffixes (`*`) are stripped — we compare base URLs."""
+    loopback. Glob suffixes (`*`) are stripped — we compare base URLs.
+
+    SL-2 (pass-19): missing-key silent-pass guard. Previously
+    `data.get('host_permissions', [])` returned [] → 0 hosts → "OK".
+    A future manifest refactor that moves/removes the key would land
+    clean. Now we treat absence as failure."""
     data = json.loads(MANIFEST.read_text())
-    hosts = data.get('host_permissions', [])
+    if 'host_permissions' not in data:
+        raise RuntimeError(
+            'manifest.json has no host_permissions key — expected for an '
+            'MV3 extension that makes outbound calls'
+        )
+    hosts = data['host_permissions']
     out = set()
     for h in hosts:
         if not h.startswith('https://'):
@@ -50,14 +60,23 @@ def _https_urls_from_doc():
 
 
 def main():
-    manifest_hosts = _https_hosts_from_manifest()
+    try:
+        manifest_hosts = _https_hosts_from_manifest()
+    except RuntimeError as e:
+        print(f'lint-security-doc: {e}', file=sys.stderr)
+        return 1
     doc_urls = _https_urls_from_doc()
 
     # The doc URLs are a SUPERSET (e.g. exact paths the manifest globs).
-    # For every manifest host base, at least one doc URL must start with it.
+    # For every manifest host base, at least one doc URL must reference it.
+    # SL-1 (pass-19): require path-boundary match. The previous
+    # `u.startswith(base)` accepted confusable hosts —
+    # `https://claude.ai.evil.com` matched base `https://claude.ai`. Compare
+    # as exact host match OR base-plus-path-separator so the boundary is
+    # enforced.
     missing = []
     for base in manifest_hosts:
-        if not any(u.startswith(base) for u in doc_urls):
+        if not any(u == base or u.startswith(base + '/') for u in doc_urls):
             missing.append(base)
 
     if not missing:

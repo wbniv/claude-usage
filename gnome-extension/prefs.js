@@ -91,8 +91,11 @@ function addSpinRow(group, settings, key, title, subtitle, regen = false, holder
     // PT-1 (pass-18): writeTimer is per-row (so concurrent multi-row writes
     // don't clobber each other) but registered with holder.pendingTimers so
     // the window close-request can drain it before the SpinRow is disposed.
+    // PT-2 (pass-19): short-circuit if the window has begun closing — Adw
+    // can fire late `value-changed` for committed values during teardown.
     let writeTimer = null;
     adj.connect('value-changed', () => {
+        if (holder?.closed) return;
         if (writeTimer) {
             clearTimeout(writeTimer);
             holder?.pendingTimers.delete(writeTimer);
@@ -119,13 +122,16 @@ export default class ClaudeUsagePreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
         const settings = this.getSettings();
         // L-5 (pass-17): per-window timer holder. Doesn't survive close/reopen.
-        // PT-1 (pass-18): a Set of pending setTimeout IDs (per-row write
-        // debounces + the shared regen debounce). Drained on close-request
-        // so no callback fires against the disposed SpinRow widgets. Per-row
-        // tracking matters because the user might touch row A then row B
-        // within 120 ms — a single shared writeTimer would lose A's value.
-        const holder = {regenTimer: null, pendingTimers: new Set()};
+        // PT-1 (pass-18, hardened pass-19 PT-2): a Set of pending setTimeout
+        // IDs + a `closed` guard flag. Drained on close-request. The flag
+        // matters because Adw can emit `value-changed` during widget teardown
+        // for committed values — without the flag, the per-row closure would
+        // pass its `if (writeTimer)` check, schedule a fresh setTimeout, and
+        // call adj.get_value() on a disposed SpinRow. With the flag, the
+        // callback short-circuits before re-populating the just-cleared Set.
+        const holder = {regenTimer: null, pendingTimers: new Set(), closed: false};
         window.connect('close-request', () => {
+            holder.closed = true;
             if (holder.regenTimer) { clearTimeout(holder.regenTimer); holder.regenTimer = null; }
             for (const id of holder.pendingTimers) clearTimeout(id);
             holder.pendingTimers.clear();
