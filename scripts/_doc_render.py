@@ -111,14 +111,6 @@ def load_popup_preview():
 # prototype lands in extension.js, swap callers back to pp.render_popup and
 # delete this block.
 
-def _tier_color(pacing, cfg):
-    if pacing >= cfg['tCrit']:
-        return cfg['popupCrit']
-    if pacing >= cfg['tWarn']:
-        return cfg['popupWarn']
-    return cfg['popupNorm']
-
-
 def production_meter_row(m, cfg, *, primary, period_lens, anchor_ts, label_w, pp):
     """Render a single popup row.
 
@@ -133,7 +125,10 @@ def production_meter_row(m, cfg, *, primary, period_lens, anchor_ts, label_w, pp
     pct = m.get('pct') or 0
     width = cfg['barWidth']
     pacing = pp.pacing_pct(m, period_lens)
-    row_color = _tier_color(pacing, cfg)
+    # TCM-1 (pass-26): was a local _tier_color mirror; replaced with the
+    # canonical color_for('empty', …) from popup-preview so there are no
+    # more hand-written tier-color copies outside of extension.js itself.
+    row_color = pp.color_for('empty', pacing, cfg)
 
     # DR-2 (pass-23): count-meter rows render blank bars, matching
     # extension.js:formatRows. Previous version split this into two

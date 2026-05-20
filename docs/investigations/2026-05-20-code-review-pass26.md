@@ -18,9 +18,9 @@ The high-impact theme: **release pipeline lacks pre-tag validation, and several 
 |-----|---|----|---------|-------|
 | **High** | 1 | ~~**RL‑1**~~ | release | ~~`task release` pushes tag *before* running tests; CI is the only gate, and a failing build leaves a broken public tag (history: v0.11.14, v0.11.15)~~ |
 | **High** | 2 | **UX‑1** | gnome-ext | 30 s tick rebuilds the entire popup menu via `removeAll()` even while open — visible flicker + lost hover state |
-| **High** | 3 | **PL‑1** | lints | Pacing-parity lint diffs only numeric literals; hex colors / period strings / role names drift invisibly |
-| **High** | 4 | **TCM‑1** | docs/lints | `_doc_render._tier_color` is a 4th hand-written tier-color mirror (alongside extension.js, popup-preview.py, generate-icon.py) — not in PS-1's pair list |
-| **High** | 5 | **GI‑1** | render | `generate-icon.py:286` hardcodes broken-tier red `'#e03030'`; should read `cfg['popup_color_critical']` |
+| **High** | 3 | ~~**PL‑1**~~ | lints | ~~Pacing-parity lint diffs only numeric literals; hex colors / period strings / role names drift invisibly~~ |
+| **High** | 4 | ~~**TCM‑1**~~ | docs/lints | ~~`_doc_render._tier_color` is a 4th hand-written tier-color mirror (alongside extension.js, popup-preview.py, generate-icon.py) — not in PS-1's pair list~~ |
+| **High** | 5 | ~~**GI‑1**~~ | render | ~~`generate-icon.py:286` hardcodes broken-tier red `'#e03030'`; should read `cfg['popup_color_critical']`~~ |
 | **Medium** | 6 | ~~**ACC‑1**~~ | server | ~~`is_full_scrape` tautology: after `body = {**prev, **body}` + auto-timestamp fill, the timestamp gate is always True — a 2-fake-meter POST wipes accumulated `period_lengths`~~ |
 | **Medium** | 7 | ~~**NM‑1**~~ | server | ~~`_validate` accepts `{"meters": null}`; cache persists with `meters: None` and crashes every downstream consumer until hand-fixed~~ |
 | **Medium** | 8 | **RV‑1** | render | Dock-icon ring returns before drawing the tick when `pct == 0`; popup bar still draws it — popup vs dock disagree at 0% mid-period |
@@ -34,16 +34,16 @@ The high-impact theme: **release pipeline lacks pre-tag validation, and several 
 | **Medium** | 16 | ~~**PYC‑1**~~ | build | ~~`.deb` chrome-extension rsync excludes `test/` but NOT `__pycache__/`, `*.pyc`, `.DS_Store`; chrome-zip excludes them. Asymmetry leaks dev artifacts into user .deb~~ |
 | **Medium** | 17 | **SV‑1** | gnome-ext | `metadata.json:shell-version` whitelists 45-49; Ubuntu 26.04 (~Apr 2026, GNOME 50) silently fails to enable with no postinst warning |
 | **Medium** | 18 | **PL‑3** | lints | Scraper parity lint diffs only regex literals — section anchors (`'Plan usage limits'`, `'Extra usage'`) and DOM selectors are unchecked |
-| **Medium** | 19 | **TSP‑1** | tests | No regression test pins `pid_position` semantics — a future refactor moving the field could silently re-introduce TS-2's class |
+| **Medium** | 19 | ~~**TSP‑1**~~ | tests | ~~No regression test pins `pid_position` semantics — a future refactor moving the field could silently re-introduce TS-2's class~~ |
 | **Low** | 20 | ~~**SC‑1**~~ | server | ~~`signal.signal(SIGCHLD, SIG_IGN)` runs at module import — every test that imports `usage-server.py` silently mutates the global handler~~ |
 | **Low** | 21 | ~~**UD‑1**~~ | server | ~~`update_desktop` rewrites every `Name=`/`Icon=` line including those inside `[Desktop Action …]` subgroups — latent today, breaks the moment we add an action~~ |
-| **Low** | 22 | **PP‑1** | server | `render_panel_label` (popup-preview) picks the primary meter without the `is_sonnet_hidden` filter that `get_primary` applies three functions over — silent panel/popup drift |
+| **Low** | 22 | ~~**PP‑1**~~ | server | ~~`render_panel_label` (popup-preview) picks the primary meter without the `is_sonnet_hidden` filter that `get_primary` applies three functions over — silent panel/popup drift~~ |
 | ~~**Low**~~ | ~~23~~ | ~~**TC‑1**~~ | ~~chrome-ext~~ | ~~Tab-load 30 s timeout resolves on `info.status === 'complete'` even for `chrome-error://` error pages; user sees mysterious "empty meters" not "claude.ai is down"~~ |
 | ~~**Low**~~ | ~~24~~ | ~~**PR‑2**~~ | ~~chrome-ext~~ | ~~`postUpdate` retries exactly once on cache miss; a 5 s server restart strands the buffered scrape for the next 7-minute alarm tick~~ |
 | **Low** | 25 | **I18N‑1** | gnome-ext | Panel label uses `margin-left` instead of CSS-logical `margin-start` — RTL locales (Arabic, Hebrew, Persian) get the gap on the wrong side |
 | **Low** | 26 | **EVC‑1** | gnome-ext | Persistently-corrupt cache leaves the indicator silent (`No data yet` forever); no in-popup hint to check `journalctl` |
 | **Low** | 27 | **TR‑1** | repo | `docs/transcripts/` is tracked + special-cased in `task release`'s dirty check → chronically dirty `git status`; pick either gitignore or commit-on-release |
-| **Low** | 28 | **PL‑4** | lints | Pair list in `lint-scraper-parity.py` is hand-maintained; no auto-discovery means the next added JS↔Python twin is unprotected until manually added (PS-1, now TCM-1) |
+| **Low** | 28 | ~~**PL‑4**~~ | lints | ~~Pair list in `lint-scraper-parity.py` is hand-maintained; no auto-discovery means the next added JS↔Python twin is unprotected until manually added (PS-1, now TCM-1)~~ |
 | **Info** | 29 | **IN‑1** | chrome-ext | `tabs` permission is broader than the documented surface needs; `host_permissions` + `activeTab` would shrink the Chrome Web Store warning string |
 
 ---
@@ -223,6 +223,12 @@ To be filled in as fixes land.
 | SH‑1 | `-h`/`--help` guards missing on 3 scripts | Fixed — added 6-line `--help` stanza to `packaging/claude-usage-setup`, `packaging/build-deb.sh`, `packaging/build-chrome-zip.sh` |
 | VR‑1 | `VERSION` var silently empty on malformed control | Fixed — `sh:` block now validates non-empty and exits 1 with a diagnostic (`Taskfile.yml`) |
 | PYC‑1 | `.deb` rsync missing `__pycache__/` / `*.pyc` / `.DS_Store` excludes | Fixed — added all three missing excludes to `packaging/build-deb.sh` and `install.sh` rsync calls |
+| PL‑1 | Pacing-parity lint missed hex colors and role names | Fixed — added `_raw_string_literals` + `_literals(shared_strs=…)` to `lint-scraper-parity.py`; hex colors and shared role-name constants now in the comparison set |
+| TCM‑1 | `_doc_render._tier_color` 4th tier-color mirror | Fixed — deleted `_tier_color` from `_doc_render.py`; call site replaced with `pp.color_for('empty', pacing, cfg)` |
+| GI‑1 | `#e03030` hardcoded in broken-tier ring and gsettings error | Fixed — `generate-icon.py` now reads `cfg['weekly_color_red']`; `popup-preview.py` now reads `cfg['popupCrit']` |
+| PL‑4 | Pair list is hand-maintained; new pairs go unregistered | Fixed — added `check_pair_inventory()` to `lint-scraper-parity.py`; warns to stderr on any unregistered JS↔Python match |
+| PP‑1 | `render_panel_label` reimplements primary-meter selection skipping `is_sonnet_hidden` | Fixed — replaced inline `next(…)` with `get_primary(meters, cfg)` call |
+| TSP‑1 | No test pins `pid_position` semantics for orphan sweep | Fixed — added `test_sweep_pid_position_constants_pinned` to `test_orphan_sweep.py` |
 
 ---
 

@@ -123,8 +123,47 @@ def _extract_py_function(text, name):
     return '\n'.join(result)
 
 
+def _raw_string_literals(text):
+    """Return all quoted string literal values (both single and double quoted)."""
+    strs = set(re.findall(r"'([^'\\]*(?:\\.[^'\\]*)*)'", text))
+    strs |= set(re.findall(r'"([^"\\]*(?:\\.[^"\\]*)*)"', text))
+    return strs
+
+
+def _literals(text, *, shared_strs=None):
+    """Extract numeric literals and value-like quoted string literals.
+
+    PL-1 (pass-26): plain numeric scan missed hex colors ('#888', '#abcdef'),
+    role names, and Unicode bar characters. We also include quoted strings so
+    a hex-color change in one twin that misses the other surfaces as a
+    divergence.
+
+    shared_strs: if given, restrict string comparison to strings that either
+      (a) start with '#' (hex colors — always interesting), or
+      (b) contain non-ASCII chars (Unicode bar chars), or
+      (c) appear in shared_strs (constants that both sides use as literals,
+          e.g. role names 'on_pace', 'over_pace', 'tick', 'empty').
+
+    This filters out Python-only dict-access keys ('popupNorm', 'label', …)
+    and JS-only typeof-check strings ('number') — those are language-specific
+    accessor patterns, not shared value constants.
+    """
+    nums = set(re.findall(r'\b\d+\.?\d*\b', text))
+    raw = _raw_string_literals(text)
+    if shared_strs is None:
+        strs = raw
+    else:
+        strs = {s for s in raw
+                if s.startswith('#')
+                or any(ord(c) > 127 for c in s)
+                or s in shared_strs}
+    return nums | {f's:{s}' for s in strs if s}
+
+
 def _numeric_literals(text):
-    """Return the set of numeric literals (int and float) in code text."""
+    """Return the set of numeric literals (int and float) in code text.
+
+    Kept for the scraper-parity check which only needs numeric literals."""
     return set(re.findall(r'\b\d+\.?\d*\b', text))
 
 
@@ -204,34 +243,101 @@ def check_pacing_parity():
 
     rc = 0
     for js_name, py_name, py_file, py_raw in pairs:
-        js_nums = _numeric_literals(_extract_js_function(js_raw, js_name))
-        py_nums = _numeric_literals(_extract_py_function(py_raw, py_name))
+        # PL-1 (pass-26): use _literals (numeric + quoted strings) so hex
+        # colors and role names are included in the comparison set.
+        # Compute the intersection of string literals in both bodies; use
+        # that as `shared_strs` so Python-only dict-accessor keys ('label',
+        # 'popupNorm', …) and JS-only typeof strings ('number') don't cause
+        # false positives. Hex colors ('#xxx') are always included regardless
+        # of shared membership — they're the primary drift vector.
+        js_body = _extract_js_function(js_raw, js_name)
+        py_body = _extract_py_function(py_raw, py_name)
+        shared_strs = _raw_string_literals(js_body) & _raw_string_literals(py_body)
+        js_lits = _literals(js_body, shared_strs=shared_strs)
+        py_lits = _literals(py_body, shared_strs=shared_strs)
 
-        only_js = js_nums - py_nums
-        only_py = py_nums - js_nums
+        only_js = js_lits - py_lits
+        only_py = py_lits - js_lits
 
         if not only_js and not only_py:
-            print(f'lint-pacing-parity: OK ({len(js_nums)} numeric literals match between {js_name} and {py_name})')
+            print(f'lint-pacing-parity: OK ({len(js_lits)} literals match between {js_name} and {py_name})')
             continue
 
         rc = 1
         print(f'lint-pacing-parity: DIVERGENCE between {js_name} (extension.js) and {py_name} ({py_file})', file=sys.stderr)
         if only_js:
             print(f'\n  Literals in {js_name} (JS) but NOT {py_name} ({py_file}):', file=sys.stderr)
-            for n in sorted(only_js, key=float):
+            for n in sorted(only_js, key=lambda x: (x.startswith('s:'), x)):
                 print(f'    {n}', file=sys.stderr)
         if only_py:
             print(f'\n  Literals in {py_name} ({py_file}) but NOT {js_name} (JS):', file=sys.stderr)
-            for n in sorted(only_py, key=float):
+            for n in sorted(only_py, key=lambda x: (x.startswith('s:'), x)):
                 print(f'    {n}', file=sys.stderr)
         print('\n  A constant change in one file likely missed the other.', file=sys.stderr)
         print('  Update both, or update the lint if the divergence is intentional.', file=sys.stderr)
     return rc
 
 
+def check_pair_inventory():
+    """Warn about likely-unregistered parity pairs.
+
+    PL-4 (pass-26): the pair list is hand-maintained. This function scans
+    extension.js for top-level JS functions, computes the expected snake_case
+    twin name, and warns (to stderr, exit 0) when a matching `def` exists in
+    the listed py_files but the pair is NOT in the PAIRS list.
+
+    Does NOT fail the lint — warnings only. Surfaces new pairs for human review
+    so the next PS-1-class miss doesn't have to wait for a code review to find it.
+    """
+    js_raw = _strip_comments((REPO / 'gnome-extension' / 'extension.js').read_text())
+    gi_raw = _strip_py_docstrings(
+        _strip_py_comments_tokenize(
+            (REPO / 'server' / 'generate-icon.py').read_text()
+        )
+    )
+    pp_raw = _strip_py_docstrings(
+        _strip_py_comments_tokenize(
+            (REPO / 'scripts' / 'popup-preview.py').read_text()
+        )
+    )
+
+    pairs = [
+        ('pacingPct',       'pacing_pct',       'generate-icon.py', gi_raw),
+        ('elapsedFraction', 'elapsed_fraction', 'generate-icon.py', gi_raw),
+        ('pacingSegments',  'pacing_segments',  'popup-preview.py', pp_raw),
+        ('colorFor',        'color_for',        'popup-preview.py', pp_raw),
+    ]
+    declared_js = {p[0] for p in pairs}
+
+    py_sources = {
+        'generate-icon.py': gi_raw,
+        'popup-preview.py': pp_raw,
+    }
+
+    js_funcs = set(re.findall(r'function (\w+)\s*\(', js_raw))
+    warned = False
+    for js_fn in sorted(js_funcs):
+        if js_fn in declared_js:
+            continue
+        # camelCase → snake_case: insert underscore before each uppercase run
+        snake = re.sub(r'([A-Z])', r'_\1', js_fn).lower().lstrip('_')
+        for py_file, py_raw in py_sources.items():
+            py_defs = set(re.findall(r'def (\w+)\s*\(', py_raw))
+            if snake in py_defs:
+                print(
+                    f'WARNING: {js_fn} (extension.js) ↔ {snake} ({py_file}) '
+                    f'look like a parity pair but are not in PAIRS',
+                    file=sys.stderr,
+                )
+                warned = True
+    if not warned:
+        print('lint-pair-inventory: OK (no unregistered JS↔Python pairs detected)')
+
+
 def main():
     rc = check_scraper_parity()
     rc |= check_pacing_parity()
+    check_pair_inventory()
     return rc
 
 

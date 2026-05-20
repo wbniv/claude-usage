@@ -399,9 +399,10 @@ def _panel_icon_data_uri(broken=False):
 def render_panel_label(cache, cfg):
     """The little label that lives in the GNOME top bar."""
     meters = cache.get('meters') or []
-    primary = next((m for m in meters if m.get('label') == cfg.get('panelMetric')), None)
-    if not primary:
-        primary = next((m for m in meters if not is_sonnet_hidden(m)), None)
+    # PP-1 (pass-26): was an inline reimplementation that skipped the
+    # is_sonnet_hidden filter. Call get_primary so the panel-label preview
+    # matches the real panel's primary-meter selection logic exactly.
+    primary = get_primary(meters, cfg)
     if not primary:
         return '<span class="panel-preview">no data</span>'
     pct = primary.get('pct', 0)
@@ -478,7 +479,9 @@ def render_gsettings(cfg):
     )
     err = cfg.get('_gsettings_error')
     if err:
-        rows = f'<dt>error</dt><dd style="color:#e03030">{html.escape(err)}</dd>' + rows
+        # GI-1 (pass-26): was hardcoded '#e03030'; read from cfg so the error
+        # color respects the user's configured critical popup color.
+        rows = f'<dt>error</dt><dd style="color:{cfg["popupCrit"]}">{html.escape(err)}</dd>' + rows
     return f'<dl class="kv">{rows}</dl>'
 
 

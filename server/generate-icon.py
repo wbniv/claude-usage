@@ -283,7 +283,10 @@ def _render(all_pct, sonnet_pct, cfg, draw_rings=True, tier='normal',
             # Both rings rendered in a solid alarm-red, baseline tile unchanged
             # so the Claude brand stays recognisable. No pacing-viz on broken
             # tier — the tier IS the message.
-            red = hex_to_rgba('#e03030')
+            # GI-1 (pass-26): was hex_to_rgba('#e03030') — hardcoded literal
+            # that ignored custom GSettings color. Read from cfg so the broken
+            # ring respects the same critical color as the normal pacing ring.
+            red = hex_to_rgba(cfg['weekly_color_red'])
             draw_ring(cr, cx, cy, R_OUTER, THICK_OUTER, max(all_pct, 100), red)
             draw_ring(cr, cx, cy, R_INNER, THICK_INNER, max(sonnet_pct, 100), red)
         else:

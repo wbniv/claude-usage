@@ -126,6 +126,40 @@ def test_sweep_preserves_unparseable_filenames(fake_home, server_module):
     )
 
 
+def test_sweep_pid_position_constants_pinned():
+    """TSP-1 (pass-26): Pin the pid_position values so a refactor can't
+    silently swap the field index. TS-2 was caused by pid_position being
+    wrong (2 instead of 3 for icon tmps).
+
+    The test reads the source of usage-server.py and asserts both call sites
+    are present with their expected values:
+      desktop tmp: claude-usage.desktop.tmp.<PID>.<NS>  → PID at index -2
+      icon    tmp: .claude-usage.tmp.<PID>.<NS>.<SZ>    → PID at index 3
+    """
+    import pathlib
+    src = (pathlib.Path(__file__).parents[1] / 'usage-server.py').read_text()
+    # Desktop tmp: PID is the second-to-last field → pid_position=-2
+    assert (
+        "pid_position=-2" in src
+        or "pid_position = -2" in src
+        # positional call: _sweep(dir, pattern, -2) — check both the arg and
+        # the comment that documents it so a silent rename still triggers.
+        or ", -2)" in src
+    ), "desktop-tmp orphan sweep pid_position must be -2"
+    # Icon tmp: .claude-usage.tmp.<PID>.<NS>.<SIZE>.png → PID at index 3
+    assert (
+        "pid_position=3" in src
+        or "pid_position = 3" in src
+        or ", 3)" in src
+    ), "icon-tmp orphan sweep pid_position must be 3"
+    # Belt-and-suspenders: confirm both _sweep calls appear near the two
+    # patterns so renaming the glob but forgetting the position also fails.
+    assert "claude-usage.desktop.tmp.*" in src, \
+        "desktop-tmp pattern must be present (documents pid_position=-2 context)"
+    assert ".claude-usage.tmp.*.png" in src, \
+        "icon-tmp pattern must be present (documents pid_position=3 context)"
+
+
 def test_sweep_across_multiple_size_dirs(fake_home, server_module):
     """Sweep must visit every hicolor/*x*/apps subdir."""
     own_pid = os.getpid()
