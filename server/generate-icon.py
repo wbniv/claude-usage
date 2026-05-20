@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Generate dock icon PNG with two concentric rings from cached usage data."""
-import cairo, math, json, os, sys, time
+import cairo, math, json, os, shutil, subprocess, sys, time
 from pathlib import Path
 from PIL import Image, ImageOps
 
@@ -31,9 +31,10 @@ CACHE_JSON   = CACHE_DIR / 'usage.json'
 # the ringless baseline shipped by the .deb — and the dock would show no
 # rings. Emitting at every plausible size keeps the live version winning.
 ICON_SIZES = (48, 64, 96, 128, 256)
+THEME_DIR  = _DATA_HOME / 'icons/hicolor'
 
 def icon_path_for(size):
-    return _DATA_HOME / f'icons/hicolor/{size}x{size}/apps/claude-usage.png'
+    return THEME_DIR / f'{size}x{size}/apps/claude-usage.png'
 
 ICON_OUT = icon_path_for(128)  # back-compat alias; main() emits all sizes
 
@@ -231,6 +232,25 @@ def derive_tier(data):
         return 'broken'
     return 'normal'
 
+def _refresh_user_icon_cache():
+    """Rebuild the user-local hicolor icon cache. Needed when we create new
+    size directories (first install, or upgrade adds a new ICON_SIZES entry):
+    without an index, GtkIconTheme falls back to a full filesystem walk on
+    every lookup — correct but slow — and on some GNOME versions doesn't
+    pick up new size dirs at all until logout. Steady-state (cache exists,
+    sizes stable) we skip the refresh: mtime bumps from atomic rename are
+    enough for GtkIconTheme's inotify watches to invalidate cached pixbufs."""
+    if not shutil.which('gtk-update-icon-cache'):
+        return
+    try:
+        subprocess.run(
+            ['gtk-update-icon-cache', '-f', '-t', str(THEME_DIR)],
+            check=False, capture_output=True, timeout=10,
+        )
+    except (subprocess.SubprocessError, FileNotFoundError):
+        pass  # cache is an optimization; lookups still work via fs walk
+
+
 def _atomic_write_multisize(img, sizes=ICON_SIZES):
     """Write `img` to every hicolor size bucket atomically (tmp + rename per
     size). The Cairo pipeline runs once; only the PIL resize per size repeats.
@@ -241,8 +261,10 @@ def _atomic_write_multisize(img, sizes=ICON_SIZES):
     monitors to invalidate cached pixbufs). PID+ns infix in the tmp name
     avoids collisions when two generate-icon.py invocations race (POST
     handler + GNOME extension tier-transition spawn)."""
+    new_dir = False
     for size in sizes:
         dest = icon_path_for(size)
+        new_dir = new_dir or not dest.parent.exists()
         dest.parent.mkdir(parents=True, exist_ok=True)
         tmp = dest.with_name(
             f'.claude-usage.tmp.{os.getpid()}.{time.time_ns()}.{size}.png'
@@ -254,6 +276,11 @@ def _atomic_write_multisize(img, sizes=ICON_SIZES):
             try: tmp.unlink()
             except OSError: pass
             raise
+    # First install (no cache yet) or new size dir (upgrade added an entry to
+    # ICON_SIZES) → rebuild so GtkIconTheme indexes the new files. Steady-
+    # state: cache present + sizes stable → skip; mtime bumps suffice.
+    if new_dir or not (THEME_DIR / 'icon-theme.cache').exists():
+        _refresh_user_icon_cache()
 
 def main(tier_override=None):
     cfg = load_config()
