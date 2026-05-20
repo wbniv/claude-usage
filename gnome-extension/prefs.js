@@ -35,8 +35,9 @@ function regenIcon() {
     } catch (_) {}
 }
 
-let _regenTimer = null;
-
+// L-5 (pass-17): `_regenTimer` used to live at module scope, which leaked
+// state across prefs-window close→reopen. Now it's threaded through
+// addSpinRow via a per-window holder set up in fillPreferencesWindow.
 function addColorRow(group, settings, key, title, subtitle, isDockColor = false) {
     const row = new Adw.ActionRow({title, subtitle});
     const dialog = new Gtk.ColorDialog({title, modal: true});
@@ -67,15 +68,18 @@ function schemaRange(settings, key) {
     return [lo, hi];
 }
 
-function addSpinRow(group, settings, key, title, subtitle, regen = false) {
+function addSpinRow(group, settings, key, title, subtitle, regen = false, holder = null) {
     const [lower, upper] = schemaRange(settings, key);
     const adj = new Gtk.Adjustment({lower, upper, step_increment: 1, value: settings.get_uint(key)});
     const row = new Adw.SpinRow({title, subtitle, adjustment: adj});
     adj.connect('value-changed', () => {
         settings.set_uint(key, Math.round(adj.get_value()));
-        if (regen) {
-            clearTimeout(_regenTimer);
-            _regenTimer = setTimeout(() => { _regenTimer = null; regenIcon(); }, 300);
+        if (regen && holder) {
+            if (holder.regenTimer) clearTimeout(holder.regenTimer);
+            holder.regenTimer = setTimeout(() => {
+                holder.regenTimer = null;
+                regenIcon();
+            }, 300);
         }
     });
     group.add(row);
@@ -85,6 +89,8 @@ function addSpinRow(group, settings, key, title, subtitle, regen = false) {
 export default class ClaudeUsagePreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
         const settings = this.getSettings();
+        // L-5 (pass-17): per-window timer holder. Doesn't survive close/reopen.
+        const holder = {regenTimer: null};
 
         const page = new Adw.PreferencesPage({
             title: 'Claude Usage',
@@ -123,9 +129,9 @@ export default class ClaudeUsagePreferences extends ExtensionPreferences {
         const popupDisplayGroup = new Adw.PreferencesGroup({title: 'Popup Display'});
         page.add(popupDisplayGroup);
         const warningAdj  = addSpinRow(popupDisplayGroup, settings, 'threshold-warning',
-            'Warning threshold',  'Pacing % at which color flips to warning (must be below Critical)', true);
+            'Warning threshold',  'Pacing % at which color flips to warning (must be below Critical)', true, holder);
         const criticalAdj = addSpinRow(popupDisplayGroup, settings, 'threshold-critical',
-            'Critical threshold', 'Pacing % at which color flips to critical (must exceed Warning)', true);
+            'Critical threshold', 'Pacing % at which color flips to critical (must exceed Warning)', true, holder);
         warningAdj.connect('value-changed', () => {
             if (Math.round(warningAdj.get_value()) >= Math.round(criticalAdj.get_value()))
                 criticalAdj.set_value(Math.round(warningAdj.get_value()) + 1);

@@ -161,7 +161,10 @@ class ClaudeIndicator extends PanelMenu.Button {
             if (!((dir === Clutter.ScrollDirection.UP || dir === Clutter.ScrollDirection.DOWN) && this._data))
                 return Clutter.EVENT_PROPAGATE;
             const eligible = (this._data.meters || []).filter(m => this._isSelectable(m));
-            if (eligible.length < 2) return Clutter.EVENT_STOP;
+            // S-1 (pass-17): if there's nothing to cycle, don't swallow the
+            // event — let it propagate so other consumers (future Shell
+            // scroll semantics, coexisting extensions) aren't blocked.
+            if (eligible.length < 2) return Clutter.EVENT_PROPAGATE;
             // Use the pending target if a debounce is in flight so consecutive
             // ticks chain through eligible meters; else read the committed setting.
             const cur = this._pendingMetric ?? this._settings.get_string('panel-metric');
@@ -293,7 +296,13 @@ class ClaudeIndicator extends PanelMenu.Button {
         // throw on set_text against a disposed St.Label.
         if (this._destroyed) return;
         const f = Gio.File.new_for_path(CACHE_FILE);
-        f.load_contents_async(null, (_obj, result) => {
+        // L-3 (pass-17): pass a Cancellable so destroy() can stop the I/O,
+        // not just no-op the callback. Tiny cache file makes the difference
+        // microscopic, but the pattern stays consistent with the rest of
+        // the file's async-cleanup discipline.
+        this._loadCancellable?.cancel();
+        this._loadCancellable = new Gio.Cancellable();
+        f.load_contents_async(this._loadCancellable, (_obj, result) => {
             if (this._destroyed) return;
             try {
                 const [ok, contents] = f.load_contents_finish(result);
@@ -336,13 +345,22 @@ class ClaudeIndicator extends PanelMenu.Button {
         // calls per render. They're already invalidated by 'changed' (which
         // re-runs _updateDisplay), so a per-render snapshot is correct.
         const tWarn = s.get_uint('threshold-warning');
-        const tCrit = s.get_uint('threshold-critical');
-        const popupNorm = s.get_string('popup-color-normal');
-        const popupWarn = s.get_string('popup-color-warning');
-        const popupCrit = s.get_string('popup-color-critical');
-        const panelNorm = s.get_string('panel-color-normal');
-        const panelWarn = s.get_string('panel-color-warning');
-        const panelCrit = s.get_string('panel-color-critical');
+        // DR-1 (pass-17): clamp tCrit > tWarn even if the user set them via
+        // gsettings CLI in the wrong order. Without this the color ladder
+        // inverts silently (warning tier becomes unreachable).
+        const tCrit = Math.max(s.get_uint('threshold-critical'), tWarn + 1);
+        // L-7 (pass-17): popup-font-family is regex-validated (line 468);
+        // colors weren't. A `gsettings set ... popup-color-normal '#fff;
+        // background: red'` would inject CSS into St.set_style. Fall back to
+        // schema defaults if the value isn't a clean #rrggbb.
+        const safeColor = (v, fallback) =>
+            /^#[0-9a-fA-F]{6}$/.test(v) ? v : fallback;
+        const popupNorm = safeColor(s.get_string('popup-color-normal'),  '#2a9a2a');
+        const popupWarn = safeColor(s.get_string('popup-color-warning'), '#d07000');
+        const popupCrit = safeColor(s.get_string('popup-color-critical'),'#e03030');
+        const panelNorm = safeColor(s.get_string('panel-color-normal'),  '#ffffff');
+        const panelWarn = safeColor(s.get_string('panel-color-warning'), '#d07000');
+        const panelCrit = safeColor(s.get_string('panel-color-critical'),'#e03030');
         const pctColor = p => p >= tCrit ? popupCrit : p >= tWarn ? popupWarn : popupNorm;
         const periodLens = d._period_lengths || {};
 
@@ -543,9 +561,15 @@ class ClaudeIndicator extends PanelMenu.Button {
             // signal synchronously inside set_string(), which would re-enter
             // _updateDisplay() and trigger a duplicate render in the same tick.
             // Guarded so a clear in flight doesn't queue a second clear.
+            // LC-1 (pass-17): store the source ID so destroy() can cancel it.
+            // L-9 (pass-17): _clearingMetric = false MUST come before set_string
+            // — set_string fires 'changed' synchronously and re-enters
+            // _updateDisplay → _getPrimary, which would otherwise see the guard
+            // still true and skip its own clear, locking the recovery path.
             if (!this._clearingMetric) {
                 this._clearingMetric = true;
-                GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                this._clearMetricIdleId = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                    this._clearMetricIdleId = null;
                     if (this._destroyed) return GLib.SOURCE_REMOVE;
                     this._clearingMetric = false;
                     this._settings.set_string('panel-metric', '');
@@ -587,6 +611,16 @@ class ClaudeIndicator extends PanelMenu.Button {
         if (this._scrollTimer) {
             GLib.source_remove(this._scrollTimer);
             this._scrollTimer = null;
+        }
+        // LC-1 (pass-17): the orphan-panel-metric clearer's idle source.
+        if (this._clearMetricIdleId) {
+            GLib.source_remove(this._clearMetricIdleId);
+            this._clearMetricIdleId = null;
+        }
+        // L-3 (pass-17): cancel the in-flight cache read.
+        if (this._loadCancellable) {
+            this._loadCancellable.cancel();
+            this._loadCancellable = null;
         }
         if (this._menuOpenId) {
             this.menu.disconnect(this._menuOpenId);
