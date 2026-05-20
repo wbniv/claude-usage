@@ -14,7 +14,7 @@
 
 | Sev | # | ID | Title | New this pass? |
 |-----|---|----|-------|----------------|
-| **Critical** | 1 | **AR‑2** | AR-1's `_fetching` guard at the top of `restoreActionStatus()` reads `_fetching` BEFORE its `let` declaration at module scope → `ReferenceError` (Temporal Dead Zone) on every SW load. **The AT-2 tooltip-restore feature is now completely broken.** | ✓ (introduced by AR‑1) |
+| **Critical** | 1 | ~~**AR‑2**~~ | ~~AR-1's `_fetching` guard at the top of `restoreActionStatus()` reads `_fetching` BEFORE its `let` declaration at module scope → `ReferenceError` (Temporal Dead Zone) on every SW load. **The AT-2 tooltip-restore feature is now completely broken.**~~ | ✓ (introduced by AR‑1) |
 | Low | 2 | **SS‑1** | SL-3's section regex requires a trailing blank line after the outbound bullet list. If the doc ends at EOF or the blank line is removed by an autoformatter, `re.search` returns None and the lint silently falls back to whole-doc scan — the exact pre-SL-3 behaviour. | ✓ (gap in SL‑3) |
 | Low | 3 | **OS‑2** | OS-1's `continue` change has no regression test — same class of bug (`pass` → unlink fallthrough) could re-emerge silently. | ✓ |
 | Low | 4 | **CV‑4** | CV-3's `assert result.get('meters') == [{'pct': 9, 'label': 'x'}]` is exact-equality. Any future server-side meter enrichment (e.g. enrichment with `pacing_status`) would fail this unrelated test. | ✓ |

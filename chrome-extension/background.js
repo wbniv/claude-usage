@@ -60,6 +60,19 @@ async function getServerUrl({ forceProbe = false } = {}) {
 // a response missing the claude-usage signature header (squatter on the
 // cached port), invalidate the cache and re-probe once. 4xx WITH the signature
 // is treated as a real server response (validator rejection) — return the
+// AR-2 (pass-20): declared up here so restoreActionStatus()'s top-level
+// invocation can read it without hitting the Temporal Dead Zone. AR-1
+// added an `if (_fetching) return;` to restoreActionStatus, but at module
+// load the top-level `restoreActionStatus()` call runs synchronously
+// before `let _fetching = false;` was reached — ReferenceError, unhandled
+// rejection, AT-2 broken on every SW wake.
+let _fetching = false;
+// One-shot guard for the tabs.query swallow in fetchUsage. If Chrome ever
+// tightens permission semantics so tabs.query throws, we'd otherwise silently
+// fall back to the background-tab path forever — log once per SW lifetime.
+let _tabQueryWarned = false;
+
+
 // O-1 (pass-17): observable error state. Default-title says "click to refresh
 // now"; this rewrites it after every postUpdate outcome so the user can hover
 // the toolbar icon and see whether the last cycle succeeded — and if not, why.
@@ -174,12 +187,9 @@ async function postUpdate(body) {
 // not auto-reload unpacked extensions on .deb upgrade — without this, a user
 // can sit on a stale extension forever with no visible signal.
 const EXT_VERSION = chrome.runtime.getManifest().version;
-
-let _fetching = false;
-// One-shot guard for the tabs.query swallow in fetchUsage. If Chrome ever
-// tightens permission semantics so tabs.query throws, we'd otherwise silently
-// fall back to the background-tab path forever — log once per SW lifetime.
-let _tabQueryWarned = false;
+// _fetching and _tabQueryWarned declarations moved above setActionStatus
+// (AR-2, pass-20). Required for restoreActionStatus's top-level call to
+// read _fetching without hitting the TDZ.
 
 // Poll Anthropic's public Statuspage. JSON, no auth, doesn't burn tokens.
 // Returns the compact subset the GNOME extension uses to compute the broken
