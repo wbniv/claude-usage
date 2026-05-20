@@ -136,11 +136,13 @@ echo "  ✓ Diagnostics installed — run 'claude-usage-status' to check service
 
 # 2b. Chrome extension install copy (Chrome loads unpacked from this path).
 # Use `cp -r` so the manifest, scripts, and icons all land — but explicitly
-# drop the test/ subdirectory afterwards so dev-only artifacts don't ship to
-# end-users (the CWS zip already excludes test/ via build-chrome-zip.sh).
+# drop the test/ subdirectory so dev-only artifacts don't ship to end-users
+# (CWS zip already excludes via build-chrome-zip.sh). P-1 (pass-17): rsync
+# --exclude does this in one transactional op — no cp-then-rm window where
+# test/ briefly exists at the destination.
 mkdir -p "$SERVER_DIR/chrome-extension"
-cp -r "$REPO_DIR/chrome-extension/." "$SERVER_DIR/chrome-extension/"
-rm -rf "$SERVER_DIR/chrome-extension/test"
+rsync -a --delete --exclude='test/' "$REPO_DIR/chrome-extension/" \
+    "$SERVER_DIR/chrome-extension/"
 echo "  ✓ Chrome extension files synced to $SERVER_DIR/chrome-extension"
 
 # 2c. Icon-theme baseline for source installs (TF-1, pass-16 §13).

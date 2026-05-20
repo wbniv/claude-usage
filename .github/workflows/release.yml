@@ -36,6 +36,15 @@ jobs:
       - name: Install go-task
         uses: arduino/setup-task@v2
 
+      # N-1 (pass-17): pin Node so `node --test` semantics don't drift
+      # with the GH-runner image refresh. FORCE_JAVASCRIPT_ACTIONS_TO_NODE24
+      # below governs Action runtime; this controls the user-shell `node`
+      # invoked by task test-scraper.
+      - name: Pin Node version
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
       - name: Install pytest
         run: python3 -m pip install --user pytest
 

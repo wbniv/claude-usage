@@ -43,10 +43,12 @@ cp "$REPO_DIR/gnome-extension/schemas/org.gnome.shell.extensions.claude-usage.gs
    "$PKG/usr/share/claude-usage/schemas/"
 
 # Chrome extension (for load-unpacked until CWS listing is live).
-# Drop test/ — dev-only fixture, irrelevant once installed and Chrome would
-# silently include it as an extension resource. CWS zip excludes it too.
-cp -r "$REPO_DIR/chrome-extension" "$PKG/usr/share/claude-usage/"
-rm -rf "$PKG/usr/share/claude-usage/chrome-extension/test"
+# Drop test/ — dev-only fixture, irrelevant once installed. P-1 (pass-17):
+# `cp -r` + `rm -rf test` created a window where test/ existed at the
+# destination; rsync --exclude does it in one transactional op.
+mkdir -p "$PKG/usr/share/claude-usage/chrome-extension"
+rsync -a --exclude='test/' "$REPO_DIR/chrome-extension/" \
+    "$PKG/usr/share/claude-usage/chrome-extension/"
 
 # Systemd user unit — rewrite path from %h/.local/share to /usr/share
 sed 's|%h/.local/share/claude-usage|/usr/share/claude-usage|g' \
