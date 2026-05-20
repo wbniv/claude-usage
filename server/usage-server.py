@@ -525,26 +525,40 @@ def _write_port_file(port):
 
 
 def _sweep_orphan_tmps():
-    """Prune leftover update_desktop tmp files from crashed writes.
+    """Prune leftover unique-tmp files from crashed writes.
 
-    The unique-tmp scheme (tooltip.py uses .tmp.PID.NS to avoid concurrent
-    writers truncating each other) means a crash between write_text and
-    replace leaks one tmp per crash. Run-once at server startup.
+    Two writers use the .tmp.PID.NS scheme to avoid mutual truncation:
+      • tooltip.py:update_desktop → ~/.local/share/applications/
+      • generate-icon.py:_atomic_write_multisize → user hicolor size dirs
+        (MS-1, pass-17: was not swept before)
+    A crash between write and replace leaks one tmp per affected size.
+    Run-once at server startup; skips tmps whose PID is still alive.
     """
-    apps = Path.home() / '.local/share/applications'
-    if not apps.is_dir():
-        return
-    for orphan in apps.glob('claude-usage.desktop.tmp.*'):
-        try:
-            pid = int(orphan.name.split('.')[-2])
-            if Path(f'/proc/{pid}').exists():
-                continue  # process still alive — not an orphan
-        except (ValueError, IndexError):
-            pass
-        try:
-            orphan.unlink()
-        except OSError:
-            pass
+    def _sweep(directory, pattern, pid_position):
+        if not directory.is_dir():
+            return
+        for orphan in directory.glob(pattern):
+            try:
+                pid = int(orphan.name.split('.')[pid_position])
+                if Path(f'/proc/{pid}').exists():
+                    continue  # process still alive — not an orphan
+            except (ValueError, IndexError):
+                pass
+            try:
+                orphan.unlink()
+            except OSError:
+                pass
+
+    # Desktop file: claude-usage.desktop.tmp.<PID>.<NS> — PID at index -2.
+    _sweep(Path.home() / '.local/share/applications',
+           'claude-usage.desktop.tmp.*', -2)
+    # Icon files: .claude-usage.tmp.<PID>.<NS>.<SIZE>.png — PID at index 2
+    # (after the leading-dot "" and "claude-usage"); per-size dirs.
+    data_home = Path(os.environ.get('XDG_DATA_HOME') or Path.home() / '.local/share')
+    hicolor = data_home / 'icons/hicolor'
+    if hicolor.is_dir():
+        for size_dir in hicolor.glob('*x*/apps'):
+            _sweep(size_dir, '.claude-usage.tmp.*.png', 2)
 
 
 if __name__ == '__main__':

@@ -250,7 +250,11 @@ def _refresh_user_icon_cache():
     every lookup — correct but slow — and on some GNOME versions doesn't
     pick up new size dirs at all until logout. Steady-state (cache exists,
     sizes stable) we skip the refresh: mtime bumps from atomic rename are
-    enough for GtkIconTheme's inotify watches to invalidate cached pixbufs."""
+    enough for GtkIconTheme's inotify watches to invalidate cached pixbufs.
+
+    MS-2 (pass-17): log timeout to stderr — silent swallow meant a slow
+    rebuild on a large theme dir (Yaru-style themes can ship 800+ files)
+    would leave the user with a stale cache and no diagnostic."""
     if not shutil.which('gtk-update-icon-cache'):
         return
     try:
@@ -258,6 +262,10 @@ def _refresh_user_icon_cache():
             ['gtk-update-icon-cache', '-f', '-t', str(THEME_DIR)],
             check=False, capture_output=True, timeout=10,
         )
+    except subprocess.TimeoutExpired:
+        print(f"warning: gtk-update-icon-cache timed out on {THEME_DIR}; "
+              f"cache may be stale until next rebuild",
+              file=sys.stderr, flush=True)
     except (subprocess.SubprocessError, FileNotFoundError):
         pass  # cache is an optimization; lookups still work via fs walk
 
@@ -271,22 +279,42 @@ def _atomic_write_multisize(img, sizes=ICON_SIZES):
     crash-safety + mtime-bump on every refresh (which is what GtkIconTheme
     monitors to invalidate cached pixbufs). PID+ns infix in the tmp name
     avoids collisions when two generate-icon.py invocations race (POST
-    handler + GNOME extension tier-transition spawn)."""
+    handler + GNOME extension tier-transition spawn).
+
+    M-1 (pass-17): two-phase commit. Phase 1 writes every tmp (the slow
+    work — PIL resize at 5 sizes). Phase 2 renames all into place back-to-
+    back. If any save fails in phase 1, no destinations are touched yet, so
+    the dock can't end up with split-vintage icons across sizes. Window
+    where consumers see inconsistent state shrinks from "PIL save + rename"
+    (hundreds of ms) to "5 sequential renames" (microseconds).
+
+    MS-1 (pass-17): use BaseException + finally so SIGINT/SIGTERM during
+    the loop don't leak tmp files."""
     new_dir = False
-    for size in sizes:
-        dest = icon_path_for(size)
-        new_dir = new_dir or not dest.parent.exists()
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        tmp = dest.with_name(
-            f'.claude-usage.tmp.{os.getpid()}.{time.time_ns()}.{size}.png'
-        )
-        try:
+    staged = []
+    try:
+        for size in sizes:
+            dest = icon_path_for(size)
+            new_dir = new_dir or not dest.parent.exists()
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            tmp = dest.with_name(
+                f'.claude-usage.tmp.{os.getpid()}.{time.time_ns()}.{size}.png'
+            )
             img.resize((size, size), RESAMPLE).save(tmp)
+            staged.append((tmp, dest))
+        # Phase 2: rename. Each individual replace is atomic; doing them all
+        # together with no slow work in between minimizes the cross-size
+        # observable-inconsistency window.
+        for tmp, dest in staged:
             tmp.replace(dest)
-        except Exception:
+        staged = []  # everything committed — nothing to clean up below
+    finally:
+        # MS-1: also handles BaseException (SIGINT, SIGTERM-then-raise during
+        # cleanup). Any tmps left staged were never renamed, so unlink them.
+        for tmp, _ in staged:
             try: tmp.unlink()
             except OSError: pass
-            raise
+
     # First install (no cache yet) or new size dir (upgrade added an entry to
     # ICON_SIZES) → rebuild so GtkIconTheme indexes the new files. Steady-
     # state: cache present + sizes stable → skip; mtime bumps suffice.
