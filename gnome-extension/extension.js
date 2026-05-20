@@ -605,10 +605,10 @@ class ClaudeIndicator extends PanelMenu.Button {
             GLib.source_remove(this._tickId);
             this._tickId = null;
         }
-        if (this._flashId) {
-            GLib.source_remove(this._flashId);
-            this._flashId = null;
-        }
+        // LC-2 (pass-18): _stopFlash() already source_remove's _flashId and
+        // carries L-6's _destroyed guard for the opacity write. Inlining a
+        // partial copy here drifted from the helper.
+        this._stopFlash();
         if (this._retryId) {
             GLib.source_remove(this._retryId);
             this._retryId = null;

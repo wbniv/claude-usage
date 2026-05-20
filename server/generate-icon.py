@@ -239,7 +239,12 @@ def derive_tier(data):
     component = astat.get('claude_ai_component_status') or 'operational'
     if component != 'operational':
         return 'broken'
-    if (data.get('_scrape_fail_count') or 0) >= 2:
+    # DT-1 (pass-18): isinstance guard before the comparison. The validator
+    # rejects non-int _scrape_fail_count on POST, but a pre-existing corrupt
+    # cache from a downgrade or hand-edit can still feed `"5" >= 2` here,
+    # raising TypeError on every icon render until the cache is deleted.
+    sfc = data.get('_scrape_fail_count')
+    if isinstance(sfc, int) and not isinstance(sfc, bool) and sfc >= 2:
         return 'broken'
     return 'normal'
 

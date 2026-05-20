@@ -78,13 +78,22 @@ function addSpinRow(group, settings, key, title, subtitle, regen = false, holder
     // main process, which re-runs the full popup _updateDisplay every step.
     // 120 ms means held-down still feels responsive but each "stop spinning"
     // is a single render.
+    //
+    // PT-1 (pass-18): writeTimer is per-row (so concurrent multi-row writes
+    // don't clobber each other) but registered with holder.pendingTimers so
+    // the window close-request can drain it before the SpinRow is disposed.
     let writeTimer = null;
     adj.connect('value-changed', () => {
-        if (writeTimer) clearTimeout(writeTimer);
+        if (writeTimer) {
+            clearTimeout(writeTimer);
+            holder?.pendingTimers.delete(writeTimer);
+        }
         writeTimer = setTimeout(() => {
+            holder?.pendingTimers.delete(writeTimer);
             writeTimer = null;
             settings.set_uint(key, Math.round(adj.get_value()));
         }, 120);
+        holder?.pendingTimers.add(writeTimer);
         if (regen && holder) {
             if (holder.regenTimer) clearTimeout(holder.regenTimer);
             holder.regenTimer = setTimeout(() => {
@@ -101,7 +110,18 @@ export default class ClaudeUsagePreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
         const settings = this.getSettings();
         // L-5 (pass-17): per-window timer holder. Doesn't survive close/reopen.
-        const holder = {regenTimer: null};
+        // PT-1 (pass-18): a Set of pending setTimeout IDs (per-row write
+        // debounces + the shared regen debounce). Drained on close-request
+        // so no callback fires against the disposed SpinRow widgets. Per-row
+        // tracking matters because the user might touch row A then row B
+        // within 120 ms — a single shared writeTimer would lose A's value.
+        const holder = {regenTimer: null, pendingTimers: new Set()};
+        window.connect('close-request', () => {
+            if (holder.regenTimer) { clearTimeout(holder.regenTimer); holder.regenTimer = null; }
+            for (const id of holder.pendingTimers) clearTimeout(id);
+            holder.pendingTimers.clear();
+            return false;  // don't suppress the close
+        });
 
         const page = new Adw.PreferencesPage({
             title: 'Claude Usage',

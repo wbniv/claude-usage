@@ -100,6 +100,18 @@ def test_derive_tier_normal_one_scrape_fail(g):
     assert g.derive_tier({'_scrape_fail_count': 1}) == 'normal'
 
 
+def test_derive_tier_safe_on_corrupt_scrape_fail_count(g):
+    """DT-1 (pass-18): a pre-existing corrupt cache (e.g. from a downgrade
+    or hand-edit) might carry a non-int _scrape_fail_count. Validator
+    rejects on POST, but the on-disk cache reads BEFORE any new POST
+    arrives. Don't TypeError; treat as the safe value."""
+    # Before the fix: `"5" >= 2` → TypeError
+    assert g.derive_tier({'_scrape_fail_count': '5'}) == 'normal'
+    assert g.derive_tier({'_scrape_fail_count': True}) == 'normal'  # bool ⊂ int
+    assert g.derive_tier({'_scrape_fail_count': None}) == 'normal'
+    assert g.derive_tier({'_scrape_fail_count': [1, 2, 3]}) == 'normal'
+
+
 # ── ring_color ───────────────────────────────────────────────────────────────
 
 def test_ring_color_below_warn_is_green(g):
