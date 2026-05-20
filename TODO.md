@@ -11,6 +11,7 @@
 - [ ] **IN‑1** (pass-26 Info): `tabs` permission is broader than needed; `host_permissions` + `activeTab` would shrink the Chrome Web Store install-warning string. Needs verification that `tabs.query({url})` still returns hydrated URL fields with just `host_permissions` before removing. [Review](docs/investigations/2026-05-20-code-review-pass26.md)
 
 ## Done
+- [x] 2026-05-20 — Pass-27 landing: 1 of 1 closed (RT-1: NM-1 missing regression test for meters:null rejection). Suite 148→149. [Review](docs/investigations/2026-05-20-code-review-pass27.md).
 - [x] 2026-05-20 — Pass-26 landing: 23 of 29 closed in 5 commits; 6 deferred (AS-1 mutex, RD-1 debounce, SV-1 GNOME 50, PL-3 scraper strings, TR-1 transcripts, IN-1 tabs perm). Headline: UX-1 (popup flicker), PVS-1 (over-pace rounding), RL-1 (release gate), PL-1 (parity lint string coverage), NM-1 (meters:null poison), GI-1 (hardcoded #e03030). Suite 147→148. [Review](docs/investigations/2026-05-20-code-review-pass26.md).
 - [x] 2026-05-20 — Pass-24 landing: 1 Low closed (EF-2: third `elapsed_fraction` twin in popup-preview.py was missed by EF-1's pass-23 sweep — null-meter guard added). [Review](docs/investigations/2026-05-20-code-review-pass24.md).
 - [x] 2026-05-20 — Pass-23 landing: closed 8 of 8 Lows + 1 Info in 3 commits (`112d1f3`, `9d7c1eb`, `<next>`); 0 deferred. Headline: CAP-1 (sibling `cap()` had UT-1's UTF-16 surrogate-pair bug) + PS-1 (parity lint extended to cover pacingSegments/colorFor — 4 pairs now). [Review](docs/investigations/2026-05-20-code-review-pass23.md).
