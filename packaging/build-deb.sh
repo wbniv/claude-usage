@@ -23,6 +23,10 @@ mkdir -p \
     "$PKG/usr/lib/systemd/user" \
     "$PKG/usr/bin"
 
+# JS-1 (pass-18, post-pass-21): regenerate _defaults.js from the gschema XML
+# before copying so the .deb always ships a current artifact (CI's
+# lint-js-defaults catches drift in the checked-in copy too).
+python3 "$REPO_DIR/scripts/gen-js-defaults.py"
 # GNOME extension
 cp -r "$REPO_DIR/gnome-extension/." \
     "$PKG/usr/share/gnome-shell/extensions/claude-usage@indri.studio/"

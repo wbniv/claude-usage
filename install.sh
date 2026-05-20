@@ -108,7 +108,12 @@ echo "  ✓ Python dependencies OK"
 
 # 1. GNOME Shell extension
 mkdir -p "$GNOME_EXT_DIR/schemas" "$GNOME_EXT_DIR/icons"
+# JS-1 (pass-18, post-pass-21): regenerate _defaults.js from the gschema XML
+# before copying so the installed extension carries the current values even
+# if the checked-in artifact drifted (CI lint also catches this).
+python3 "$REPO_DIR/scripts/gen-js-defaults.py"
 cp "$REPO_DIR/gnome-extension/extension.js" "$GNOME_EXT_DIR/"
+cp "$REPO_DIR/gnome-extension/_defaults.js" "$GNOME_EXT_DIR/"
 cp "$REPO_DIR/gnome-extension/metadata.json" "$GNOME_EXT_DIR/"
 cp "$REPO_DIR/gnome-extension/prefs.js" "$GNOME_EXT_DIR/"
 cp "$REPO_DIR/gnome-extension/schemas/"*.xml "$GNOME_EXT_DIR/schemas/"

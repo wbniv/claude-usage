@@ -9,6 +9,11 @@ import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
+// JS-1 (pass-18, post-pass-21): single source of truth for gschema defaults.
+// Generated from gnome-extension/schemas/<schema>.xml by scripts/gen-js-defaults.py;
+// see lint-js-defaults-parity.py for the CI sync check.
+import {DEFAULTS as SCHEMA_DEFAULTS} from './_defaults.js';
+
 const CACHE_DIR          = GLib.get_user_cache_dir() + '/claude-usage';
 const CACHE_FILE         = CACHE_DIR + '/usage.json';
 const NOTIF_TS_FILE      = CACHE_DIR + '/notif-ts';
@@ -361,12 +366,12 @@ class ClaudeIndicator extends PanelMenu.Button {
         // schema defaults if the value isn't a clean #rrggbb.
         const safeColor = (v, fallback) =>
             /^#[0-9a-fA-F]{6}$/.test(v) ? v : fallback;
-        const popupNorm = safeColor(s.get_string('popup-color-normal'),  '#2a9a2a');
-        const popupWarn = safeColor(s.get_string('popup-color-warning'), '#d07000');
-        const popupCrit = safeColor(s.get_string('popup-color-critical'),'#e03030');
-        const panelNorm = safeColor(s.get_string('panel-color-normal'),  '#ffffff');
-        const panelWarn = safeColor(s.get_string('panel-color-warning'), '#d07000');
-        const panelCrit = safeColor(s.get_string('panel-color-critical'),'#e03030');
+        const popupNorm = safeColor(s.get_string('popup-color-normal'),  SCHEMA_DEFAULTS.popup_color_normal);
+        const popupWarn = safeColor(s.get_string('popup-color-warning'), SCHEMA_DEFAULTS.popup_color_warning);
+        const popupCrit = safeColor(s.get_string('popup-color-critical'),SCHEMA_DEFAULTS.popup_color_critical);
+        const panelNorm = safeColor(s.get_string('panel-color-normal'),  SCHEMA_DEFAULTS.panel_color_normal);
+        const panelWarn = safeColor(s.get_string('panel-color-warning'), SCHEMA_DEFAULTS.panel_color_warning);
+        const panelCrit = safeColor(s.get_string('panel-color-critical'),SCHEMA_DEFAULTS.panel_color_critical);
         const pctColor = p => p >= tCrit ? popupCrit : p >= tWarn ? popupWarn : popupNorm;
         const periodLens = d._period_lengths || {};
 

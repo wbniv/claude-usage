@@ -27,6 +27,16 @@ tasks:
     cmds:
       - python3 scripts/lint-security-doc.py
 
+  gen-js-defaults:
+    desc: "JS-1 (pass-18): regenerate gnome-extension/_defaults.js from the gschema XML"
+    cmds:
+      - python3 scripts/gen-js-defaults.py
+
+  lint-js-defaults:
+    desc: "JS-1 (pass-18): assert gnome-extension/_defaults.js is in sync with the gschema XML"
+    cmds:
+      - python3 scripts/gen-js-defaults.py --check
+
   test:
     desc: Run all unit tests + parity/security lints
     cmds:
@@ -34,6 +44,7 @@ tasks:
       - task: test-validate
       - task: lint-scraper-parity
       - task: lint-security-doc
+      - task: lint-js-defaults
 
   build:
     desc: Build the .deb package

@@ -2,11 +2,11 @@
 
 ## Fixes
 - [verify] **Pacing visualization — tick + over-pace highlight.** Add a `┊` tick to bars/rings at the elapsed-fraction position when under-pace; split fills into normal/warn-color two-tone when over-pace. Applies to popup (`popup-preview.py` → `extension.js`) and dock icon (`generate-icon.py`). [Plan](docs/plans/2026-05-20-pacing-viz-tick-overpace.md).
-- [verify] **JS-1 (pass-18):** add a CI lint that cross-checks `extension.js`'s `safeColor` fallback hex literals against `server/schema_defaults.py`. JS can't import the Python SOT directly; could grep both sides, or generate a `_defaults.js` from the gschema XML at build time. Design call. [Review](docs/investigations/2026-05-20-code-review-pass18.md).
 
 ## Deferred
 
 ## Done
+- [x] 2026-05-20 — JS-1: `gnome-extension/_defaults.js` is now generated from the gschema XML (`scripts/gen-js-defaults.py`); `extension.js`'s `safeColor` reads from it instead of hardcoded hex literals. New `task lint-js-defaults` asserts the artifact stays in sync; `install.sh` + `build-deb.sh` regenerate on every install/build. [Review](docs/investigations/2026-05-20-code-review-pass18.md).
 - [x] 2026-05-20 — UT-1: Statuspage `trunc` is now code-point-aware (`[...s].slice(0, 117)`); UTF-16 surrogate-pair splits can no longer produce invalid output. [Review](docs/investigations/2026-05-20-code-review-pass18.md).
 - [x] 2026-05-20 — TT-1: `format_tooltip` "no recognisable meter labels" warning is now one-shot per process (was firing 1440×/day from `_tooltip_tick`). [Review](docs/investigations/2026-05-20-code-review-pass18.md).
 - [x] 2026-05-20 — Pass-21 landing: closed 3 of 3 Lows in 1 commit; 0 deferred. BL-1 (load-test handler removed too early; intended diagnostic was dead code), DC-1 (AR-2 comment block stitched into postUpdate's doc), DC-2 (pass-20 doc arithmetic off-by-one). Slash command also gained the carry-forward-TODOs convention (commit `30b2f8e`). Suite still 146. [Review](docs/investigations/2026-05-20-code-review-pass21.md).
