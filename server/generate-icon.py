@@ -22,7 +22,20 @@ CACHE_JSON   = CACHE_DIR / 'usage.json'
 # (a documented uninstall step) doesn't strand the launcher with a missing
 # icon — and when the user file is missing, GNOME falls back to the system
 # baseline at /usr/share/pixmaps/claude-usage.png shipped by the .deb.
-ICON_OUT = _DATA_HOME / 'icons/hicolor/128x128/apps/claude-usage.png'
+#
+# Multi-size emission: we write the live ring-painted icon to several
+# hicolor size buckets. XDG icon-theme lookup picks the directory whose size
+# is closest to what the consumer requested, so without 64x64 + 48x48
+# user-local variants the dock (which typically asks for ~32–48 px) would
+# fall through to /usr/share/icons/hicolor/64x64/apps/claude-usage.png —
+# the ringless baseline shipped by the .deb — and the dock would show no
+# rings. Emitting at every plausible size keeps the live version winning.
+ICON_SIZES = (48, 64, 96, 128, 256)
+
+def icon_path_for(size):
+    return _DATA_HOME / f'icons/hicolor/{size}x{size}/apps/claude-usage.png'
+
+ICON_OUT = icon_path_for(128)  # back-compat alias; main() emits all sizes
 
 # Icon ships with the GNOME extension; check user-install path first, then system path.
 _EXT_REL = Path('gnome-shell/extensions/claude-usage@indri.studio/icons/claude-64.png')
@@ -137,7 +150,9 @@ def draw_ring(cr, cx, cy, radius, thick, pct, color, track=True):
                -math.pi / 2 + 2 * math.pi * (pct / 100))
         cr.stroke()
 
-def generate(all_pct, sonnet_pct, cfg, dest, draw_rings=True, tier='normal'):
+def _render(all_pct, sonnet_pct, cfg, draw_rings=True, tier='normal'):
+    """Cairo + PIL pipeline; returns the rendered PIL Image at CANVAS px.
+    No I/O. Callers resize and save."""
     cx = cy = CANVAS // 2
     THICK_OUTER, THICK_INNER, GAP = 10 * SCALE, 8 * SCALE, 3 * SCALE
     R_INNER = ICON // 2 + GAP + THICK_INNER // 2
@@ -189,6 +204,13 @@ def generate(all_pct, sonnet_pct, cfg, dest, draw_rings=True, tier='normal'):
         r, g, b, a = img.split()
         grey = ImageOps.grayscale(Image.merge('RGB', (r, g, b)))
         img = Image.merge('RGBA', (grey, grey, grey, a))
+    return img
+
+
+def generate(all_pct, sonnet_pct, cfg, dest, draw_rings=True, tier='normal'):
+    """Render and save to a single dest at 128×128. Kept for --baseline mode
+    and for any external callers that pass an arbitrary path."""
+    img = _render(all_pct, sonnet_pct, cfg, draw_rings, tier)
     img.resize((128, 128), RESAMPLE).save(dest)
 
 
@@ -209,28 +231,29 @@ def derive_tier(data):
         return 'broken'
     return 'normal'
 
-def _atomic_write_icon(render_to_path):
-    """Write the icon to ICON_OUT atomically. The render callback receives a
-    tmp path and writes the PNG to it; we then rename to the final location.
+def _atomic_write_multisize(img, sizes=ICON_SIZES):
+    """Write `img` to every hicolor size bucket atomically (tmp + rename per
+    size). The Cairo pipeline runs once; only the PIL resize per size repeats.
 
-    TF-1: stable filename in the user icon-theme dir replaces the previous
+    TF-1: stable filenames under the user icon-theme dir replace the previous
     per-invocation ns-precision scheme in ~/.cache. Atomic rename gives
     crash-safety + mtime-bump on every refresh (which is what GtkIconTheme
-    monitors to invalidate cached pixbufs)."""
-    ICON_OUT.parent.mkdir(parents=True, exist_ok=True)
-    # PID+ns infix so two concurrent generate-icon.py invocations (POST
-    # handler + GNOME extension tier-transition spawn) don't truncate each
-    # other's tmp files. Last writer wins on the rename — both produce
-    # functionally equivalent icons since they both render from the same cache.
-    # Keep the `.png` extension at the end so PIL infers the right format.
-    tmp = ICON_OUT.with_name(f'.claude-usage.tmp.{os.getpid()}.{time.time_ns()}.png')
-    try:
-        render_to_path(tmp)
-        tmp.replace(ICON_OUT)
-    except Exception:
-        try: tmp.unlink()
-        except OSError: pass
-        raise
+    monitors to invalidate cached pixbufs). PID+ns infix in the tmp name
+    avoids collisions when two generate-icon.py invocations race (POST
+    handler + GNOME extension tier-transition spawn)."""
+    for size in sizes:
+        dest = icon_path_for(size)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        tmp = dest.with_name(
+            f'.claude-usage.tmp.{os.getpid()}.{time.time_ns()}.{size}.png'
+        )
+        try:
+            img.resize((size, size), RESAMPLE).save(tmp)
+            tmp.replace(dest)
+        except Exception:
+            try: tmp.unlink()
+            except OSError: pass
+            raise
 
 def main(tier_override=None):
     cfg = load_config()
@@ -247,9 +270,10 @@ def main(tier_override=None):
     all_pct    = min(100.0, pacing_pct(all_m,    period_lens))
     sonnet_pct = min(100.0, pacing_pct(sonnet_m, period_lens))
     tier = tier_override or derive_tier(data)
-    _atomic_write_icon(lambda dest: generate(all_pct, sonnet_pct, cfg, dest, tier=tier))
+    img = _render(all_pct, sonnet_pct, cfg, tier=tier)
+    _atomic_write_multisize(img)
     update_desktop(meters, scrape_ts=data.get('_timestamp'))
-    print(f'Icon: All={all_pct:.0f}% Sonnet={sonnet_pct:.0f}% (pacing) tier={tier}', flush=True)
+    print(f'Icon: All={all_pct:.0f}% Sonnet={sonnet_pct:.0f}% (pacing) tier={tier} sizes={ICON_SIZES}', flush=True)
 
 if __name__ == '__main__':
     # --baseline DEST: render the placeholder tile (rounded-rect + orange + star,
