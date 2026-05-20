@@ -67,20 +67,50 @@ async function getServerUrl({ forceProbe = false } = {}) {
 async function setActionStatus(kind, meterCount, errorMsg) {
   if (typeof chrome === 'undefined' || !chrome.action) return;
   const stamp = new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+  // AT-1 (pass-18): cap interpolated errorMsg so a long network-stack
+  // message can't produce a massive tooltip.
+  const cap = s => (typeof s === 'string' && s.length > 80 ? s.slice(0, 77) + '...' : s);
   let title;
   if (kind === 'ok') {
     title = `Claude Usage: OK · ${meterCount} meters · last fetch ${stamp}`;
+  } else if (kind === 'partial') {
+    title = `Claude Usage: ⚠ no meters scraped at ${stamp}\n`
+          + `Page may be in a non-English locale (see _parse_failure)`;
   } else if (kind === 'rejected') {
-    title = `Claude Usage: ⚠ local server rejected payload (${errorMsg}) at ${stamp}\n`
+    title = `Claude Usage: ⚠ local server rejected payload (${cap(errorMsg)}) at ${stamp}\n`
           + `Check: journalctl --user-unit=claude-usage-fetch.service`;
   } else if (kind === 'unavailable') {
     title = `Claude Usage: ⚠ local server unreachable at ${stamp}\n`
           + `Check: systemctl --user status claude-usage-fetch.service`;
+  } else if (kind === 'recovered') {
+    title = `Claude Usage: ✓ offline buffer flushed at ${stamp}`;
+  } else if (kind === 'scrape-failed') {
+    title = `Claude Usage: ⚠ scrape failed (${cap(errorMsg)}) at ${stamp}`;
   } else {
     title = `Claude Usage: ⚠ ${kind} at ${stamp}`;
   }
-  try { await chrome.action.setTitle({title}); } catch (_) {}
+  try {
+    await chrome.action.setTitle({title});
+    // AT-2 (pass-18): MV3 SWs are ephemeral — setTitle reverts to
+    // manifest.default_title on SW dormancy. Persist so restoreActionStatus()
+    // can re-apply on next SW wake; otherwise the O-1 hover value evaporates
+    // between cycles.
+    await chrome.storage.local.set({_last_action_title: title});
+  } catch (_) {}
 }
+
+
+// AT-2 (pass-18): re-apply the last tooltip on SW startup. Called at
+// top-level so every SW wake (cold start, alarm fire after dormancy)
+// restores observable state.
+async function restoreActionStatus() {
+  if (typeof chrome === 'undefined' || !chrome.action) return;
+  try {
+    const {_last_action_title} = await chrome.storage.local.get('_last_action_title');
+    if (_last_action_title) await chrome.action.setTitle({title: _last_action_title});
+  } catch (_) {}
+}
+restoreActionStatus();
 
 
 // Response so callers can decide whether to discard the payload. Throws only
@@ -344,6 +374,10 @@ async function scrapeAndPost(tabId) {
       _ext_version: EXT_VERSION,
     };
     try { await postUpdate(partial); } catch (_) {}
+    // OT-1 (pass-18): empty-meters path — tell the user the scrape ran
+    // but found nothing parseable. Distinguishes from the success path's
+    // "OK · N meters" so the hover triage isn't misleading.
+    await setActionStatus('partial');
     return;
   }
 
@@ -416,6 +450,8 @@ async function fetchUsage() {
           if (r.ok) {
             await chrome.storage.local.remove('claude_usage');
             console.log('Claude Usage: flushed offline data to server');
+            // OT-1 (pass-18): tell the user the buffered data was delivered.
+            await setActionStatus('recovered');
           } else if (r.status >= 400 && r.status < 500) {
             // 4xx means the buffered payload is malformed (e.g. validator
             // rejected it after a server update tightened the schema).
@@ -501,6 +537,8 @@ async function fetchUsage() {
       };
       console.warn('Claude Usage: reporting error to local server');
       await postUpdate(partial);
+      // OT-1 (pass-18): scrape itself threw — surface the cause + count.
+      await setActionStatus('scrape-failed', null, String(err?.message ?? err));
     } catch (_) {}
   } finally {
     if (createdTab) {
