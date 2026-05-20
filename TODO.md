@@ -5,6 +5,7 @@
 ## Deferred
 
 ## Done
+- [x] 2026-05-20 — Pass-24 landing: 1 Low closed (EF-2: third `elapsed_fraction` twin in popup-preview.py was missed by EF-1's pass-23 sweep — null-meter guard added). [Review](docs/investigations/2026-05-20-code-review-pass24.md).
 - [x] 2026-05-20 — Pass-23 landing: closed 8 of 8 Lows + 1 Info in 3 commits (`112d1f3`, `9d7c1eb`, `<next>`); 0 deferred. Headline: CAP-1 (sibling `cap()` had UT-1's UTF-16 surrogate-pair bug) + PS-1 (parity lint extended to cover pacingSegments/colorFor — 4 pairs now). [Review](docs/investigations/2026-05-20-code-review-pass23.md).
 - [x] 2026-05-20 — Pacing visualization landed: `extension.js` and `generate-icon.py` now render the tick (`┊` in the popup bar, radial grey marker on the dock ring) when under-pace, and a two-tone split (on-pace green/blue + over-pace tier color) when over-pace. Floor (max(15, period*0.05)) suppresses both. `lint-pacing-parity` extended to also check `elapsedFraction ↔ elapsed_fraction`. Docs PNGs regenerated. [Plan](docs/plans/2026-05-20-pacing-viz-tick-overpace.md).
 - [x] 2026-05-20 — JS-1: `gnome-extension/_defaults.js` is now generated from the gschema XML (`scripts/gen-js-defaults.py`); `extension.js`'s `safeColor` reads from it instead of hardcoded hex literals. New `task lint-js-defaults` asserts the artifact stays in sync; `install.sh` + `build-deb.sh` regenerate on every install/build. [Review](docs/investigations/2026-05-20-code-review-pass18.md).

@@ -134,7 +134,13 @@ def get_primary(meters, cfg):
 
 def elapsed_fraction(meter, period_lens):
     """Mirror the pacing_pct floor. Returns 0..1, or None when the floor
-    applies (suppresses tick + two-tone — early-period noise is hidden)."""
+    applies (suppresses tick + two-tone — early-period noise is hidden).
+
+    EF-1 sibling (pass-24): null-meter guard for symmetry with the two
+    other twins (generate-icon.py:elapsed_fraction and
+    extension.js:elapsedFraction)."""
+    if not meter:
+        return None
     rm = meter.get('reset_minutes')
     period = period_lens.get(meter.get('label'))
     if rm is None or not period:
