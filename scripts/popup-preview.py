@@ -19,6 +19,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 import types
 from pathlib import Path
@@ -110,7 +111,9 @@ def read_gsettings():
 # ── rendering: popup ────────────────────────────────────────────────────────
 
 def is_sonnet_hidden(m):
-    """extension.js:458 — Sonnet rows with 0% are hidden from the popup."""
+    """Mirror extension.js's `visibleMeters` filter — Sonnet rows with 0%
+    are hidden from the popup. (Search extension.js for `visibleMeters`
+    rather than a line number; refs to line numbers drift on every edit.)"""
     label = (m.get('label') or '').lower()
     return 'sonnet' in label and (m.get('pct') or 0) == 0
 
@@ -485,7 +488,10 @@ def render_html(cache, cfg):
 
 # ── main ────────────────────────────────────────────────────────────────────
 
-OUT = Path('/tmp/claude-usage-popup-preview.html')
+# DR-5 (pass-17): per-UID + per-PID suffix so a multi-user box (or CI runner
+# with adversarial residents) can't pre-create a symlink at this path and
+# clobber the maintainer's files via O_TRUNC.
+OUT = Path(tempfile.gettempdir()) / f'claude-usage-popup-preview.{os.getuid()}.{os.getpid()}.html'
 
 
 def main():

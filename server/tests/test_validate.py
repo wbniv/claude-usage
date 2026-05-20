@@ -150,8 +150,15 @@ def test_anthropic_status_indicator_accepts_any_string():
 
 def test_anthropic_status_field_lengths():
     too_long = 'x' * 129
-    err = _validate({'_anthropic_status': {'description': too_long}})
-    assert err and 'description' in err
+    # AS-1 (pass-17): description auto-truncates rather than rejecting the
+    # whole POST. Real Statuspage prose routinely exceeds MAX_STR_LEN, and
+    # rejecting drops the very indicator/outage signal we want to surface.
+    body = {'_anthropic_status': {'description': too_long}}
+    assert _validate(body) is None
+    desc = body['_anthropic_status']['description']
+    assert len(desc) <= 128 and desc.endswith('...')
+    # claude_ai_component_status is a short enum-ish field; still rejects
+    # since values like "operational"/"degraded_performance" are short.
     err = _validate({'_anthropic_status': {'claude_ai_component_status': too_long}})
     assert err and 'claude_ai_component_status' in err
 

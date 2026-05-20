@@ -43,13 +43,44 @@ def _regexes_in(text):
 
 
 def _strip_comments(text):
-    """Drop JS // and /* */ comments, and Python # comments. Crude — assumes
-    none appear inside a string literal in our codebase (true today)."""
+    """Drop JS // and /* */ comments. Python `#` stripping is delegated to
+    _strip_py_comments_tokenize — the regex-based version ate hex-color
+    string literals (LK-1, pass-17). Kept the JS regexes since this lint
+    only consumes JS files where # has no comment meaning."""
     text = re.sub(r'/\*.*?\*/', '', text, flags=re.DOTALL)
     text = re.sub(r'^\s*//.*$', '', text, flags=re.MULTILINE)
     text = re.sub(r'([^:])//[^\n]*', r'\1', text)
-    text = re.sub(r'#[^\n]*', '', text)
     return text
+
+
+def _strip_py_comments_tokenize(text):
+    """Drop Python `#` comments via the tokenize module so string literals
+    containing `#` (hex colors etc.) survive unscathed. LK-1, pass-17:
+    the previous regex `#[^\\n]*` matched inside `'#abc123'` and chewed off
+    the rest of the line."""
+    import io
+    import tokenize
+    out = []
+    last_row, last_col = 1, 0
+    try:
+        for tok in tokenize.tokenize(io.BytesIO(text.encode()).readline):
+            if tok.type == tokenize.COMMENT:
+                continue
+            srow, scol = tok.start
+            erow, ecol = tok.end
+            # Re-emit any whitespace skipped between tokens.
+            if srow > last_row:
+                out.append('\n' * (srow - last_row))
+                last_col = 0
+            if scol > last_col:
+                out.append(' ' * (scol - last_col))
+            out.append(tok.string)
+            last_row, last_col = erow, ecol
+    except tokenize.TokenizeError:
+        # Fall back to leaving the text unchanged if tokenize chokes — this
+        # is a lint, not a build step; better to over-include than to error.
+        return text
+    return ''.join(out)
 
 
 def _strip_py_docstrings(text):
@@ -144,7 +175,11 @@ def check_scraper_parity():
 
 def check_pacing_parity():
     js_raw = _strip_comments((REPO / 'gnome-extension' / 'extension.js').read_text())
-    py_raw = _strip_py_docstrings(_strip_comments((REPO / 'server' / 'generate-icon.py').read_text()))
+    py_raw = _strip_py_docstrings(
+        _strip_py_comments_tokenize(
+            (REPO / 'server' / 'generate-icon.py').read_text()
+        )
+    )
 
     js_nums = _numeric_literals(_extract_js_function(js_raw, 'pacingPct'))
     py_nums = _numeric_literals(_extract_py_function(py_raw, 'pacing_pct'))

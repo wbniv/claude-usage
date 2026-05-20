@@ -117,9 +117,16 @@ async function fetchAnthropicStatus() {
         if (!resp.ok) return null;
         const j = await resp.json();
         const claudeAi = (j.components || []).find(c => c.name === 'claude.ai');
+        // AS-1 (pass-17): Statuspage `description` is free-form prose that
+        // routinely exceeds the server's MAX_STR_LEN=128 bound. Without this
+        // truncate, the server rejects the entire POST → cache never updates
+        // → BROKEN tier during the exact outage the field exists to surface.
+        // 120 leaves 8 chars of headroom under the validator's cap.
+        const trunc = s => (typeof s === 'string' && s.length > 120
+            ? s.slice(0, 117) + '...' : s);
         return {
             indicator: j.status?.indicator ?? null,
-            description: j.status?.description ?? null,
+            description: trunc(j.status?.description ?? null),
             claude_ai_component_status: claudeAi?.status ?? null,
         };
     } catch (_) {

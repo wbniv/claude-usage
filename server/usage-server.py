@@ -171,16 +171,19 @@ def _validate(body):
     if astat is not None:
         if not isinstance(astat, dict):
             return "'_anthropic_status' must be an object"
-        # AS-1: validate indicator as a bounded string rather than against a
-        # hard-coded whitelist. Forward-compat with any future Statuspage
-        # indicator value (e.g. 'investigating' has appeared in incident
-        # states historically); the previous whitelist would have rejected
-        # the entire POST on first unknown value — dropping the very data
-        # we want to surface during an outage. The display logic in the
-        # GNOME extension already treats any truthy non-'none' indicator
-        # as a broken-tier signal, so unknown values degrade gracefully.
+        # AS-1 (pass-15): validate indicator as a bounded string rather than
+        # against a hard-coded whitelist. Forward-compat with any future
+        # Statuspage indicator value.
+        # AS-1 (pass-17): `description` is free-form Anthropic prose that
+        # routinely exceeds MAX_STR_LEN; auto-truncate rather than reject
+        # the entire POST (the chrome ext also truncates, but defense-in-
+        # depth: if any future caller forgets, we don't lose the indicator).
         for k in _VALID_ANTHROPIC_KEYS:
-            err = _bounded_str(astat.get(k), f"_anthropic_status.{k}")
+            v = astat.get(k)
+            if k == 'description' and isinstance(v, str) and len(v) > MAX_STR_LEN:
+                astat[k] = v[:MAX_STR_LEN - 3] + '...'
+                continue
+            err = _bounded_str(v, f"_anthropic_status.{k}")
             if err:
                 return err
     pl = body.get('_period_lengths')
