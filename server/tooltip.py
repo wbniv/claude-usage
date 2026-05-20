@@ -121,17 +121,27 @@ def update_desktop(meters, scrape_ts=None):
     name = format_tooltip(meters, anchor_ts=scrape_ts).replace('\n', r'\n')
     text = DESKTOP.read_text()
     out = []
+    saw_name = saw_icon = False
     for line in text.splitlines():
         if line.startswith('Name='):
             out.append(f'Name={name}')
+            saw_name = True
         elif line.startswith('Icon='):
             # Stable icon-theme name. Resolves via XDG icon lookup to
             # ~/.local/share/icons/hicolor/128x128/apps/claude-usage.png
             # (written by generate-icon.py) with /usr/share/pixmaps/claude-usage.png
             # as the .deb-shipped baseline fallback.
             out.append('Icon=claude-usage')
+            saw_icon = True
         else:
             out.append(line)
+    # D-1 (pass-17): if a malformed/partial .desktop was missing the line,
+    # the previous version silently dropped it too. Append so the tooltip
+    # never disappears just because the file got corrupted.
+    if not saw_name:
+        out.append(f'Name={name}')
+    if not saw_icon:
+        out.append('Icon=claude-usage')
     new_text = '\n'.join(out) + '\n'
     if new_text == text:
         return

@@ -117,6 +117,12 @@ def _validate(body):
     if meters is not None:
         if not isinstance(meters, list):
             return "'meters' must be a list when present"
+        # V-2 (pass-17): cap list length. _period_lengths is capped at 100;
+        # meters was uncapped. claude.ai's usage page shows 3-5 meters, so
+        # 50 is generous headroom. Body size cap (256 KB) is the wider
+        # defense, but explicit caps document intent.
+        if len(meters) > 50:
+            return f"'meters' must have ≤ 50 entries (got {len(meters)})"
         for i, m in enumerate(meters):
             if not isinstance(m, dict):
                 return f"meters[{i}] must be an object"
@@ -222,6 +228,16 @@ def _validate(body):
     sv = body.get('_schema')
     if sv is not None and (isinstance(sv, bool) or not isinstance(sv, int) or sv < 0 or sv > 1000):
         return "'_schema' must be a non-negative integer ≤ 1000"
+    # V-1 (pass-17): _buffered_at is whitelisted in _VALID_TOP_KEYS but was
+    # never bounded — asymmetric with siblings (_timestamp, _scrape_fail_count
+    # all enforce plausibility). It's epoch-ms per the Chrome ext.
+    ba = body.get('_buffered_at')
+    if ba is not None:
+        if isinstance(ba, bool) or not isinstance(ba, (int, float)):
+            return "'_buffered_at' must be a number"
+        now_ms = time.time() * 1000
+        if not (now_ms - 365 * 86400 * 1000 < ba < now_ms + 86400 * 1000):
+            return "'_buffered_at' implausibly far from server time"
     return None
 
 
@@ -322,6 +338,15 @@ class Handler(BaseHTTPRequestHandler):
                 if OUTPUT.exists():
                     try:
                         prev = json.loads(OUTPUT.read_text())
+                        # CM-1 (pass-17): json.loads accepts non-dict roots
+                        # (list, scalar, null). A corrupted cache containing
+                        # `[]` would crash every subsequent POST at the dict-
+                        # comprehension on line 335. Reset to {} on type mismatch.
+                        if not isinstance(prev, dict):
+                            print(f"warning: cache at {OUTPUT} is not a JSON object "
+                                  f"(got {type(prev).__name__}); resetting",
+                                  file=sys.stderr, flush=True)
+                            prev = {}
                     except Exception:
                         pass
 

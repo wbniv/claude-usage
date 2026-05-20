@@ -87,7 +87,12 @@ def load_config():
                 print(f"warning: invalid color for {key!r}, using default", file=sys.stderr, flush=True)
                 cfg[key] = DEFAULTS[key]
         return cfg
-    except Exception:
+    except Exception as e:
+        # DG-2 (pass-17): silent fallback hid bugs. Log so users running with
+        # an unregistered schema (pre-install) or a broken Gio binding can
+        # see why their colour edits are taking no effect.
+        print(f"warning: GSettings load failed ({e}); using DEFAULTS",
+              file=sys.stderr, flush=True)
         return dict(DEFAULTS)
 
 def hex_to_rgba(h):
@@ -224,9 +229,15 @@ def derive_tier(data):
     are already encoded in the cache itself.
     """
     astat = data.get('_anthropic_status') or {}
-    if astat.get('indicator') not in (None, 'none'):
+    # V-3 (pass-17): the validator's `allow_empty=True` on these string fields
+    # combined with the previous "not in (None, 'none')" comparison meant an
+    # empty-string value silently triggered broken tier. Normalize via `or` so
+    # ''/None both fall through to the safe value.
+    indicator = astat.get('indicator') or 'none'
+    if indicator != 'none':
         return 'broken'
-    if astat.get('claude_ai_component_status') not in (None, 'operational'):
+    component = astat.get('claude_ai_component_status') or 'operational'
+    if component != 'operational':
         return 'broken'
     if (data.get('_scrape_fail_count') or 0) >= 2:
         return 'broken'
