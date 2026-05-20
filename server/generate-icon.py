@@ -161,6 +161,21 @@ def draw_ring(cr, cx, cy, radius, thick, pct, color, track=True,
         cr.arc(cx, cy, radius, 0, 2 * math.pi)
         cr.stroke()
     if pct <= 0:
+        # RV-1 (pass-26): popup-preview pacing_segments emits a tick at
+        # elapsed_pos even when fill==0 (the 'zero' canonical case). Draw
+        # the tick here too so popup bar and dock ring agree at 0% mid-period.
+        if elapsed_frac is not None and 0 < elapsed_frac < 1:
+            _start = -math.pi / 2
+            elapsed_angle = _start + 2 * math.pi * elapsed_frac
+            tick_inner = radius - thick / 2
+            tick_outer = radius + thick / 2
+            cr.set_source_rgba(0.55, 0.55, 0.55, 0.85)
+            cr.set_line_width(max(1.5, thick * 0.18))
+            cr.move_to(cx + tick_inner * math.cos(elapsed_angle),
+                       cy + tick_inner * math.sin(elapsed_angle))
+            cr.line_to(cx + tick_outer * math.cos(elapsed_angle),
+                       cy + tick_outer * math.sin(elapsed_angle))
+            cr.stroke()
         return
 
     start = -math.pi / 2

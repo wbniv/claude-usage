@@ -162,19 +162,26 @@ def pacing_segments(pct, elapsed_frac, width):
                   beyond), no tick — boundary is the color change.
     """
     pct = max(0, min(100, pct or 0))
-    fill = round(pct * width / 100)
+    fill_frac = pct / 100
+    # PVS-1 (pass-26): decide over-pace on raw fractions BEFORE rounding.
+    # When fill_frac and elapsed_frac round to the same cell index the old
+    # code emitted a tick (on-pace signal) even when fill_frac > elapsed_frac.
+    over_pace_raw = elapsed_frac is not None and fill_frac > elapsed_frac
+    fill = round(fill_frac * width)
     elapsed_pos = (min(round(elapsed_frac * width), width)
                    if elapsed_frac is not None else None)
 
     out = []
     for i in range(width):
         if i < fill:
-            if elapsed_pos is not None and i >= elapsed_pos:
-                out.append(('█', 'over_pace'))
-            else:
-                out.append(('█', 'on_pace'))
+            # When over_pace_raw and fill == elapsed_pos (both rounded same),
+            # color all filled cells over_pace so the user sees the signal.
+            over_here = over_pace_raw and (
+                elapsed_pos is None or fill == elapsed_pos or i >= elapsed_pos)
+            out.append(('█', 'over_pace' if over_here else 'on_pace'))
         else:
-            if (elapsed_pos is not None
+            if (not over_pace_raw
+                    and elapsed_pos is not None
                     and i == elapsed_pos
                     and fill <= elapsed_pos):
                 out.append(('┊', 'tick'))

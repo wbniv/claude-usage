@@ -127,17 +127,29 @@ function elapsedFraction(meter, periodLens) {
 
 function pacingSegments(pct, elapsedFrac, width) {
     pct = Math.max(0, Math.min(100, pct ?? 0));
-    const fill = Math.round((pct * width) / 100);
+    const fillFrac = pct / 100;
+    // PVS-1 (pass-26): decide over-pace on raw fractions BEFORE rounding.
+    // When fillFrac and elapsedFrac round to the same cell index, the old
+    // code emitted a tick (on-pace signal) even when fillFrac > elapsedFrac.
+    // E.g. pct=51, elapsedFrac=0.5, width=10 → both round to 5 → old code
+    // showed a tick instead of over_pace cells.
+    const overPaceRaw = elapsedFrac != null && fillFrac > elapsedFrac;
+    const fill = Math.round(fillFrac * width);
     const elapsedPos = elapsedFrac != null
         ? Math.min(Math.round(elapsedFrac * width), width)
         : null;
     const segs = [];
     for (let i = 0; i < width; i++) {
         if (i < fill) {
-            if (elapsedPos != null && i >= elapsedPos) segs.push({c: '█', role: 'over_pace'});
-            else segs.push({c: '█', role: 'on_pace'});
+            // When overPaceRaw and fill === elapsedPos (both rounded to the
+            // same cell), color ALL filled cells over_pace — no split is
+            // possible when the seam falls on the exact cell boundary.
+            const overHere = overPaceRaw &&
+                (elapsedPos == null || fill === elapsedPos || i >= elapsedPos);
+            segs.push({c: '█', role: overHere ? 'over_pace' : 'on_pace'});
         } else {
-            if (elapsedPos != null && i === elapsedPos && fill <= elapsedPos) {
+            // Tick is suppressed when over-pace; only emit when under/on-pace.
+            if (!overPaceRaw && elapsedPos != null && i === elapsedPos && fill <= elapsedPos) {
                 segs.push({c: '┊', role: 'tick'});
             } else {
                 segs.push({c: '░', role: 'empty'});
@@ -265,7 +277,7 @@ class ClaudeIndicator extends PanelMenu.Button {
         this._label = new St.Label({
             text: '--',
             y_align: Clutter.ActorAlign.CENTER,
-            style: `font-size: ${this._settings.get_uint('panel-font-size')}px; margin-left: ${this._settings.get_uint('panel-label-spacing')}px;`,
+            style: `font-size: ${this._settings.get_uint('panel-font-size')}px; margin-start: ${this._settings.get_uint('panel-label-spacing')}px;`,
         });
 
         box.add_child(this._icon);
@@ -341,7 +353,7 @@ class ClaudeIndicator extends PanelMenu.Button {
         try {
             const f = Gio.File.new_for_path(CACHE_FILE);
             this._monitor = f.monitor_file(Gio.FileMonitorFlags.NONE, null);
-            this._monitor.connect('changed', (_m, _f, _of, event) => {
+            this._monitorChangedId = this._monitor.connect('changed', (_m, _f, _of, event) => {
                 if (event === Gio.FileMonitorEvent.CHANGES_DONE_HINT ||
                     event === Gio.FileMonitorEvent.CREATED) {
                     this._loadData();
@@ -397,6 +409,12 @@ class ClaudeIndicator extends PanelMenu.Button {
                 if (e.matches?.(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED))
                     return;
                 console.error('ClaudeUsage: failed to read cache', e);
+                // EVC-1 (pass-26): surface a hint when the cache is unreadable
+                // and we have no prior data — without this the popup shows
+                // "No data yet" forever with no diagnostic.
+                if (!this._data && this._statusItem)
+                    this._statusItem.label.set_text(
+                        '⚠ Cache unreadable — check journalctl --user -f');
             }
         });
     }
@@ -412,7 +430,7 @@ class ClaudeIndicator extends PanelMenu.Button {
 
         if (!d || !d.meters || d.meters.length === 0) {
             this._label.set_text('--');
-            this._label.set_style(`font-size: ${fontSize}px; margin-left: ${labelGap}px;`);
+            this._label.set_style(`font-size: ${fontSize}px; margin-start: ${labelGap}px;`);
             this._statusItem.label.set_text('No data yet');
             this._metersSection.removeAll();
             return;
@@ -458,7 +476,7 @@ class ClaudeIndicator extends PanelMenu.Button {
         const anyCrit = d.meters.some(m => pacingPct(m, periodLens) >= tCrit);
         const labelColor = anyCrit ? panelCrit : panelColor;
         this._label.set_text(`${pct}%`);
-        this._label.set_style(`font-size: ${fontSize}px; margin-left: ${labelGap}px; color: ${labelColor};`);
+        this._label.set_style(`font-size: ${fontSize}px; margin-start: ${labelGap}px; color: ${labelColor};`);
 
         // Flash management: blink the panel label when any meter enters critical.
         // Stops when the popup is opened (user has seen it), resets when pacing clears.
@@ -573,6 +591,19 @@ class ClaudeIndicator extends PanelMenu.Button {
             !(m.label?.toLowerCase().includes('sonnet') && (m.pct ?? 0) === 0));
         const rows = formatRows(visibleMeters, barWidth);
 
+        // UX-1 (pass-26): skip removeAll() + rebuild when the popup is open
+        // and data hasn't changed. Without this, every 30 s tick destroyed
+        // and recreated all PopupMenuItems even while the user was reading —
+        // causing visible flicker and lost hover state.
+        const _menuFp = JSON.stringify({
+            ts: d._timestamp, tier, barWidth, popupSize, rawFont,
+            popupNorm, popupWarn, popupCrit, tWarn, tCrit,
+            primary: primary?.label ?? '',
+            meterKey: visibleMeters.map(m =>
+                `${m.label}:${m.pct ?? 0}:${m.reset_minutes ?? ''}`).join(','),
+        });
+        if (this._lastMenuFp === _menuFp && this.menu.isOpen) return;
+        this._lastMenuFp = _menuFp;
         // Popup: separator widget before extra section
         this._metersSection.removeAll();
         let sawExtra = false;
@@ -708,6 +739,13 @@ class ClaudeIndicator extends PanelMenu.Button {
             this._settingsId = null;
         }
         if (this._monitor) {
+            // LC-1 (pass-26): disconnect the changed signal before cancel so
+            // any already-queued main-loop dispatch can't fire against a
+            // disposed indicator. Small per-session-lock leak without this.
+            if (this._monitorChangedId) {
+                this._monitor.disconnect(this._monitorChangedId);
+                this._monitorChangedId = null;
+            }
             this._monitor.cancel();
             this._monitor = null;
         }
