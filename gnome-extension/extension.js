@@ -500,7 +500,12 @@ class ClaudeIndicator extends PanelMenu.Button {
     _startFlash() {
         this._stopFlash();
         let vis = false;
+        // Pass-17 L-1: guard widget write on _destroyed. Same pattern as every
+        // other long-lived async source in this file. Window is microseconds
+        // — destroy() removes the source, but a tick already dispatched to
+        // the main loop can fire before _label is disposed.
         this._flashId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
+            if (this._destroyed) return GLib.SOURCE_REMOVE;
             this._label.opacity = vis ? 255 : 30;
             vis = !vis;
             return GLib.SOURCE_CONTINUE;
@@ -512,7 +517,8 @@ class ClaudeIndicator extends PanelMenu.Button {
             GLib.source_remove(this._flashId);
             this._flashId = null;
         }
-        this._label.opacity = 255;
+        // L-6 sibling: same _destroyed guard for the cleanup write.
+        if (!this._destroyed) this._label.opacity = 255;
     }
 
     _isEligible(m) {
