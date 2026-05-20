@@ -175,24 +175,35 @@ def check_scraper_parity():
 
 def check_pacing_parity():
     """Check the hand-synced pacing functions stay in numeric-literal sync.
-    Two function pairs (post-pass-21 viz port added the second):
-      pacingPct        ↔ pacing_pct           (the existing pair)
-      elapsedFraction  ↔ elapsed_fraction     (the floor + ratio for tick / two-tone)
+
+    Four function pairs across two Python files:
+      JS (extension.js)   ↔ Python (where)                            twin file
+      pacingPct           ↔ pacing_pct                                 generate-icon.py
+      elapsedFraction     ↔ elapsed_fraction                           generate-icon.py
+      pacingSegments      ↔ pacing_segments     (viz; PS-1 pass-23)    popup-preview.py
+      colorFor            ↔ color_for           (viz; PS-1 pass-23)    popup-preview.py
     """
     js_raw = _strip_comments((REPO / 'gnome-extension' / 'extension.js').read_text())
-    py_raw = _strip_py_docstrings(
+    gi_raw = _strip_py_docstrings(
         _strip_py_comments_tokenize(
             (REPO / 'server' / 'generate-icon.py').read_text()
         )
     )
+    pp_raw = _strip_py_docstrings(
+        _strip_py_comments_tokenize(
+            (REPO / 'scripts' / 'popup-preview.py').read_text()
+        )
+    )
 
     pairs = [
-        ('pacingPct',       'pacing_pct'),
-        ('elapsedFraction', 'elapsed_fraction'),
+        ('pacingPct',       'pacing_pct',       'generate-icon.py', gi_raw),
+        ('elapsedFraction', 'elapsed_fraction', 'generate-icon.py', gi_raw),
+        ('pacingSegments',  'pacing_segments',  'popup-preview.py', pp_raw),
+        ('colorFor',        'color_for',        'popup-preview.py', pp_raw),
     ]
 
     rc = 0
-    for js_name, py_name in pairs:
+    for js_name, py_name, py_file, py_raw in pairs:
         js_nums = _numeric_literals(_extract_js_function(js_raw, js_name))
         py_nums = _numeric_literals(_extract_py_function(py_raw, py_name))
 
@@ -204,13 +215,13 @@ def check_pacing_parity():
             continue
 
         rc = 1
-        print(f'lint-pacing-parity: DIVERGENCE between {js_name} (extension.js) and {py_name} (generate-icon.py)', file=sys.stderr)
+        print(f'lint-pacing-parity: DIVERGENCE between {js_name} (extension.js) and {py_name} ({py_file})', file=sys.stderr)
         if only_js:
-            print(f'\n  Literals in {js_name} (JS) but NOT {py_name} (Python):', file=sys.stderr)
+            print(f'\n  Literals in {js_name} (JS) but NOT {py_name} ({py_file}):', file=sys.stderr)
             for n in sorted(only_js, key=float):
                 print(f'    {n}', file=sys.stderr)
         if only_py:
-            print(f'\n  Literals in {py_name} (Python) but NOT {js_name} (JS):', file=sys.stderr)
+            print(f'\n  Literals in {py_name} ({py_file}) but NOT {js_name} (JS):', file=sys.stderr)
             for n in sorted(only_py, key=float):
                 print(f'    {n}', file=sys.stderr)
         print('\n  A constant change in one file likely missed the other.', file=sys.stderr)

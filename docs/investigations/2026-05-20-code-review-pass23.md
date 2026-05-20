@@ -15,7 +15,7 @@ No Critical/High/Medium. **8 Lows** (mostly maintenance + drift between sibling 
 | Sev | # | ID | Title | New this pass? |
 |-----|---|----|-------|----------------|
 | Low | 1 | ~~**CAP‑1**~~ | ~~`chrome-extension/background.js:97` `cap()` has the **same UTF-16 surrogate-pair split bug UT-1 just fixed** in the sibling `trunc()`. Used on error messages (4xx body, scrape exceptions); identical-class fix.~~ | ✓ (missed by UT-1) |
-| Low | 2 | **PS‑1** | Parity lint covers `pacingPct↔pacing_pct` and `elapsedFraction↔elapsed_fraction` but NOT `pacingSegments↔pacing_segments` or `colorFor↔color_for` — the two functions with the most semantic surface in the viz port. Drift is invisible to CI. | ✓ |
+| Low | 2 | ~~**PS‑1**~~ | ~~Parity lint covers `pacingPct↔pacing_pct` and `elapsedFraction↔elapsed_fraction` but NOT `pacingSegments↔pacing_segments` or `colorFor↔color_for` — the two functions with the most semantic surface in the viz port. Drift is invisible to CI.~~ | ✓ |
 | Low | 3 | ~~**EF‑1**~~ | ~~JS `elapsedFraction` is missing the `if (!meter) return null` guard the Python twin has. Parity lint only diffs numeric literals; structural divergence is undetected. Not currently exploitable (sole caller passes a non-null meter).~~ | ✓ |
 | Low | 4 | ~~**DR‑1**~~ | ~~`extension.js:14` comment points at `lint-js-defaults-parity.py` — a file that doesn't exist. Actual lint is `gen-js-defaults.py --check` invoked via `task lint-js-defaults`. Doc drift.~~ | ✓ |
 | Low | 5 | **GD‑1** | `scripts/gen-js-defaults.py:36-63` duplicates `_parse_default` + `_kebab_to_snake` from `server/schema_defaults.py`. The JS-1 SOT story has two parsers now; a future schema-type addition needs the same edit in both places. | ✓ |
