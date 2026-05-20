@@ -8,11 +8,9 @@ Shows your Claude.ai weekly usage percentage in the GNOME top panel and dock.
 
 **Top panel** (right side, next to Wi-Fi/battery):
 
-```
-  ✳ 74%
-```
+<img src="docs/panel-screenshot.png" width="160">
 
-The ✳ is the Anthropic star logo icon. Color-coded: green below the warning threshold · amber at or above it · red at or above the critical threshold (defaults: 70 / 90, applied to current pacing — see *Color semantics* under Configuration).
+The icon is a small live-painted version of the dock icon (same outer/inner rings). The percentage label is color-coded: green below the warning threshold · amber at or above it · red at or above the critical threshold (defaults: 70 / 90, applied to current pacing — see *Color semantics* under Configuration).
 
 **Scroll** on the panel label to toggle between **All models** and **Sonnet only**.
 
