@@ -77,14 +77,25 @@ def parse_reset(reset, reset_minutes=None, anchor_ts=None):
     return None
 
 
+# TT-1 (pass-18 finding, fixed post-pass-21): one-shot guard for the
+# unrecognised-labels warning. _tooltip_tick calls format_tooltip every 60s,
+# so an unfixable mismatch (claude.ai renamed meter labels) used to produce
+# 1440 identical stderr lines per day. Once-per-process is enough — the
+# user sees the signal and the journal stays clean.
+_unrecognised_warned = False
+
+
 def format_tooltip(meters, anchor_ts=None):
     find = lambda kw: next((m for m in meters if kw in (m.get('label') or '').lower()), None)
     current = find('session') or find('current')
     all_m   = find('all')
     sonnet  = find('sonnet')
-    if meters and not (current or all_m):
-        print("warning: no recognisable meter labels found; tooltip may be empty",
+    global _unrecognised_warned
+    if meters and not (current or all_m) and not _unrecognised_warned:
+        print("warning: no recognisable meter labels found; tooltip may be empty "
+              "(suppressing further occurrences this session)",
               file=sys.stderr, flush=True)
+        _unrecognised_warned = True
     parts = []
     for key, meter in [('current', current), ('all', all_m), ('sonnet', sonnet)]:
         if not meter:

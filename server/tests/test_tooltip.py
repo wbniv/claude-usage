@@ -139,3 +139,22 @@ def test_format_tooltip_no_recognizable_meters():
     meters = [{'label': 'Mysterious', 'pct': 5}]
     out = _t.format_tooltip(meters)
     assert out == 'Claude Usage'
+
+
+def test_unrecognised_warning_is_one_shot(capsys):
+    """TT-1 (post-pass-21): the 'no recognisable meter labels' warning fires
+    at most once per process. _tooltip_tick calls format_tooltip every 60s;
+    without the guard, an unfixable label-rename produced 1440 stderr lines
+    per day. Reset the module flag so the test is reproducible regardless
+    of which other tests ran first."""
+    _t._unrecognised_warned = False
+    meters = [{'label': 'Mysterious', 'pct': 5}]
+    _t.format_tooltip(meters)
+    first = capsys.readouterr().err
+    assert 'no recognisable meter labels' in first
+    assert 'suppressing further occurrences' in first
+
+    # Second call — warning should NOT repeat.
+    _t.format_tooltip(meters)
+    second = capsys.readouterr().err
+    assert 'no recognisable meter labels' not in second
