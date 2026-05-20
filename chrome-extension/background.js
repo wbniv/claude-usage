@@ -17,29 +17,42 @@ const PROBE_TIMEOUT_MS = 500;
 const PORT_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
 async function probePorts() {
-  // Race all ports concurrently. First /hello response with the right
+  // Race all ports concurrently. Fastest /hello response with the right
   // signature wins. Returns null if nothing on the range answers.
   // Manual AbortController + setTimeout instead of AbortSignal.timeout()
   // for parity with fetchAnthropicStatus and to avoid the Chrome <102
   // silent-breakage path (TypeError: AbortSignal.timeout is not a function).
   // Validates both `app` and `version` so a local impersonator with the
   // right app string but wrong shape can't win the race.
-  const probes = PROBE_PORTS.map(async port => {
+  //
+  // PRT-1 (pass-26): use Promise.any() for a true first-to-resolve race
+  // instead of Promise.all() + .find(), which returned the lowest-index
+  // port regardless of which responded fastest. A slow squatter on 7331
+  // that takes 490 ms no longer beats a real server on 7332 that answered
+  // in 5 ms.
+  const probes = PROBE_PORTS.map(port => new Promise(async (resolve, reject) => {
     const ctl = new AbortController();
-    const timer = setTimeout(() => ctl.abort(), PROBE_TIMEOUT_MS);
+    const timer = setTimeout(() => { ctl.abort(); reject(new Error('timeout')); }, PROBE_TIMEOUT_MS);
     try {
       const r = await fetch(`http://127.0.0.1:${port}/hello`, { signal: ctl.signal });
-      if (!r.ok) return null;
+      if (!r.ok) { reject(new Error('not ok')); return; }
       const j = await r.json();
-      return j && j.app === 'claude-usage' && typeof j.version === 'string' ? port : null;
-    } catch (_) {
-      return null;
+      if (j && j.app === 'claude-usage' && typeof j.version === 'string') {
+        resolve(port);
+      } else {
+        reject(new Error('bad response'));
+      }
+    } catch (e) {
+      reject(e);
     } finally {
       clearTimeout(timer);
     }
-  });
-  const results = await Promise.all(probes);
-  return results.find(p => p !== null) ?? null;
+  }));
+  try {
+    return await Promise.any(probes);
+  } catch (_) {
+    return null;
+  }
 }
 
 async function getServerUrl({ forceProbe = false } = {}) {
@@ -165,36 +178,66 @@ restoreActionStatus();
 // cached port), invalidate the cache and re-probe once. 4xx WITH the signature
 // is treated as a real server response (validator rejection) — return the
 // Response so callers can decide whether to discard the payload. Throws only
-// if both attempts fail.
+// if all attempts fail.
+//
+// PR-2 (pass-26): retry up to 3 times (0 s, 1 s, 3 s back-off) so a sub-5 s
+// server restart during a .deb upgrade doesn't strand the buffered scrape
+// until the next 7-minute alarm tick. The first attempt is immediate (no
+// delay) so fast success is not penalised.
 async function postUpdate(body) {
   const payload = {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   };
+  // PRT-1 (pass-26): validate the header value is semver-shaped, not just
+  // present. A squatter that adds an arbitrary x-claude-usage-server header
+  // but not a valid version string is now rejected. Mirrors the /hello check.
   // Reject any response without our signature header. The PROBE path validates
   // via GET /hello at discovery; this header is the in-band POST check that
   // catches a squatter that took our cached port between probe and POST. With
   // host_permissions for 127.0.0.1, all response headers are readable from
   // the SW — no CORS exposure dance needed.
-  const isOurs = r => r.headers.get('x-claude-usage-server') !== null;
-  let url = await getServerUrl();
-  if (url) {
+  const isOurs = r => {
+    const v = r.headers.get('x-claude-usage-server');
+    return typeof v === 'string' && /^\d+\.\d+\.\d+/.test(v);
+  };
+
+  let lastErr;
+  for (const delay of [0, 1000, 3000]) {
+    if (delay) await new Promise(r => setTimeout(r, delay));
+
+    let url = await getServerUrl();
+    if (url) {
+      try {
+        const r = await fetch(url, payload);
+        // PR-1 (pass-15 §9): any well-formed response from our server (signature
+        // header present) is real — including 5xx. The previous 4xx-only branch
+        // would re-probe on a hypothetical 5xx-with-signature, wasting 10
+        // parallel /hello fetches. Defense in depth — the server today never
+        // emits 5xx (its catch-all returns 400), but the asymmetry was wrong.
+        if (r.status < 600 && isOurs(r)) return r;
+      } catch (e) {
+        lastErr = e; /* network error or wrong-server — fall through to re-probe */
+      }
+    }
+    url = await getServerUrl({ forceProbe: true });
+    if (!url) {
+      lastErr = new Error('claude-usage server not found on probe range');
+      continue;
+    }
     try {
       const r = await fetch(url, payload);
-      // PR-1 (pass-15 §9): any well-formed response from our server (signature
-      // header present) is real — including 5xx. The previous 4xx-only branch
-      // would re-probe on a hypothetical 5xx-with-signature, wasting 10
-      // parallel /hello fetches. Defense in depth — the server today never
-      // emits 5xx (its catch-all returns 400), but the asymmetry was wrong.
-      if (r.status < 600 && isOurs(r)) return r;
-    } catch (_) { /* network error or wrong-server — fall through to re-probe */ }
+      if (!isOurs(r)) {
+        lastErr = new Error('server response missing claude-usage signature');
+        continue;
+      }
+      return r;
+    } catch (e) {
+      lastErr = e;
+    }
   }
-  url = await getServerUrl({ forceProbe: true });
-  if (!url) throw new Error('claude-usage server not found on probe range');
-  const r = await fetch(url, payload);
-  if (!isOurs(r)) throw new Error('server response missing claude-usage signature');
-  return r;
+  throw lastErr ?? new Error('claude-usage server not found on probe range');
 }
 
 // Stamped on every POST so the server can detect version skew. Chrome does
@@ -570,11 +613,22 @@ async function fetchUsage() {
         // Lifted to a const so both the timeout and the listener body can
         // reference it. Named-function-expression scoping rules would otherwise
         // leave `listener` undefined inside the setTimeout closure.
-        const listener = (tabId, info) => {
+        const listener = (tabId, info, tab) => {
           if (tabId !== createdTab.id) return;
           if (info.status === 'complete') {
             chrome.tabs.onUpdated.removeListener(listener);
             clearTimeout(timeout);
+            // TC-1 (pass-26): error pages (502, DNS failure, corporate proxy)
+            // also fire status='complete'. Without this check the scraper runs
+            // against the error DOM, finds nothing, and produces a mysterious
+            // empty-meters POST with no diagnostic. Reject so the caller's
+            // catch block surfaces "navigation failed: chrome-error://…"
+            // instead of a silent scrape-fail-count increment.
+            const url = tab?.url || '';
+            if (url.startsWith('chrome-error://') || url.startsWith('chrome://')) {
+              reject(new Error(`navigation failed: ${url}`));
+              return;
+            }
             resolve();
           }
         };

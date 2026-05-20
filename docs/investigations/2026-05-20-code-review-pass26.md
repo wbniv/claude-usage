@@ -26,7 +26,7 @@ The high-impact theme: **release pipeline lacks pre-tag validation, and several 
 | **Medium** | 8 | **RV‑1** | render | Dock-icon ring returns before drawing the tick when `pct == 0`; popup bar still draws it — popup vs dock disagree at 0% mid-period |
 | **Medium** | 9 | **AS‑1** | chrome-ext | `_autoScrapeIfEligible` seizes `_fetching` *before* the storage-backed eligibility check; ineligible auto-scrapes can starve a legitimate alarm fire for the next 7 min |
 | **Medium** | 10 | **RD‑1** | chrome-ext | `chrome.idle.onStateChanged` 'active' fires on every screen unlock, not just wake-from-suspend; no debounce → claude.ai burn on every lockscreen toggle |
-| **Medium** | 11 | **PRT‑1** | chrome-ext | `probePorts()` uses `Promise.all` + `.find(p => p !== null)` — winner is array-index lowest port, not the fastest responder; a slow-but-valid squatter on 7331 beats a real server on 7332 |
+| ~~**Medium**~~ | ~~11~~ | ~~**PRT‑1**~~ | ~~chrome-ext~~ | ~~`probePorts()` uses `Promise.all` + `.find(p => p !== null)` — winner is array-index lowest port, not the fastest responder; a slow-but-valid squatter on 7331 beats a real server on 7332~~ |
 | **Medium** | 12 | **PVS‑1** | gnome-ext | `pacingSegments` rounds both `fill` and `elapsedPos` to int — at e.g. pct=51 / elapsedFrac=0.5 / w=10 both become 5, so the over-pace cell renders as a `tick` (on-pace signal) instead of `over_pace` |
 | **Medium** | 13 | **LC‑1** | gnome-ext | `_monitor.connect('changed', …)` handler ID is never stored — can't be disconnected on `destroy()`; small leak per Wayland session lock/unlock |
 | **Medium** | 14 | ~~**SH‑1**~~ | shells | ~~`claude-usage-setup -h` actually re-runs the full setup (writes desktop entry, restarts systemd unit). Same on `build-deb.sh -h`, `build-chrome-zip.sh -h`. SRC CLAUDE.md rule violated~~ |
@@ -38,8 +38,8 @@ The high-impact theme: **release pipeline lacks pre-tag validation, and several 
 | **Low** | 20 | ~~**SC‑1**~~ | server | ~~`signal.signal(SIGCHLD, SIG_IGN)` runs at module import — every test that imports `usage-server.py` silently mutates the global handler~~ |
 | **Low** | 21 | ~~**UD‑1**~~ | server | ~~`update_desktop` rewrites every `Name=`/`Icon=` line including those inside `[Desktop Action …]` subgroups — latent today, breaks the moment we add an action~~ |
 | **Low** | 22 | **PP‑1** | server | `render_panel_label` (popup-preview) picks the primary meter without the `is_sonnet_hidden` filter that `get_primary` applies three functions over — silent panel/popup drift |
-| **Low** | 23 | **TC‑1** | chrome-ext | Tab-load 30 s timeout resolves on `info.status === 'complete'` even for `chrome-error://` error pages; user sees mysterious "empty meters" not "claude.ai is down" |
-| **Low** | 24 | **PR‑2** | chrome-ext | `postUpdate` retries exactly once on cache miss; a 5 s server restart strands the buffered scrape for the next 7-minute alarm tick |
+| ~~**Low**~~ | ~~23~~ | ~~**TC‑1**~~ | ~~chrome-ext~~ | ~~Tab-load 30 s timeout resolves on `info.status === 'complete'` even for `chrome-error://` error pages; user sees mysterious "empty meters" not "claude.ai is down"~~ |
+| ~~**Low**~~ | ~~24~~ | ~~**PR‑2**~~ | ~~chrome-ext~~ | ~~`postUpdate` retries exactly once on cache miss; a 5 s server restart strands the buffered scrape for the next 7-minute alarm tick~~ |
 | **Low** | 25 | **I18N‑1** | gnome-ext | Panel label uses `margin-left` instead of CSS-logical `margin-start` — RTL locales (Arabic, Hebrew, Persian) get the gap on the wrong side |
 | **Low** | 26 | **EVC‑1** | gnome-ext | Persistently-corrupt cache leaves the indicator silent (`No data yet` forever); no in-popup hint to check `journalctl` |
 | **Low** | 27 | **TR‑1** | repo | `docs/transcripts/` is tracked + special-cased in `task release`'s dirty check → chronically dirty `git status`; pick either gitignore or commit-on-release |
