@@ -278,13 +278,16 @@ table.debug th { background: #eee; color: #555; font-weight: normal; }
 .tier-ok { color: #444; }
 .tier-hidden { color: #aaa; font-style: italic; }
 .panel-preview {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: #222;
   padding: 6px 12px;
-  font-family: 'JetBrains Mono', 'DejaVu Sans Mono', monospace;
+  font-family: -apple-system, 'Segoe UI', sans-serif;
   border-radius: 4px;
   margin-right: 12px;
 }
+.panel-preview img { width: 22px; height: 22px; }
 .kv { display: grid; grid-template-columns: max-content 1fr; gap: 4px 20px; font-family: 'JetBrains Mono', monospace; font-size: 12px; }
 .kv dt { color: var(--muted); }
 .kv dd { margin: 0; }
@@ -371,6 +374,22 @@ def render_canonical_cases(cfg):
     return f'<div class="popup">{rows}</div>'
 
 
+def _panel_icon_data_uri(broken=False):
+    """Embed the actual icon bitmap extension.js loads (claude-22.png in
+    normal tier, claude-22-red.png on broken). Matches the live widget so
+    the preview doesn't lie about what the real panel renders.
+
+    Previously this rendered as a literal `✴` Unicode character — the user
+    flagged the drift: 'i don't like the panel icon, tho. seems to just be
+    a character now?'. It was. Fixed."""
+    import base64
+    icon = (REPO / 'gnome-extension' / 'icons'
+            / ('claude-22-red.png' if broken else 'claude-22.png'))
+    if not icon.exists():
+        return None
+    return 'data:image/png;base64,' + base64.b64encode(icon.read_bytes()).decode()
+
+
 def render_panel_label(cache, cfg):
     """The little label that lives in the GNOME top bar."""
     meters = cache.get('meters') or []
@@ -392,7 +411,13 @@ def render_panel_label(cache, cfg):
         color = cfg['panelWarn']
     else:
         color = cfg['panelNorm']
-    return f'<span class="panel-preview" style="color: {color}">✴ {pct}%</span>'
+    # extension.js:151-152: the panel icon is the bitmap claude-22.png
+    # (claude-22-red.png on the broken tier). Match that here rather than
+    # rendering a `✴` glyph.
+    icon = _panel_icon_data_uri()
+    icon_html = f'<img src="{icon}" alt="">' if icon else '✴'
+    return (f'<span class="panel-preview" style="color: {color}">'
+            f'{icon_html} {pct}%</span>')
 
 
 def render_debug(cache, cfg):
