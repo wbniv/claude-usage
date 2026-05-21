@@ -212,6 +212,62 @@ def check_scraper_parity():
     return 1
 
 
+# PL-3 (pass-26 deferred, pass-28): section-anchor strings used as literal-
+# equality matches (`l === 'Plan usage limits'`) are duplicated between
+# scraper.js and background.js's inline scrape but escape check_scraper_parity
+# because that lint only diffs regex literals. A typo in one side
+# (`'Plan usage limit'`) would produce a silent locale_or_layout partial
+# scrape with no diagnostic. Recommendation A from
+# docs/investigations/2026-05-21-pl3-scraper-string-parity.md: hand-maintained
+# allowlist. Add a string here when a new section anchor lands on the
+# claude.ai/settings/usage page.
+ANCHOR_STRINGS = [
+    'Plan usage limits',
+    'Extra usage',
+]
+
+# Single-sided pin: scraper.js takes the toggle state as a parameter, so
+# this selector exists only in background.js. Listed so a refactor that
+# silently drops the query is caught.
+DOM_SELECTORS_IN_BACKGROUND = [
+    '[role="switch"][aria-label="Extra usage"]',
+]
+
+
+def check_anchor_strings():
+    scraper = (EXT / 'scraper.js').read_text()
+    background = (EXT / 'background.js').read_text()
+    inline = _extract_inline_scrape(background)
+
+    rc = 0
+    for s in ANCHOR_STRINGS:
+        quoted = (f"'{s}'", f'"{s}"')
+        in_scraper = any(q in scraper for q in quoted)
+        in_inline = any(q in inline for q in quoted)
+        if not (in_scraper and in_inline):
+            rc = 1
+            sides = []
+            if not in_scraper: sides.append('scraper.js')
+            if not in_inline: sides.append('background.js inline')
+            print(f'lint-anchor-strings: anchor {s!r} missing in {" and ".join(sides)}',
+                  file=sys.stderr)
+
+    for s in DOM_SELECTORS_IN_BACKGROUND:
+        quoted = (f"'{s}'", f'"{s}"')
+        if not any(q in background for q in quoted):
+            rc = 1
+            print(f'lint-anchor-strings: required selector {s!r} missing in background.js',
+                  file=sys.stderr)
+
+    if rc == 0:
+        print(f'lint-anchor-strings: OK ({len(ANCHOR_STRINGS)} anchors + '
+              f'{len(DOM_SELECTORS_IN_BACKGROUND)} selectors present)')
+    else:
+        print('\n  A literal-equality anchor changed on one side but not the other.', file=sys.stderr)
+        print('  Update both, or update ANCHOR_STRINGS in this lint.', file=sys.stderr)
+    return rc
+
+
 def check_pacing_parity():
     """Check the hand-synced pacing functions stay in numeric-literal sync.
 
@@ -336,6 +392,7 @@ def check_pair_inventory():
 
 def main():
     rc = check_scraper_parity()
+    rc |= check_anchor_strings()
     rc |= check_pacing_parity()
     check_pair_inventory()
     return rc

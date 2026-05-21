@@ -1,0 +1,103 @@
+PL-3 Permutation D — Refactor to eliminate the duplication entirely.
+
+Strategy:
+  `chrome.scripting.executeScript({...})` accepts an `args:` array whose
+  values are JSON-serialised and passed as parameters to the injected
+  `func:`. Rather than inline-duplicating the section anchors, we
+  centralise them in scraper.js, import the constants in background.js,
+  and pass them through `args:`.
+
+  scraper.js continues to export `doScrape` / `parseResetMinutes` /
+  `isHydrated` for unit tests. It additionally exports `SECTION_ANCHORS`
+  and `EXTRA_TOGGLE_SELECTOR` — both consumed by background.js.
+
+  background.js builds the args object at the SW-context call site
+  (where ES imports work) and references the anchors via parameters
+  inside the page-context `func:`.
+
+This eliminates the parity gap PL-3 was asking us to lint. No new lint
+needed; the existing regex-set lint stays in place for the regex
+literals (which still have to be inlined verbatim because regex
+literals are not serialisable through `args:`).
+
+---
+
+Sketch of the source change (illustrative, not a runnable patch):
+
+```diff
+--- a/chrome-extension/scraper.js
++++ b/chrome-extension/scraper.js
+@@
++// Section-anchor strings used by both scraper.js (test path) and the
++// inlined doScrape in background.js (production path). The latter
++// receives them via chrome.scripting.executeScript({args:[...]}).
++export const SECTION_ANCHORS = Object.freeze({
++  PLAN: 'Plan usage limits',
++  ADDITIONAL: 'Additional features',
++  EXTRA: 'Extra usage',
++  LAST_UPDATED: 'Last updated:',
++});
++
++export const EXTRA_TOGGLE_SELECTOR =
++  '[role="switch"][aria-label="Extra usage"]';
++
+ export function doScrape(textContent, extraToggleChecked = false) {
++  const A = SECTION_ANCHORS;
+   const lines = textContent.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+   ...
+-  const planStart = lines.findIndex(l => l === 'Plan usage limits');
++  const planStart = lines.findIndex(l => l === A.PLAN);
+   ...
+-  const extraStart = lines.findIndex(l => l === 'Extra usage');
++  const extraStart = lines.findIndex(l => l === A.EXTRA);
+   ...
+ }
+
+
+--- a/chrome-extension/background.js
++++ b/chrome-extension/background.js
+@@
++import { SECTION_ANCHORS, EXTRA_TOGGLE_SELECTOR } from './scraper.js';
++
+ async function scrapeAndPost(tabId) {
+   const [result] = await chrome.scripting.executeScript({
+     target: { tabId },
+-    func: () => new Promise(resolve => {
++    args: [SECTION_ANCHORS, EXTRA_TOGGLE_SELECTOR],
++    func: (A, EXTRA_SEL) => new Promise(resolve => {
+       function isHydrated() {
+         return /\d+%\s*used/i.test(document.body.innerText);
+       }
+       function doScrape() {
+         ...
+-        const planStart = lines.findIndex(l => l === 'Plan usage limits');
++        const planStart = lines.findIndex(l => l === A.PLAN);
+         ...
+-        const extraStart = lines.findIndex(l => l === 'Extra usage');
++        const extraStart = lines.findIndex(l => l === A.EXTRA);
+-        const extraToggleEl = document.querySelector('[role="switch"][aria-label="Extra usage"]');
++        const extraToggleEl = document.querySelector(EXTRA_SEL);
+         ...
+       }
+     }),
+   });
+ }
+```
+
+Caveats:
+  1. background.js currently does NOT import from scraper.js — it owns a
+     separate `parseResetMinutes` at the SW scope. Adding the import is
+     trivial (MV3 service workers support ES modules when manifest.json
+     sets `"background.type": "module"`). Verify manifest already sets
+     module type or add it.
+  2. Regex literals (e.g. `/^Last updated:/`) still cannot be passed via
+     `args:` (JSON-serialisable values only) and must remain inlined.
+     The existing regex-set lint continues to cover those.
+  3. Test surface: `scraper.test.js` calls `doScrape(text, bool)`
+     directly. The export of `SECTION_ANCHORS` is invisible to those
+     tests; no test change required.
+
+Effort:
+  ~25 lines edited across scraper.js and background.js. One round of
+  manual verification (load extension, navigate to claude.ai/settings/usage,
+  confirm scrape still produces meters).

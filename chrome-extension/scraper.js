@@ -1,6 +1,8 @@
 // Pure scraping functions extracted from the executeScript func in background.js.
 // background.js inlines equivalent copies inside the injected func (which runs in
 // the page context and cannot import). Keep both in sync when changing parsing logic.
+// Parity is enforced by scripts/lint-scraper-parity.py — regex literals via
+// check_scraper_parity(), section-anchor strings (PL-3) via check_anchor_strings().
 
 export function isHydrated(textContent) {
   return /\d+%\s*used/i.test(textContent);
