@@ -1,5 +1,13 @@
 # Memory Index
 
+- [After build, show install command with ./](feedback_post_build_instructions.md) — `sudo dpkg -i ./dist/claude-usage_<VERSION>_all.deb` — apt needs `./` prefix or it misreads as package name
+- [Logout is disruptive — exhaust static checks first](feedback_logout_disruption.md) — never suggest logout/login as an easy step; run all verifiable checks before recommending it
+- [Read project docs before debugging](feedback_read_docs_first.md) — README.md and MANUAL.md document the architecture; read them before assuming how anything works
+- [Render PNG popup preview instead of logout/login](feedback_popup_preview_render.md) — when extension.js changes need Wayland reload, render a PIL mockup using live data + GSettings instead of asking user to log out
+- [Next session: test .deb install](project_deb_test.md) — source install removed, v0.9 .deb built, user logging out to test clean .deb install + selectable panel metric feature
+- [Use semver patch bumps for small fixes](feedback_semver_patch_bumps.md) — 0.9 → 0.9.1, not 0.10
+- [Public email is will@biohack.net](user_email_preference.md) — use for Maintainer/contact fields, not wbnorris@gmail.com
+
 <!-- BEGIN GLOBAL MEMORY (managed by claude-housekeeping; do not edit) -->
 
 ## User (inherited from ~)
@@ -22,9 +30,5 @@
 - [feedback_seed_dont_clone.md](feedback_seed_dont_clone.md) — Seeding a new site from an existing one + swapping wordmark/color isn't enough — the source's visual fingerprint carries through. Ship distinctive elements with the seed, not after.
 - [feedback_prefer_proper_fix.md](feedback_prefer_proper_fix.md) — When offering fix-scope options, default to the proper/architectural one. Don't lead with the minimal fix as "recommended."
 - [feedback_public_vs_internal_surfaces.md](feedback_public_vs_internal_surfaces.md) — Public marketing pages (colophon, homepage) describe visible craft — never internal infra (repo URLs, predecessor projects, deploy pipeline, IaC paths).
-
-## Projects (inherited from ~)
-
-- [project_finding_your_way.md](project_finding_your_way.md) — Parmenides hypertext port to Astro+MD+AWS at ~/SRC/finding-your-way/ (author-commissioned)
 
 <!-- END GLOBAL MEMORY -->
