@@ -79,6 +79,16 @@ async function getServerUrl({ forceProbe = false } = {}) {
 // SW wake.
 
 let _fetching = false;
+// AS-1 (pass-26 deferred → pass-29): two-phase mutex for
+// _autoScrapeIfEligible. `_evaluating` is held only during the
+// eligibility-check phase (storage.get + predicates); `_fetching` is the
+// actual scrape mutex. fetchUsage checks ONLY `_fetching`, so an alarm
+// arriving during an in-progress eligibility check that is about to bail
+// is no longer starved for the next 7-min cycle. R-1 (pass-16) is
+// preserved because `_evaluating` is acquired synchronously before the
+// first await — two simultaneous events still can't race through the
+// storage.get.
+let _evaluating = false;
 // One-shot guard for the tabs.query swallow in fetchUsage. If Chrome ever
 // tightens permission semantics so tabs.query throws, we'd otherwise silently
 // fall back to the background-tab path forever — log once per SW lifetime.
@@ -673,22 +683,36 @@ async function fetchUsage() {
 
 // Shared guard for both auto-scrape paths below. Checks URL, debounce,
 // and in-flight state before handing off to scrapeAndPost.
+//
+// AS-1 (pass-26 deferred → pass-29): two-phase mutex.
+//   Phase 1 — eligibility: acquire `_evaluating` synchronously, run the
+//     storage-backed eligibility check. Releases `_evaluating` whether
+//     eligibility passes or fails.
+//   Phase 2 — scrape: acquire `_fetching` synchronously after Phase 1
+//     commits, run scrapeAndPost.
+// Critical contract:
+//   (a) `_evaluating` is acquired synchronously before the storage.get
+//       so two simultaneous events can't both race through it (R-1).
+//   (b) `_fetching` is acquired synchronously inside Phase 1's try block,
+//       guarded by `if (_fetching) return` to honour any concurrent
+//       alarm-fired fetchUsage.
+//   (c) fetchUsage checks ONLY `_fetching`, never `_evaluating` — that's
+//       what eliminates AS-1's alarm starvation during ineligible fires.
 async function _autoScrapeIfEligible(tabId, url) {
-  // Exact match on path, ignoring query string / fragment.
   if (url.split(/[?#]/, 1)[0] !== USAGE_URL) return;
-  // R-1 (pass-16 §5): lift _fetching = true BEFORE the storage.get await.
-  // The previous check-then-await-then-set ordering let two near-simultaneous
-  // events (e.g. tabs.onUpdated and tabs.onActivated fired for the same
-  // navigation) both pass `if (_fetching) return` before either set the flag,
-  // then both proceed to scrape. Matching fetchUsage's pattern: synchronous
-  // check + set before any await keeps the flag working as a real mutex.
-  if (_fetching) return;
-  _fetching = true;
+  if (_evaluating || _fetching) return;
+  _evaluating = true;
   try {
     const { _scrape_tabs = [], _last_scrape_ts = 0 } =
         await chrome.storage.local.get(['_scrape_tabs', '_last_scrape_ts']);
     if (_scrape_tabs.includes(tabId)) return;
     if (Date.now() - _last_scrape_ts < AUTO_DEBOUNCE_MS) return;
+    if (_fetching) return;
+    _fetching = true;
+  } finally {
+    _evaluating = false;
+  }
+  try {
     await scrapeAndPost(tabId);
   } catch (e) {
     console.warn('Claude Usage auto-scrape failed:', e.message);
