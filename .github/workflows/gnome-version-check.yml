@@ -1,0 +1,80 @@
+name: GNOME version check
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'  # every Monday 09:00 UTC
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect latest GNOME Shell major version from ubuntu:latest
+        id: detect
+        run: |
+          latest=$(docker run --rm ubuntu:latest bash -c \
+            'apt-get update -qq 2>/dev/null \
+             && apt-cache show gnome-shell 2>/dev/null \
+             | grep "^Version:" | head -1 \
+             | grep -oP "^\S+ \K\d+" || true')
+          if [ -z "$latest" ]; then
+            echo "Could not detect GNOME version from ubuntu:latest — skipping"
+            echo "latest_major=0" >> $GITHUB_OUTPUT
+          else
+            echo "latest_major=$latest" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Read currently supported max version
+        id: current
+        run: |
+          max=$(python3 -c "
+          import json
+          d = json.load(open('gnome-extension/metadata.json'))
+          print(max(int(v) for v in d['shell-version']))
+          ")
+          echo "max_supported=$max" >> $GITHUB_OUTPUT
+
+      - name: Open issue if new version detected
+        if: steps.detect.outputs.latest_major != '0' && steps.detect.outputs.latest_major > steps.current.outputs.max_supported
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const latest = '${{ steps.detect.outputs.latest_major }}';
+            const current = '${{ steps.current.outputs.max_supported }}';
+
+            // Don't open a duplicate if one is already open
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'gnome-compat',
+            });
+            const dup = existing.data.find(i => i.title.includes(`GNOME ${latest} detected`));
+            if (dup) {
+              console.log(`Issue already open: #${dup.number}`);
+              return;
+            }
+
+            const title = `GNOME ${latest} detected — run test-gnome and add shell-version support`;
+            const body = [
+              `\`ubuntu:latest\` now ships GNOME Shell **${latest}** (currently max supported: **${current}**).`,
+              ``,
+              `Steps to add support:`,
+              `1. \`task test-gnome UBUNTU_VERSION=<ubuntu-release-with-gnome-${latest}>\``,
+              `2. If **PASS**: add \`"${latest}"\` to \`gnome-extension/metadata.json\` \`shell-version\``,
+              `3. Update \`MANUAL.md\` requirements line`,
+              `4. Bump version + \`task release\``,
+            ].join('\n');
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body,
+              labels: ['gnome-compat'],
+            });

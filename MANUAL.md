@@ -57,7 +57,7 @@ Recovery is automatic: the next successful scrape resets the state and the icons
 
 ## Installation
 
-**Requirements:** Ubuntu 22.04+ · GNOME Shell 45–49 · Google Chrome (logged in to Claude.ai)
+**Requirements:** Ubuntu 22.04+ · GNOME Shell 45–50 · Google Chrome (logged in to Claude.ai)
 
 ### Option A — Debian package
 
@@ -246,7 +246,7 @@ The extension currently requires loading unpacked. To publish to the Chrome Web 
 ```
 claude-usage/
   chrome-extension/   Chrome extension (load via chrome://extensions → Load unpacked)
-  gnome-extension/    GNOME Shell 45–49 panel + dock indicator
+  gnome-extension/    GNOME Shell 45–50 panel + dock indicator
   server/             Local HTTP server + dock icon generator
   systemd/            User service definition
   desktop/            Dock launcher entry template

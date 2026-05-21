@@ -117,6 +117,18 @@ tasks:
           /usr/local/bin/verify
         '
 
+  test-gnome:
+    desc: "Smoke-test GNOME extension loading on a given Ubuntu release via Docker headless gnome-shell (UBUNTU_VERSION=26.04)"
+    vars:
+      UBUNTU_VERSION: '{{.UBUNTU_VERSION | default "26.04"}}'
+    cmds:
+      - >
+        docker build
+        --build-arg UBUNTU_VERSION={{.UBUNTU_VERSION}}
+        -f packaging/test-gnome.Dockerfile
+        -t claude-usage-gnome-{{.UBUNTU_VERSION}} .
+      - docker run --rm claude-usage-gnome-{{.UBUNTU_VERSION}}
+
   bump:
     desc: "Bump version across packaging/control + chrome-extension/manifest.json (NEW=X.Y.Z). Pass-17 P-2: kills the manual two-place sync that auto-memory used to track."
     cmds:
