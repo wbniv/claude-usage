@@ -3,10 +3,10 @@
 ## Fixes
 
 ## Deferred
-- [ ] **RD‑1** (pass-26 Medium): `chrome.idle.onStateChanged` 'active' fires on every screen unlock with no debounce — burns a claude.ai page-load per lockscreen toggle. Fix adds `WAKE_MIN_INTERVAL_MS` debounce. Decide the right value: 5 min catches genuine suspend-wakes while ignoring lock/unlock cycles, but shorter is also defensible. [Review](docs/investigations/2026-05-20-code-review-pass26.md)
 - [ ] **IN‑1** (pass-26 Info): `tabs` permission is broader than needed; `host_permissions` + `activeTab` would shrink the Chrome Web Store install-warning string. Needs verification that `tabs.query({url})` still returns hydrated URL fields with just `host_permissions` before removing. [Review](docs/investigations/2026-05-20-code-review-pass26.md)
 
 ## Done
+- [x] 2026-05-21 — RD‑1 closed: `chrome.idle.onStateChanged` 'active' handler now debounces against `_last_scrape_ts` with `WAKE_MIN_INTERVAL_MS = INTERVAL_MINUTES * 60 * 1000` (7 min); lock/unlock cycles no longer burn a claude.ai page-load each, CI-2's wake-from-suspend purpose preserved (storage error → falls through to fire). [Plan](docs/plans/2026-05-21-rd1-idle-debounce.md).
 - [x] 2026-05-21 — SV‑1 closed: GNOME 50 supported (tested via Docker smoke test — 9/9 checks pass); `task test-gnome` + weekly GH Actions version-check workflow added. [Plan](docs/plans/2026-05-21-sv1-gnome50-support.md).
 - [x] 2026-05-21 — AS‑1 closed: `_autoScrapeIfEligible` split into two-phase mutex (`_evaluating` for eligibility, `_fetching` for scrape) — alarm-fired fetchUsage no longer starved by ineligible auto-scrape fires; R-1 invariant preserved. [Plan](docs/plans/2026-05-21-as1-two-phase-mutex.md).
 - [x] 2026-05-21 — PL‑3 closed: `lint-scraper-parity` gained `check_anchor_strings()` — allowlist pins `'Plan usage limits'`/`'Extra usage'` in both files + the Extra-toggle DOM selector in background.js. [Plan](docs/plans/2026-05-21-pl3-anchor-strings-lint.md), [Investigation](docs/investigations/2026-05-21-pl3-scraper-string-parity.md).

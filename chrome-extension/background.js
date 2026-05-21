@@ -2,6 +2,14 @@ const USAGE_URL = 'https://claude.ai/settings/usage';
 const STATUS_URL   = 'https://status.claude.com/api/v2/summary.json';
 const INTERVAL_MINUTES = 7;
 const AUTO_DEBOUNCE_MS = 30_000;
+// RD-1 (pass-26 deferred → pass-29): minimum gap between two
+// idle-wake-driven fetches. Equal to INTERVAL_MINUTES so the wake
+// handler only fires when the alarm would have been overdue anyway —
+// lock/unlock and screensaver dim cycles no longer burn a claude.ai
+// page-load each, while CI-2's "wake from suspend refreshes the panel"
+// purpose is preserved (any suspend longer than the alarm period
+// triggers a fresh scrape on resume).
+const WAKE_MIN_INTERVAL_MS = INTERVAL_MINUTES * 60 * 1000;
 
 // Local server discovery. The server tries to bind 7331 first and falls back
 // through 7340 if something else is squatting on 7331. We probe the range via
@@ -777,9 +785,23 @@ chrome.runtime.onStartup.addListener(() => {
 // fetch lands. Listen for the OS coming back to active and fire immediately.
 // "active" fires on screen unlock / wake-from-suspend. The `idle` permission
 // is required for chrome.idle.* to be defined.
+//
+// RD-1 (pass-26 deferred → pass-29): 'active' also fires on every screen
+// unlock and screensaver-dim recovery, not just wake-from-suspend.
+// Without a debounce, a user who locks their screen ten times during a
+// workday pays ten background tab loads + ten Statuspage hits.
+// WAKE_MIN_INTERVAL_MS gates against `_last_scrape_ts`; storage errors
+// fall through so the CI-2 wake-from-suspend purpose is preserved even
+// if storage is wedged.
 if (chrome.idle && chrome.idle.onStateChanged) {
-  chrome.idle.onStateChanged.addListener(state => {
-    if (state === 'active') fetchUsage();
+  chrome.idle.onStateChanged.addListener(async state => {
+    if (state !== 'active') return;
+    try {
+      const { _last_scrape_ts = 0 } =
+          await chrome.storage.local.get('_last_scrape_ts');
+      if (Date.now() - _last_scrape_ts < WAKE_MIN_INTERVAL_MS) return;
+    } catch (_) { /* fall through to fire */ }
+    fetchUsage();
   });
 }
 
