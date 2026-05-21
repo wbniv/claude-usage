@@ -4,10 +4,10 @@
 
 ## Deferred
 - [ ] **RD‑1** (pass-26 Medium): `chrome.idle.onStateChanged` 'active' fires on every screen unlock with no debounce — burns a claude.ai page-load per lockscreen toggle. Fix adds `WAKE_MIN_INTERVAL_MS` debounce. Decide the right value: 5 min catches genuine suspend-wakes while ignoring lock/unlock cycles, but shorter is also defensible. [Review](docs/investigations/2026-05-20-code-review-pass26.md)
-- [ ] **SV‑1** (pass-26 Medium): `metadata.json:shell-version` only lists 45-49; GNOME 50 (Ubuntu 26.04, ~Apr 2026) will silently fail to enable the extension. Fix: preemptively add "50"/"51" after smoke-testing on a GNOME 50 host (Fedora Rawhide VM or GNOME OS nightly). [Review](docs/investigations/2026-05-20-code-review-pass26.md)
 - [ ] **IN‑1** (pass-26 Info): `tabs` permission is broader than needed; `host_permissions` + `activeTab` would shrink the Chrome Web Store install-warning string. Needs verification that `tabs.query({url})` still returns hydrated URL fields with just `host_permissions` before removing. [Review](docs/investigations/2026-05-20-code-review-pass26.md)
 
 ## Done
+- [x] 2026-05-21 — SV‑1 closed: GNOME 50 supported (tested via Docker smoke test — 9/9 checks pass); `task test-gnome` + weekly GH Actions version-check workflow added. [Plan](docs/plans/2026-05-21-sv1-gnome50-support.md).
 - [x] 2026-05-21 — AS‑1 closed: `_autoScrapeIfEligible` split into two-phase mutex (`_evaluating` for eligibility, `_fetching` for scrape) — alarm-fired fetchUsage no longer starved by ineligible auto-scrape fires; R-1 invariant preserved. [Plan](docs/plans/2026-05-21-as1-two-phase-mutex.md).
 - [x] 2026-05-21 — PL‑3 closed: `lint-scraper-parity` gained `check_anchor_strings()` — allowlist pins `'Plan usage limits'`/`'Extra usage'` in both files + the Extra-toggle DOM selector in background.js. [Plan](docs/plans/2026-05-21-pl3-anchor-strings-lint.md), [Investigation](docs/investigations/2026-05-21-pl3-scraper-string-parity.md).
 - [x] 2026-05-21 — TR‑1 dismissed: `docs/transcripts/` tracking + release dirty-check exemption is by design (purely local session artifacts, not a bug).
