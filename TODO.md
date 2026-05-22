@@ -2,6 +2,8 @@
 
 ## Fixes
 
+- [ ] **2026-05-22** Add pre-flight dep checks in `install.sh` (`glib-compile-schemas` hard-fail, `systemctl --user` hard-fail, `gnome-shell` 45–50 warn) + relabel MANUAL.md Option B "From source" → "From a clone" + add Option C `curl | bash` one-liner — [plan](docs/plans/2026-05-22-curlbash-installer.md)
+
 ## Deferred
 ## Done
 - [x] 2026-05-21 — IN‑1 closed: removed `"tabs"` from manifest permissions — `host_permissions` sufficient for `tabs.query({url})`. Tested: "sent 5 meters to local server" confirmed, no errors after reload.

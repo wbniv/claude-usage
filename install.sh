@@ -70,6 +70,51 @@ uninstall() {
 [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]] && usage
 [[ "${1:-}" == "--uninstall" ]] && uninstall
 
+# Pre-flight checks for tooling install.sh uses but doesn't auto-install.
+# (The Python bindings — pycairo, pillow — are handled by step 0 below.)
+# Placed after the --help/--uninstall short-circuits so those still work on a
+# host that's missing pieces; the rsync check at the very top of this file
+# predates these and runs unconditionally.
+
+# glib-compile-schemas — compiles gschema XML to gschemas.compiled. Used in
+# steps 1 + the user-glib mirror. Ships in libglib2.0-bin / glib2.
+if ! command -v glib-compile-schemas >/dev/null 2>&1; then
+    echo "install.sh: glib-compile-schemas not found." >&2
+    if command -v apt-get >/dev/null; then
+        echo "    Install: sudo apt-get install libglib2.0-bin" >&2
+    elif command -v dnf >/dev/null; then
+        echo "    Install: sudo dnf install glib2" >&2
+    elif command -v pacman >/dev/null; then
+        echo "    Install: sudo pacman -S glib2" >&2
+    else
+        echo "    Install the GLib tools via your distribution's package manager." >&2
+    fi
+    exit 1
+fi
+
+# systemctl --user — required to enable claude-usage-fetch.service. Probes
+# whether the user instance is addressable, not just whether systemctl is
+# installed (which it would be on most distros even without systemd-user).
+if ! systemctl --user --version >/dev/null 2>&1; then
+    echo "install.sh: 'systemctl --user' is not available — required for the data-fetch service." >&2
+    echo "    On a non-systemd host, the panel indicator won't refresh." >&2
+    exit 1
+fi
+
+# GNOME Shell version — warn-only. metadata.json targets shell 45–50; outside
+# that range the files install fine but the indicator won't load until shell
+# catches up. Don't fail — the user may be staging an install before upgrading.
+if command -v gnome-shell >/dev/null 2>&1; then
+    _gs_ver=$(gnome-shell --version 2>/dev/null | awk '{print $3}' | cut -d. -f1)
+    if [[ -n "$_gs_ver" ]] && { (( _gs_ver < 45 )) || (( _gs_ver > 50 )); }; then
+        echo "  ⚠  GNOME Shell ${_gs_ver} detected — extension targets 45–50."
+        echo "     Files will install, but the panel indicator won't load on this version."
+    fi
+else
+    echo "  ⚠  gnome-shell not found — the panel indicator requires GNOME Shell 45–50."
+    echo "     Continuing; installing files anyway."
+fi
+
 echo "Installing Claude Usage..."
 
 # 0. Python dependencies (pycairo, pillow — used by the dock icon generator).
@@ -227,7 +272,16 @@ echo ""
 echo "Next step: load the Chrome extension"
 echo "  1. Open chrome://extensions"
 echo "  2. Enable Developer mode"
-echo "  3. Click 'Load unpacked' and select: $CHROME_EXT_SRC"
+# When invoked via the curl|bash bootstrap, $REPO_DIR is a soon-to-be-deleted
+# tempdir. The bootstrap sets CLAUDE_USAGE_BOOTSTRAP=1 so we recommend the
+# stable copy under $SERVER_DIR (always populated by step 2b above). Source-
+# clone users get the in-tree path so they can iterate without re-running
+# install.sh first.
+if [[ "${CLAUDE_USAGE_BOOTSTRAP:-}" == "1" ]]; then
+    echo "  3. Click 'Load unpacked' and select: $SERVER_DIR/chrome-extension"
+else
+    echo "  3. Click 'Load unpacked' and select: $CHROME_EXT_SRC"
+fi
 echo ""
 echo "The Chrome extension fetches usage data every 7 minutes."
 echo "Click its toolbar icon to force an immediate refresh."

@@ -57,9 +57,23 @@ Recovery is automatic: the next successful scrape resets the state and the icons
 
 ## Installation
 
-**Requirements:** Ubuntu 22.04+ · GNOME Shell 45–50 · Google Chrome (logged in to Claude.ai)
+**Requirements:** GNOME Shell 45–50 + systemd-user + Google Chrome (logged in to Claude.ai).
 
-### Option A — Debian package
+Minimum distro versions that ship GNOME Shell 45 or newer:
+
+| Distro | Minimum | Ships with |
+|---|---|---|
+| **Fedora** | 39 (Nov 2023) | GNOME 45 |
+| **Ubuntu** | 23.10 — or **24.04 LTS** | GNOME 45 / 46 |
+| **Debian** | 13 (Trixie, Aug 2025) | GNOME 48 |
+| **RHEL** | 10 (2025) | GNOME 47 |
+| **Arch · openSUSE Tumbleweed** | rolling | latest |
+
+Older releases (Debian 12 Bookworm = GNOME 43, RHEL 9 = GNOME 40, Ubuntu 22.04 LTS = GNOME 42) ship too-old GNOME Shells for the extension to load. The Python server, systemd unit, and Chrome extension still install on those, but the panel indicator won't appear until the desktop is upgraded.
+
+The three install paths below cover different distro reaches — pick whichever matches your system:
+
+### Option A — Debian package (Debian/Ubuntu only)
 
 Download the latest `.deb` from the [GitHub releases page](https://github.com/wbniv/claude-usage/releases/latest), then:
 
@@ -71,7 +85,7 @@ claude-usage-setup        # run as yourself, not root
 
 `claude-usage-setup` creates your config file, enables the systemd service, enables the GNOME extension, and installs the dock entry — all in one step.
 
-### Option B — From source
+### Option B — From a clone (any distro with apt / dnf / pacman)
 
 ```bash
 git clone https://github.com/wbniv/claude-usage.git
@@ -79,9 +93,21 @@ cd claude-usage
 ./install.sh
 ```
 
-`install.sh` installs Python deps (`python3-cairo`, `python3-pil`) via apt automatically if missing.
+Nothing is compiled — `install.sh` is a wire-up script that copies JS + Python files into your XDG directories, compiles the gschema XML, and registers the systemd user service + dock launcher. Python deps (`python3-cairo`, `python3-pil`) install via apt/dnf/pacman automatically if missing.
 
-> **Pick one install method.** Running the `.deb` and source installs simultaneously creates a systemd unit conflict: `install.sh` registers a user-level `claude-usage-fetch.service` that takes precedence over the system-level unit from the `.deb`, so one service silently never runs. If switching methods, uninstall the old one first (see [Uninstall](#uninstall)).
+### Option C — One-liner (any distro with apt / dnf / pacman)
+
+```bash
+curl -fsSL https://apt.indri.studio/install-claude-usage.sh | bash
+```
+
+Same wire-up as Option B, with no clone step. The bootstrap fetches the latest release tarball into a temp dir, then execs the upstream `install.sh`. Pass `--uninstall` through with `bash -s --`:
+
+```bash
+curl -fsSL https://apt.indri.studio/install-claude-usage.sh | bash -s -- --uninstall
+```
+
+> **Pick one install method.** Running the `.deb` and source/curl installs simultaneously creates a systemd unit conflict: `install.sh` registers a user-level `claude-usage-fetch.service` that takes precedence over the system-level unit from the `.deb`, so one service silently never runs. If switching methods, uninstall the old one first (see [Uninstall](#uninstall)).
 
 ### Both paths — complete setup
 
@@ -90,8 +116,9 @@ cd claude-usage
 1. Open `chrome://extensions`
 2. Enable **Developer mode** (top-right toggle)
 3. Click **Load unpacked** → select:
-   - Source install: `chrome-extension/` inside the repo
-   - .deb install: `/usr/share/claude-usage/chrome-extension/`
+   - Clone install (Option B): `chrome-extension/` inside the repo
+   - One-liner install (Option C): `~/.local/share/claude-usage/chrome-extension/`
+   - .deb install (Option A): `/usr/share/claude-usage/chrome-extension/`
 
 **Log out and back in** — activates the GNOME Shell extension.
 
