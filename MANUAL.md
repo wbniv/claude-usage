@@ -75,21 +75,35 @@ The three install paths below cover different distro reaches — pick whichever 
 
 ### Option A — Debian package (Debian/Ubuntu only)
 
-Download the latest `.deb` from the [GitHub releases page](https://github.com/wbniv/claude-usage/releases/latest), then:
+Add the `apt.indri.studio` repository, then install via `apt`:
 
 ```bash
-sudo dpkg -i claude-usage_*.deb
-sudo apt-get install -f   # resolves any missing deps
+# 1. Trust the signing key
+curl -fsSL https://apt.indri.studio/key.gpg \
+  | sudo gpg --dearmor -o /etc/apt/keyrings/indri.gpg
+
+# 2. Add the source
+echo "deb [signed-by=/etc/apt/keyrings/indri.gpg] https://apt.indri.studio stable main" \
+  | sudo tee /etc/apt/sources.list.d/indri.list
+
+# 3. Install
+sudo apt update && sudo apt install claude-usage
 claude-usage-setup        # run as yourself, not root
 ```
 
 `claude-usage-setup` creates your config file, enables the systemd service, enables the GNOME extension, and installs the dock entry — all in one step.
 
-### Option B — From a clone (any distro with apt / dnf / pacman)
+### Option B — From a source tarball (any distro with apt / dnf / pacman)
+
+Download the pinned source tarball from the apt.indri.studio mirror and run the install script in-tree:
 
 ```bash
-git clone https://github.com/wbniv/claude-usage.git
-cd claude-usage
+# Pointer lists the current version + sha256
+curl -fsSL https://apt.indri.studio/sources/claude-usage-latest.json
+# Then download + extract + run the upstream install.sh
+TARBALL=$(curl -fsSL https://apt.indri.studio/sources/claude-usage-latest.json | python3 -c 'import json,sys; print(json.load(sys.stdin)["tarball"])')
+curl -fsSL "$TARBALL" | tar -xz
+cd claude-usage-*
 ./install.sh
 ```
 
