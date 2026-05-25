@@ -1,1 +1,1 @@
-../../../../.claude/memory/feedback_public_vs_internal_surfaces.md
+../../../.claude/memory/feedback_public_vs_internal_surfaces.md
