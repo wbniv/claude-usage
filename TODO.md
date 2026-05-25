@@ -6,6 +6,7 @@
 
 ## Deferred
 ## Done
+- [x] 2026-05-25 — KDE Plasma 6 support landed: `kde-plasmoid/` (PlasmoidItem reading the same `usage.json` cache; ring Canvas + pacing-bar popup; KConfigXT config generated from the gschema via `scripts/gen-kde-config.py`). New `task gen-kde-config`/`lint-kde-config` (in `task test`), `lint-kde-parity` (usage.js↔extension.js literal sync), `task test-kde` (headless `plasmoidviewer` load check on `ubuntu:26.04`/Plasma 6.6.4 with a load-marker assertion + negative control), and `install-kde.sh` (plasmoid + shared backend, skips GNOME-only `generate-icon.py`). Container-verified: loads clean in real Plasma 6. [Plan](docs/plans/2026-05-25-kde-plasma-support.md).
 - [x] 2026-05-21 — IN‑1 closed: removed `"tabs"` from manifest permissions — `host_permissions` sufficient for `tabs.query({url})`. Tested: "sent 5 meters to local server" confirmed, no errors after reload.
 - [x] 2026-05-21 — RD‑1 closed: `chrome.idle.onStateChanged` 'active' handler now debounces against `_last_scrape_ts` with `WAKE_MIN_INTERVAL_MS = INTERVAL_MINUTES * 60 * 1000` (7 min); lock/unlock cycles no longer burn a claude.ai page-load each, CI-2's wake-from-suspend purpose preserved (storage error → falls through to fire). [Plan](docs/plans/2026-05-21-rd1-idle-debounce.md).
 - [x] 2026-05-21 — SV‑1 closed: GNOME 50 supported (tested via Docker smoke test — 9/9 checks pass); `task test-gnome` + weekly GH Actions version-check workflow added. [Plan](docs/plans/2026-05-21-sv1-gnome50-support.md).

@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- AUTO-GENERATED from gnome-extension/schemas/org.gnome.shell.extensions.claude-usage.gschema.xml
+     DO NOT HAND-EDIT - regenerate with `task gen-kde-config`.
+
+     KConfigXT config schema for the KDE Plasma 6 plasmoid. Every entry mirrors
+     a gschema key so the GNOME extension and the plasmoid share defaults and
+     ranges. CI runs lint-kde-config.py to keep this synced to the schema XML. -->
+<kcfg xmlns="http://www.kde.org/standards/kcfg/1.0"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.kde.org/standards/kcfg/1.0
+                          http://www.kde.org/standards/kcfg/1.0/kcfg.xsd">
+  <kcfgfile name=""/>
+  <group name="General">
+    <entry name="weeklyColorGreen" type="Color">
+      <label>Dock outer ring color below warning threshold</label>
+      <default>#8cff8c</default>
+    </entry>
+    <entry name="weeklyColorAmber" type="Color">
+      <label>Dock outer ring color at or above warning threshold</label>
+      <default>#ffe033</default>
+    </entry>
+    <entry name="weeklyColorRed" type="Color">
+      <label>Dock outer ring color at or above critical threshold</label>
+      <default>#ff5933</default>
+    </entry>
+    <entry name="sonnetColor" type="Color">
+      <label>Dock inner (Sonnet) ring color</label>
+      <default>#4dbfff</default>
+    </entry>
+    <entry name="popupColorNormal" type="Color">
+      <label>Popup meter text color below warning threshold</label>
+      <default>#2a9a2a</default>
+    </entry>
+    <entry name="popupColorWarning" type="Color">
+      <label>Popup meter text color at or above warning threshold</label>
+      <default>#d07000</default>
+    </entry>
+    <entry name="popupColorCritical" type="Color">
+      <label>Popup meter text color at or above critical threshold</label>
+      <default>#e03030</default>
+    </entry>
+    <entry name="thresholdWarning" type="Int">
+      <label>Pacing % (pct ÷ fraction-of-period-elapsed) at which color flips to warning</label>
+      <default>70</default>
+      <min>1</min>
+      <max>500</max>
+    </entry>
+    <entry name="thresholdCritical" type="Int">
+      <label>Pacing % (pct ÷ fraction-of-period-elapsed) at which color flips to critical</label>
+      <default>90</default>
+      <min>1</min>
+      <max>500</max>
+    </entry>
+    <entry name="barWidth" type="Int">
+      <label>Character count of the █░ usage bar</label>
+      <default>10</default>
+      <min>1</min>
+      <max>20</max>
+    </entry>
+    <entry name="panelColorNormal" type="Color">
+      <label>Panel label color below warning threshold</label>
+      <default>#ffffff</default>
+    </entry>
+    <entry name="panelColorWarning" type="Color">
+      <label>Panel label color at or above warning threshold</label>
+      <default>#d07000</default>
+    </entry>
+    <entry name="panelColorCritical" type="Color">
+      <label>Panel label color at or above critical threshold</label>
+      <default>#e03030</default>
+    </entry>
+    <entry name="panelFontSize" type="Int">
+      <label>Panel label font size in pixels</label>
+      <default>11</default>
+      <min>8</min>
+      <max>20</max>
+    </entry>
+    <entry name="panelLabelSpacing" type="Int">
+      <label>Gap in pixels between panel icon and label</label>
+      <default>6</default>
+      <min>0</min>
+      <max>20</max>
+    </entry>
+    <entry name="popupFontSize" type="Int">
+      <label>Popup meter row font size in pixels</label>
+      <default>10</default>
+      <min>8</min>
+      <max>20</max>
+    </entry>
+    <entry name="popupFontFamily" type="String">
+      <label>Popup meter row font family</label>
+      <default>monospace</default>
+    </entry>
+    <entry name="panelIconSize" type="Int">
+      <label>Panel icon pixel size</label>
+      <default>16</default>
+      <min>8</min>
+      <max>32</max>
+    </entry>
+    <entry name="panelMetric" type="String">
+      <label>Label of the meter shown in the panel (empty = auto-select)</label>
+      <default></default>
+    </entry>
+  </group>
+</kcfg>

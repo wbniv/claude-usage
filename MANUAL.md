@@ -59,6 +59,8 @@ Recovery is automatic: the next successful scrape resets the state and the icons
 
 **Requirements:** GNOME Shell 45–50 + systemd-user + Google Chrome (logged in to Claude.ai).
 
+> **KDE Plasma 6:** there is a native plasmoid — clone the repo and run `./install-kde.sh`, then right-click your panel → *Add Widgets* → search "Claude Usage". It reads the same local cache as the GNOME indicator, so the Chrome extension + server setup under *Both paths — complete setup* applies identically (the script installs the server/service for you). See [docs/plans/2026-05-25-kde-plasma-support.md](docs/plans/2026-05-25-kde-plasma-support.md).
+
 Minimum distro versions that ship GNOME Shell 45 or newer:
 
 | Distro | Minimum | Ships with |

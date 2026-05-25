@@ -1,0 +1,20 @@
+{
+    "KPlugin": {
+        "Authors": [
+            {
+                "Email": "",
+                "Name": "Claude Usage contributors"
+            }
+        ],
+        "Category": "System Information",
+        "Description": "Shows your Claude.ai weekly usage percentage in the KDE Plasma panel.",
+        "Icon": "claude-usage",
+        "Id": "studio.indri.claudeusage",
+        "License": "MIT",
+        "Name": "Claude Usage",
+        "Version": "0.11.22"
+    },
+    "KPackageStructure": "Plasma/Applet",
+    "X-Plasma-API-Minimum-Version": "6.0",
+    "X-Plasma-MainScript": "ui/main.qml"
+}

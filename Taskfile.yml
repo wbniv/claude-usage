@@ -43,6 +43,16 @@ tasks:
     cmds:
       - python3 scripts/gen-js-defaults.py --check
 
+  gen-kde-config:
+    desc: "KDE: regenerate kde-plasmoid/contents/config/main.xml (KConfigXT) from the gschema XML"
+    cmds:
+      - python3 scripts/gen-kde-config.py
+
+  lint-kde-config:
+    desc: "KDE: assert kde-plasmoid/contents/config/main.xml is in sync with the gschema XML"
+    cmds:
+      - python3 scripts/gen-kde-config.py --check
+
   test:
     desc: Run all unit tests + parity/security lints
     cmds:
@@ -51,6 +61,7 @@ tasks:
       - task: lint-scraper-parity
       - task: lint-security-doc
       - task: lint-js-defaults
+      - task: lint-kde-config
 
   build:
     desc: Build the .deb package
@@ -128,6 +139,20 @@ tasks:
         -f packaging/test-gnome.Dockerfile
         -t claude-usage-gnome-{{.UBUNTU_VERSION}} .
       - docker run --rm claude-usage-gnome-{{.UBUNTU_VERSION}}
+
+  test-kde:
+    desc: "Smoke-test the KDE plasmoid on Plasma 6 via Docker (Xvfb + plasmoidviewer headless load check; ~3 min cold for the plasma-desktop image)"
+    cmds:
+      - task: lint-kde-config
+      - >
+        docker build
+        -f packaging/test-kde.Dockerfile
+        -t claude-usage-kde .
+      - >
+        docker run --rm
+        -v "$PWD/kde-plasmoid:/plasmoid:ro"
+        -v "$PWD/packaging/test-kde-verify.sh:/verify.sh:ro"
+        claude-usage-kde
 
   bump:
     desc: "Bump version across packaging/control + chrome-extension/manifest.json (NEW=X.Y.Z). Pass-17 P-2: kills the manual two-place sync that auto-memory used to track."

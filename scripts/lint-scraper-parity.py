@@ -334,6 +334,51 @@ def check_pacing_parity():
     return rc
 
 
+def check_kde_parity():
+    """KDE plasmoid (2026-05): kde-plasmoid/contents/ui/lib/usage.js is a third
+    copy of the pacing math — a JS twin of extension.js's functions (which are
+    themselves twins of generate-icon.py's). Check the numeric-heavy functions
+    stay in literal sync with extension.js (the canonical JS source) so the
+    floor constants (15, 0.05), bar glyphs, and role names can't silently drift
+    in the KDE front end.
+
+    Excluded by design:
+      • colorFor   — tick color is '#888' in extension.js but '#888888' in
+                     usage.js (Qt RichText's parser wants the 6-digit form).
+      • formatReset — extension.js builds strings with template literals
+                     (backticks, which the literal scanner doesn't read); usage.js
+                     uses string concatenation, so they'd diverge cosmetically.
+    """
+    ext_raw = _strip_comments((REPO / 'gnome-extension' / 'extension.js').read_text())
+    usage_raw = _strip_comments(
+        (REPO / 'kde-plasmoid' / 'contents' / 'ui' / 'lib' / 'usage.js').read_text())
+
+    funcs = ['pacingPct', 'elapsedFraction', 'pacingSegments', 'bar', 'fmtAge']
+    rc = 0
+    for name in funcs:
+        ext_body = _extract_js_function(ext_raw, name)
+        usage_body = _extract_js_function(usage_raw, name)
+        shared = _raw_string_literals(ext_body) & _raw_string_literals(usage_body)
+        ext_lits = _literals(ext_body, shared_strs=shared)
+        usage_lits = _literals(usage_body, shared_strs=shared)
+        only_ext = ext_lits - usage_lits
+        only_usage = usage_lits - ext_lits
+        if not only_ext and not only_usage:
+            print(f'lint-kde-parity: OK ({len(ext_lits)} literals match for {name} '
+                  f'between extension.js and kde-plasmoid usage.js)')
+            continue
+        rc = 1
+        print(f'lint-kde-parity: DIVERGENCE in {name} between extension.js and '
+              f'kde-plasmoid/contents/ui/lib/usage.js', file=sys.stderr)
+        if only_ext:
+            print(f'  In extension.js but NOT usage.js: {sorted(only_ext)}', file=sys.stderr)
+        if only_usage:
+            print(f'  In usage.js but NOT extension.js: {sorted(only_usage)}', file=sys.stderr)
+        print('  Port the constant change to '
+              'kde-plasmoid/contents/ui/lib/usage.js too.', file=sys.stderr)
+    return rc
+
+
 def check_pair_inventory():
     """Warn about likely-unregistered parity pairs.
 
@@ -394,6 +439,7 @@ def main():
     rc = check_scraper_parity()
     rc |= check_anchor_strings()
     rc |= check_pacing_parity()
+    rc |= check_kde_parity()
     check_pair_inventory()
     return rc
 
