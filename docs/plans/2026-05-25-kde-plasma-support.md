@@ -35,9 +35,24 @@ Plasma 6.6.4 (container-verified). What shipped:
 - KDE parity lint lives inside `lint-scraper-parity.py`, not a separate
   `lint-kde-parity.py`.
 
-**Not yet done:** Part 5 phase 5 (MANUAL.md gains a full KDE section — a brief
-pointer was added), .deb packaging of the plasmoid (`build-deb.sh`), and live
-visual acceptance on a real Plasma session (vs. the headless container check).
+**Live visual acceptance — PASSED (2026-05-25, Kubuntu 26.04 / Plasma 6.6).**
+Installed the `.deb` in a QEMU VM, ran `claude-usage-setup` (correctly enabled
+the service and *skipped* the GNOME extension-enable with the KDE-aware message;
+DE-aware "Add Widgets" hint shown). The plasmoid was discovered in *Add Widgets*
+with the right icon/name/description, placed on the panel, read the seeded
+`usage.json`, and rendered the ring icon + a tooltip showing all three meters
+with correct reset formatting (`current 42% ⏱2:15 | all 68% Wed 09:00 | sonnet
+23% Wed 09:00`). Captured in `docs/kde-screenshot.png`. This closed the gating
+item — `.deb` packaging, `claude-usage-setup` guards, KConfigXT config, and the
+cache→render data path all confirmed on a real desktop, not just headless.
+
+**Done since the initial landing:** `.deb` now ships the plasmoid (single
+package; `gnome-shell` demoted to a `Recommends` alternative), MANUAL.md has a
+full KDE section + the live screenshot, live visual acceptance above.
+
+**Still open:** version-sync of `kde-plasmoid/metadata.json` into `task bump`;
+deeper hands-on testing of the config dialog / scroll-cycle / popup interactions
+(only the panel render + tooltip were exercised in the VM).
 
 The original design follows, unchanged, as the rationale of record.
 

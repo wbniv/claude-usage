@@ -6,7 +6,9 @@ Shows your Claude.ai weekly usage percentage in the GNOME top panel and dock, or
 
 ## What you see
 
-> The screenshots below are from GNOME. On **KDE Plasma** the same information appears in a single panel plasmoid: the color-coded percentage label sits next to the ring icon (outer = All models, inner = Sonnet), scrolling the widget cycles the displayed meter, and clicking opens the same pacing popup. (KDE screenshots pending.)
+> The screenshots below are from GNOME. On **KDE Plasma** the same information appears in a single panel plasmoid: the ring icon (outer = All models, inner = Sonnet) with a color-coded %, scroll to cycle the displayed meter, click for the same pacing popup. Here it is running on Kubuntu 26.04 / Plasma 6.6 (hover tooltip shown):
+
+<img src="docs/kde-screenshot.png" width="540">
 
 **Top panel** (right side, next to Wi-Fi/battery):
 
@@ -325,6 +327,11 @@ Each script builds a synthetic state and pipes through headless Chrome (or
 Cairo, for the dock icon) so the image matches what the live code produces
 at those values. When extension.js or generate-icon.py changes rendering,
 re-run every `render-*.py` and commit the refreshed PNGs.
+
+The one exception is `docs/kde-screenshot.png` — a live capture from a real
+Plasma 6 session (Kubuntu 26.04), since the plasmoid can't be headless-rendered
+the way the GNOME Chrome/Cairo shots are. Re-capture it by hand if the widget's
+appearance changes.
 
 ---
 
