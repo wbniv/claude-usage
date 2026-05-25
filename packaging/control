@@ -2,14 +2,18 @@ Package: claude-usage
 Version: 0.11.22
 Architecture: all
 Maintainer: Will Norris <will@biohack.net>
-Depends: python3 (>= 3.8), python3-cairo, python3-pil, gnome-shell (>= 45), systemd
-Recommends: google-chrome-stable | chromium-browser
-Description: Claude.ai usage indicator for GNOME
- Shows Claude.ai weekly usage percentage in the GNOME top panel and dock.
+Depends: python3 (>= 3.8), python3-cairo, python3-pil, systemd
+Recommends: gnome-shell (>= 45) | plasma-workspace, google-chrome-stable | chromium-browser
+Description: Claude.ai usage indicator for GNOME and KDE Plasma
+ Shows Claude.ai weekly usage percentage in the GNOME top panel and dock, or
+ in the KDE Plasma panel.
  .
- Features a two-ring dock icon (All models outer ring, Sonnet only inner
- ring), a color-coded panel label with scroll-wheel toggle between metrics,
- and user-configurable ring colors via a GNOME preferences UI.
+ GNOME: a two-ring dock icon (All models outer ring, Sonnet only inner ring),
+ a color-coded panel label with scroll-wheel toggle between metrics, and
+ user-configurable ring colors via a GNOME preferences UI. KDE: a native
+ Plasma 6 plasmoid with the same rings, colors, and pacing popup, configured
+ via the widget's settings. The active desktop loads whichever applies; the
+ package ships both plus the shared local server.
  .
  Data is fetched every 7 minutes by the Claude Usage Tracker Chrome
  extension, which reads your existing Claude.ai session — no API keys or

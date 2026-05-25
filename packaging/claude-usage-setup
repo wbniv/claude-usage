@@ -52,7 +52,12 @@ echo "  ✓ Service enabled and (re)started"
 # shell doesn't pick up the new code until next session — so "enabled" is
 # strictly true (registered + marked-enabled) but operationally misleading.
 UUID=claude-usage@indri.studio
-if gnome-extensions enable "$UUID" 2>/dev/null; then
+if ! command -v gnome-extensions >/dev/null 2>&1 || ! command -v gsettings >/dev/null 2>&1; then
+    # No GNOME tooling (e.g. a KDE Plasma session) — there's no extension to
+    # enable; the plasmoid is added by the user via "Add Widgets". Skip cleanly
+    # rather than aborting under `set -e` on the gsettings call below.
+    echo "  ℹ  GNOME tools not found — skipping extension enable (KDE users add the widget via Add Widgets)"
+elif gnome-extensions enable "$UUID" 2>/dev/null; then
     echo "  ✓ GNOME extension enabled (log out and back in if the panel indicator isn't visible)"
 else
     current=$(gsettings get org.gnome.shell enabled-extensions)
@@ -77,4 +82,8 @@ echo "  1. Open chrome://extensions"
 echo "  2. Enable Developer mode"
 echo "  3. Load unpacked → /usr/share/claude-usage/chrome-extension/"
 echo ""
-echo "Then: Super key → search 'Claude Usage' → right-click → Add to Favorites"
+if [[ "${XDG_CURRENT_DESKTOP:-}" == *KDE* ]]; then
+    echo "Then add the widget: right-click your Plasma panel → Add Widgets → 'Claude Usage'"
+else
+    echo "Then: Super key → search 'Claude Usage' → right-click → Add to Favorites"
+fi

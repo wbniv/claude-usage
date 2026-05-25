@@ -24,6 +24,7 @@ PKG="$BUILD_DIR/claude-usage"
 mkdir -p \
     "$PKG/DEBIAN" \
     "$PKG/usr/share/gnome-shell/extensions/claude-usage@indri.studio" \
+    "$PKG/usr/share/plasma/plasmoids/studio.indri.claudeusage" \
     "$PKG/usr/share/claude-usage" \
     "$PKG/usr/share/applications" \
     "$PKG/usr/share/pixmaps" \
@@ -38,6 +39,19 @@ python3 "$REPO_DIR/scripts/gen-js-defaults.py"
 # GNOME extension
 cp -r "$REPO_DIR/gnome-extension/." \
     "$PKG/usr/share/gnome-shell/extensions/claude-usage@indri.studio/"
+# Compile the gschema at build time so gschemas.compiled ships in the .deb. The
+# package no longer hard-depends on gnome-shell, so the target may lack
+# glib-compile-schemas (a KDE-only box) — baking it here keeps the GNOME
+# extension self-contained instead of relying on postinst having the tool.
+glib-compile-schemas "$PKG/usr/share/gnome-shell/extensions/claude-usage@indri.studio/schemas/"
+
+# KDE Plasma 6 plasmoid. Regenerate the KConfigXT schema from the same gschema
+# XML first (mirrors the gen-js-defaults call above) so the shipped main.xml is
+# always current. Plasma discovers applets by scanning the plasmoids dir, so no
+# postinst registration is needed — staging the files is enough.
+python3 "$REPO_DIR/scripts/gen-kde-config.py"
+cp -r "$REPO_DIR/kde-plasmoid/." \
+    "$PKG/usr/share/plasma/plasmoids/studio.indri.claudeusage/"
 
 # Python server. schema_defaults.py parses the gschema XML at import time to
 # expose every <default>/<range> as a Python constant — it needs the schema

@@ -24,6 +24,21 @@ test -f /usr/share/claude-usage/schemas/org.gnome.shell.extensions.claude-usage.
 test -f /usr/share/gnome-shell/extensions/claude-usage@indri.studio/extension.js
 test -f /usr/share/gnome-shell/extensions/claude-usage@indri.studio/schemas/gschemas.compiled
 test -f /usr/share/glib-2.0/schemas/org.gnome.shell.extensions.claude-usage.gschema.xml
+# KDE Plasma 6 plasmoid (shipped alongside the GNOME extension; the active
+# desktop loads whichever it uses).
+PLASMOID=/usr/share/plasma/plasmoids/studio.indri.claudeusage
+test -f "$PLASMOID/metadata.json"
+test -f "$PLASMOID/contents/ui/main.qml"
+test -f "$PLASMOID/contents/config/main.xml"
+test -f "$PLASMOID/contents/icons/claude-64.png"
+# Plasmoid identity canary — Id + Plasma 6 API marker (mirrors the
+# schema_defaults canary below; catches a mis-staged or malformed metadata).
+python3 -c "
+import json
+d = json.load(open('$PLASMOID/metadata.json'))
+assert d['KPlugin']['Id'] == 'studio.indri.claudeusage', 'plasmoid Id mismatch'
+assert d.get('X-Plasma-API-Minimum-Version', '').startswith('6'), 'plasmoid missing Plasma 6 API marker'
+"
 # Desktop entry, icons, systemd unit
 test -f /usr/share/applications/claude-usage.desktop
 test -f /usr/share/pixmaps/claude-usage.png

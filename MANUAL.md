@@ -1,10 +1,12 @@
 # Claude Usage Indicator — User Manual
 
-Shows your Claude.ai weekly usage percentage in the GNOME top panel and dock.
+Shows your Claude.ai weekly usage percentage in the GNOME top panel and dock, or in the KDE Plasma panel.
 
 ---
 
 ## What you see
+
+> The screenshots below are from GNOME. On **KDE Plasma** the same information appears in a single panel plasmoid: the color-coded percentage label sits next to the ring icon (outer = All models, inner = Sonnet), scrolling the widget cycles the displayed meter, and clicking opens the same pacing popup. (KDE screenshots pending.)
 
 **Top panel** (right side, next to Wi-Fi/battery):
 
@@ -57,9 +59,7 @@ Recovery is automatic: the next successful scrape resets the state and the icons
 
 ## Installation
 
-**Requirements:** GNOME Shell 45–50 + systemd-user + Google Chrome (logged in to Claude.ai).
-
-> **KDE Plasma 6:** there is a native plasmoid — clone the repo and run `./install-kde.sh`, then right-click your panel → *Add Widgets* → search "Claude Usage". It reads the same local cache as the GNOME indicator, so the Chrome extension + server setup under *Both paths — complete setup* applies identically (the script installs the server/service for you). See [docs/plans/2026-05-25-kde-plasma-support.md](docs/plans/2026-05-25-kde-plasma-support.md).
+**Requirements:** GNOME Shell 45–50 **or** KDE Plasma 6 + systemd-user + Google Chrome (logged in to Claude.ai). On KDE the indicator is a native Plasma plasmoid — see [KDE Plasma 6](#kde-plasma-6) below.
 
 Minimum distro versions that ship GNOME Shell 45 or newer:
 
@@ -93,7 +93,7 @@ sudo apt update && sudo apt install claude-usage
 claude-usage-setup        # run as yourself, not root
 ```
 
-`claude-usage-setup` creates your config file, enables the systemd service, enables the GNOME extension, and installs the dock entry — all in one step.
+`claude-usage-setup` creates your config file, enables the systemd service, enables the GNOME extension, and installs the dock entry — all in one step. The package ships **both** the GNOME extension and the KDE plasmoid; on KDE, `claude-usage-setup` skips the GNOME step and you add the widget via *Add Widgets* (see [KDE Plasma 6](#kde-plasma-6)).
 
 ### Option B — From a source tarball (any distro with apt / dnf / pacman)
 
@@ -125,6 +125,15 @@ curl -fsSL https://apt.indri.studio/install-claude-usage.sh | bash -s -- --unins
 
 > **Pick one install method.** Running the `.deb` and source/curl installs simultaneously creates a systemd unit conflict: `install.sh` registers a user-level `claude-usage-fetch.service` that takes precedence over the system-level unit from the `.deb`, so one service silently never runs. If switching methods, uninstall the old one first (see [Uninstall](#uninstall)).
 
+### KDE Plasma 6
+
+On KDE the indicator is a native Plasma 6 plasmoid — the same rings, color tiers, and pacing popup as the GNOME version, reading the same local cache. Pick whichever install path matches your system:
+
+- **Debian/Ubuntu (apt — Option A):** the package already installs the plasmoid. After `claude-usage-setup` (which sets up the server and skips the GNOME-only step on KDE), add the widget: **right-click your Plasma panel → Add Widgets → search "Claude Usage"**.
+- **Any distro (from a clone):** run `./install-kde.sh` instead of `install.sh`. It installs the plasmoid plus the shared server + systemd service, skipping the GNOME-only pieces (so no `python3-cairo`/`pil`/`glib` needed). Then add the widget as above.
+
+Then load the Chrome extension as in *Both paths — complete setup* below — that part is identical. There's no "log out / pin the dock" step on KDE: the plasmoid appears in the panel as soon as you add it. Configure thresholds and colors by right-clicking the widget → *Configure* (see [Configuration](#configuration)).
+
 ### Both paths — complete setup
 
 **Load the Chrome extension:**
@@ -136,9 +145,9 @@ curl -fsSL https://apt.indri.studio/install-claude-usage.sh | bash -s -- --unins
    - One-liner install (Option C): `~/.local/share/claude-usage/chrome-extension/`
    - .deb install (Option A): `/usr/share/claude-usage/chrome-extension/`
 
-**Log out and back in** — activates the GNOME Shell extension.
+**Log out and back in** *(GNOME only)* — activates the GNOME Shell extension. (KDE: the plasmoid is live as soon as you add the widget.)
 
-**Pin the dock icon (one-time):**
+**Pin the dock icon (one-time, GNOME):**
 
 1. Press Super → search "Claude Usage"
 2. Right-click → **Add to Favorites**
@@ -226,6 +235,8 @@ gsettings reset org.gnome.shell.extensions.claude-usage popup-color-normal  # re
 | `popup-font-family` | `monospace` | Popup meter row font family |
 | `panel-icon-size` | `16` | Panel icon pixel size |
 
+**On KDE Plasma:** the settings, defaults, and color semantics above are identical — the plasmoid's config schema is generated from the same source. But there's no `gsettings`/dconf; edit them in the widget's settings dialog (**right-click the widget → Configure Claude Usage**). Changes apply instantly, same as GNOME.
+
 ---
 
 ## Troubleshooting
@@ -253,6 +264,9 @@ gnome-extensions list --enabled | grep claude-usage
 # If not listed:
 gnome-extensions enable claude-usage@indri.studio
 ```
+
+### KDE: widget shows `--` or isn't in the Add Widgets list
+`--` means no data yet — same as GNOME: check the server and Chrome extension with `claude-usage-status`, then click the Chrome toolbar icon to force a fetch. If "Claude Usage" doesn't appear under **Add Widgets**, confirm the plasmoid is installed (`ls ~/.local/share/plasma/plasmoids/studio.indri.claudeusage` for a source/`install-kde.sh` install, or `/usr/share/plasma/plasmoids/...` for the `.deb`) and restart Plasma (`kquitapp6 plasmashell && kstart plasmashell`).
 
 ### Dock icon not updating after changing colors
 Force a data fetch (Chrome toolbar icon) or re-run the icon generator directly:
@@ -290,6 +304,8 @@ The extension currently requires loading unpacked. To publish to the Chrome Web 
 claude-usage/
   chrome-extension/   Chrome extension (load via chrome://extensions → Load unpacked)
   gnome-extension/    GNOME Shell 45–50 panel + dock indicator
+  kde-plasmoid/       KDE Plasma 6 plasmoid (panel widget; config generated
+                      from the gnome-extension gschema by scripts/gen-kde-config.py)
   server/             Local HTTP server + dock icon generator
   systemd/            User service definition
   desktop/            Dock launcher entry template
@@ -297,7 +313,8 @@ claude-usage/
   scripts/            Build + maintenance utilities. Includes one
                       render-*.py per docs/*.png so screenshots are
                       regenerable from source, not hand-captured.
-  install.sh          Source install; run once per machine
+  install.sh          Source install (GNOME); run once per machine
+  install-kde.sh      Source install (KDE Plasma 6)
   PRIVACY.md          Chrome Web Store privacy policy
   MANUAL.md           This file
 ```

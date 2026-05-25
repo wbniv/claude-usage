@@ -2,11 +2,21 @@
 set -euo pipefail
 case "$1" in
     configure)
-        glib-compile-schemas \
-            /usr/share/gnome-shell/extensions/claude-usage@indri.studio/schemas/
+        # Copy the GNOME schema into the system glib dir so `gsettings` works
+        # without GSETTINGS_SCHEMA_DIR. Plain cp — needs no tools, so it runs on
+        # KDE too (harmless there). The extension's own gschemas.compiled is
+        # already shipped in the .deb (compiled at build time), so the GNOME
+        # extension itself works regardless of target glib tooling.
         cp /usr/share/gnome-shell/extensions/claude-usage@indri.studio/schemas/*.xml \
             /usr/share/glib-2.0/schemas/ 2>/dev/null || true
-        glib-compile-schemas /usr/share/glib-2.0/schemas/ 2>/dev/null || true
+        # Recompile the system schema cache only where glib tools exist. The
+        # package no longer hard-depends on gnome-shell (Recommends alternative
+        # with plasma-workspace), so a KDE-only box may lack libglib2.0-bin —
+        # without this guard the unguarded call would abort dpkg --configure
+        # under `set -e`.
+        if command -v glib-compile-schemas >/dev/null 2>&1; then
+            glib-compile-schemas /usr/share/glib-2.0/schemas/ 2>/dev/null || true
+        fi
         update-desktop-database -q /usr/share/applications/ || true
         gtk-update-icon-cache -f -t /usr/share/icons/hicolor/ || true
 
