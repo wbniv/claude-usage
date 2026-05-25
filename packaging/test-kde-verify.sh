@@ -37,15 +37,29 @@ DEST="$HOME/.local/share/plasma/plasmoids/$ID"
 rm -rf "$DEST"
 mkdir -p "$(dirname "$DEST")"
 cp -r "$SRC" "$DEST"
-# Inject a load marker into the COPY only (production QML stays log-free). Its
-# presence in the viewer log below proves the applet's root actually executed.
+# Inject markers into the COPY only (production QML stays log-free):
+#   • CLAUDE_USAGE_MAIN_LOADED — the root Component.onCompleted ran (load proof).
+#   • CLAUDE_USAGE_INGEST      — the cache parsed into usageData (data-path proof,
+#     so a broken DataSource/parse can't pass as a clean empty-cache load).
 sed -i 's/^\(\s*id: root\)$/\1\n    Component.onCompleted: console.log("CLAUDE_USAGE_MAIN_LOADED")/' \
     "$DEST/contents/ui/main.qml"
+sed -i 's#\(root.usageData = parsed;\)#\1 console.log("CLAUDE_USAGE_INGEST meters=" + (parsed.meters ? parsed.meters.length : -1));#' \
+    "$DEST/contents/ui/main.qml"
 if [ -f "$DEST/metadata.json" ] && grep -q CLAUDE_USAGE_MAIN_LOADED "$DEST/contents/ui/main.qml"; then
-    echo "  PASS  installed to $DEST (load marker injected)"
+    echo "  PASS  installed to $DEST (markers injected)"
 else
     echo "  FAIL  install copy incomplete or marker injection failed"; fail=1
 fi
+
+# Seed a realistic cache so the load check exercises the ring Canvas + popup
+# rendering with real data (an empty cache hits only the "No data yet" path).
+# No _timestamp → deriveTier() stays 'normal' (deterministic). 3 meters incl.
+# Sonnet>0 so the inner ring + a non-hidden Sonnet row both render.
+CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/claude-usage"
+mkdir -p "$CACHE_DIR"
+cat > "$CACHE_DIR/usage.json" <<'JSON'
+{"_schema":1,"plan":"Claude Pro","meters":[{"label":"Current session","pct":42,"reset":"Resets in 2 hr 15 min","reset_minutes":135},{"label":"All models","pct":68,"reset":"Resets in 5 hr 0 min","reset_minutes":300},{"label":"Sonnet only","pct":12,"reset":"Resets in 5 hr 0 min","reset_minutes":300}],"_period_lengths":{"Current session":300,"All models":10080,"Sonnet only":10080}}
+JSON
 
 # 3. headless load — instantiate the applet under a virtual X server (Xvfb +
 #    Qt's xcb platform; the offscreen platform can't build a plasmoid scene) and
@@ -67,12 +81,16 @@ if ! grep -q "CLAUDE_USAGE_MAIN_LOADED" /tmp/view.log; then
     echo "  FAIL  applet never loaded (no load marker) — viewer log tail:"
     grep -ivE "QML debugging|Detected locale|switched to|reconfigure|locale\(1\)" /tmp/view.log | tail -20 | sed 's/^/        /'
     fail=1
+elif ! grep -q "CLAUDE_USAGE_INGEST meters=3" /tmp/view.log; then
+    echo "  FAIL  seeded cache never reached the applet (DataSource/parse broken):"
+    grep -ivE "QML debugging|Detected locale|switched to|reconfigure|locale\(1\)" /tmp/view.log | tail -20 | sed 's/^/        /'
+    fail=1
 elif [ -n "$OUR_ERRORS" ]; then
     echo "  FAIL  plasmoidviewer reported QML diagnostics in the plasmoid:"
     echo "$OUR_ERRORS" | head -30 | sed 's/^/        /'
     fail=1
 else
-    echo "  PASS  applet loaded (marker present) with no QML errors"
+    echo "  PASS  applet loaded + ingested the 3-meter cache, no QML errors"
 fi
 
 echo
