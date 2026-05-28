@@ -3,7 +3,7 @@ import Gtk from 'gi://Gtk';
 import Gdk from 'gi://Gdk';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
-import {ExtensionPreferences} from 'resource:///org/gnome/shell/extensions/prefs.js';
+import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
 // Source install puts generate-icon.py under ~/.local/share; .deb under /usr/share.
 // Mirrors the candidate-list probe in server/generate-icon.py.
