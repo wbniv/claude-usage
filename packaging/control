@@ -1,10 +1,10 @@
 Package: claude-usage
-Version: 0.11.23
+Version: 0.11.26
 Architecture: all
 Maintainer: Will Norris <will@biohack.net>
-Depends: python3 (>= 3.8), python3-cairo, python3-pil, gnome-shell (>= 45), systemd
-Recommends: google-chrome-stable | chromium-browser
-Description: Claude.ai usage indicator for GNOME
+Depends: python3 (>= 3.8), python3-cairo, python3-pil, systemd
+Recommends: gnome-shell (>= 45) | plasma-desktop, google-chrome-stable | chromium-browser
+Description: Claude.ai usage indicator for GNOME and KDE Plasma
  Shows Claude.ai weekly usage percentage in the GNOME top panel and dock.
  .
  Features a two-ring dock icon (All models outer ring, Sonnet only inner

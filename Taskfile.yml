@@ -198,6 +198,18 @@ tasks:
         rm -f dist/*.deb dist/*.zip
         echo "Local dist/ artifacts removed (CI uploads the canonical copies)."
 
+  kde-install:
+    desc: Install KDE plasmoid for the current user
+    cmds:
+      - rsync -a kde-plasmoid/ ~/.local/share/plasma/plasmoids/org.indri.claude-usage/
+      - echo "Plasmoid installed. Restart Plasma shell to load the widget."
+
+  kde-uninstall:
+    desc: Remove KDE plasmoid
+    cmds:
+      - rm -rf ~/.local/share/plasma/plasmoids/org.indri.claude-usage
+      - echo "Plasmoid removed."
+
   md:
     desc: Preview a markdown file in the browser
     cmds:

@@ -24,6 +24,7 @@ PKG="$BUILD_DIR/claude-usage"
 mkdir -p \
     "$PKG/DEBIAN" \
     "$PKG/usr/share/gnome-shell/extensions/claude-usage@indri.studio" \
+    "$PKG/usr/share/plasma/plasmoids/org.indri.claude-usage" \
     "$PKG/usr/share/claude-usage" \
     "$PKG/usr/share/applications" \
     "$PKG/usr/share/pixmaps" \
@@ -38,6 +39,9 @@ python3 "$REPO_DIR/scripts/gen-js-defaults.py"
 # GNOME extension
 cp -r "$REPO_DIR/gnome-extension/." \
     "$PKG/usr/share/gnome-shell/extensions/claude-usage@indri.studio/"
+# KDE plasmoid
+rsync -a "$REPO_DIR/kde-plasmoid/" \
+    "$PKG/usr/share/plasma/plasmoids/org.indri.claude-usage/"
 
 # Python server. schema_defaults.py parses the gschema XML at import time to
 # expose every <default>/<range> as a Python constant — it needs the schema

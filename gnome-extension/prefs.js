@@ -3,6 +3,7 @@ import Gtk from 'gi://Gtk';
 import Gdk from 'gi://Gdk';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
+import Pango from 'gi://Pango';
 import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
 // Source install puts generate-icon.py under ~/.local/share; .deb under /usr/share.
@@ -76,6 +77,23 @@ function schemaRange(settings, key) {
         throw new Error(`schemaRange: key '${key}' has no <range> (type=${type}) — call only on numeric ranged keys`);
     const [lo, hi] = inner.deepUnpack();
     return [lo, hi];
+}
+
+function addFontRow(group, settings, key, title, subtitle) {
+    const row = new Adw.ActionRow({title, subtitle});
+    const dialog = new Gtk.FontDialog({title, modal: true});
+    const btn = new Gtk.FontDialogButton({
+        dialog,
+        valign: Gtk.Align.CENTER,
+    });
+    btn.set_font_desc(Pango.FontDescription.from_string(settings.get_string(key)));
+    btn.connect('notify::font-desc', () => {
+        const family = btn.get_font_desc().get_family();
+        if (family) settings.set_string(key, family);
+    });
+    row.add_suffix(btn);
+    row.set_activatable_widget(btn);
+    group.add(row);
 }
 
 function addSpinRow(group, settings, key, title, subtitle, regen = false, holder = null) {
@@ -195,13 +213,8 @@ export default class ClaudeUsagePreferences extends ExtensionPreferences {
         // ── Popup Font ───────────────────────────────────────────────────────
         const popupFontGroup = new Adw.PreferencesGroup({title: 'Popup Font'});
         page.add(popupFontGroup);
-        const fontRow = new Adw.EntryRow({
-            title: 'Font family',
-            text: settings.get_string('popup-font-family'),
-        });
-        fontRow.connect('notify::text', () =>
-            settings.set_string('popup-font-family', fontRow.get_text()));
-        popupFontGroup.add(fontRow);
+        addFontRow(popupFontGroup, settings, 'popup-font-family',
+            'Font family', 'CSS font family used in the popup meter rows');
 
         // ── Panel ────────────────────────────────────────────────────────────
         const panelGroup = new Adw.PreferencesGroup({title: 'Panel'});

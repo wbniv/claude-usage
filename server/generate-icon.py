@@ -69,6 +69,26 @@ DEFAULTS = {k: _SCHEMA_DEFAULTS[k] for k in (
 )}
 
 def load_config():
+    _cfg_json = Path(os.environ.get('XDG_CONFIG_HOME') or Path.home() / '.config') \
+                / 'claude-usage' / 'config.json'
+    if _cfg_json.exists():
+        try:
+            raw = json.loads(_cfg_json.read_text())
+            cfg = dict(DEFAULTS)
+            for key in DEFAULTS:
+                if key in raw:
+                    cfg[key] = raw[key]
+            for key in ('weekly_color_green', 'weekly_color_amber', 'weekly_color_red', 'sonnet_color'):
+                try:
+                    hex_to_rgba(cfg[key])
+                except Exception:
+                    print(f"warning: invalid color for {key!r} in config.json, using default",
+                          file=sys.stderr, flush=True)
+                    cfg[key] = DEFAULTS[key]
+            return cfg
+        except Exception as e:
+            print(f"warning: config.json load failed ({e}); falling through to GSettings",
+                  file=sys.stderr, flush=True)
     try:
         from gi.repository import Gio
         s = Gio.Settings.new('org.gnome.shell.extensions.claude-usage')

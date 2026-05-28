@@ -2,8 +2,9 @@
 set -euo pipefail
 case "$1" in
     configure)
+        # Always compile GNOME schemas (harmless on KDE, needed on GNOME)
         glib-compile-schemas \
-            /usr/share/gnome-shell/extensions/claude-usage@indri.studio/schemas/
+            /usr/share/gnome-shell/extensions/claude-usage@indri.studio/schemas/ 2>/dev/null || true
         cp /usr/share/gnome-shell/extensions/claude-usage@indri.studio/schemas/*.xml \
             /usr/share/glib-2.0/schemas/ 2>/dev/null || true
         glib-compile-schemas /usr/share/glib-2.0/schemas/ 2>/dev/null || true
@@ -31,6 +32,8 @@ case "$1" in
         echo "Claude Usage installed. Activate for your user account:"
         echo ""
         echo "    claude-usage-setup"
+        echo ""
+        echo "KDE Plasma users: restart Plasma shell, then add the 'Claude Usage' widget."
         echo ""
         ;;
 esac

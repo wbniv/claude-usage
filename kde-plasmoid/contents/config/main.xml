@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kcfg xmlns="http://www.kde.org/standards/kcfg/1.0"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.kde.org/standards/kcfg/1.0
+                          http://www.kde.org/standards/kcfg/1.0/kcfg.xsd">
+    <kcfgfile name=""/>
+    <group name="General">
+        <!-- Dock icon ring colors -->
+        <entry name="weeklyColorGreen" type="String">
+            <default>#8cff8c</default>
+        </entry>
+        <entry name="weeklyColorAmber" type="String">
+            <default>#ffe033</default>
+        </entry>
+        <entry name="weeklyColorRed" type="String">
+            <default>#ff5933</default>
+        </entry>
+        <entry name="sonnetColor" type="String">
+            <default>#4dbfff</default>
+        </entry>
+        <!-- Popup meter colors -->
+        <entry name="popupColorNormal" type="String">
+            <default>#2a9a2a</default>
+        </entry>
+        <entry name="popupColorWarning" type="String">
+            <default>#d07000</default>
+        </entry>
+        <entry name="popupColorCritical" type="String">
+            <default>#e03030</default>
+        </entry>
+        <!-- Panel label colors -->
+        <entry name="panelColorNormal" type="String">
+            <default>#ffffff</default>
+        </entry>
+        <entry name="panelColorWarning" type="String">
+            <default>#d07000</default>
+        </entry>
+        <entry name="panelColorCritical" type="String">
+            <default>#e03030</default>
+        </entry>
+        <!-- Thresholds -->
+        <entry name="thresholdWarning" type="Int">
+            <default>70</default>
+            <min>1</min>
+            <max>500</max>
+        </entry>
+        <entry name="thresholdCritical" type="Int">
+            <default>90</default>
+            <min>1</min>
+            <max>500</max>
+        </entry>
+        <!-- Font -->
+        <entry name="popupFontFamily" type="String">
+            <default>monospace</default>
+        </entry>
+        <!-- Panel metric selection (empty = auto) -->
+        <entry name="panelMetric" type="String">
+            <default></default>
+        </entry>
+    </group>
+</kcfg>

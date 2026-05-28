@@ -70,7 +70,9 @@ kde-plasmoid/
 - Radio buttons to choose which meter appears in panel (writes to `Plasmoid.configuration.panelMetric`)
 
 #### Config (`main.xml` + `ConfigGeneral.qml`)
-KConfig schema with the same 13 keys as the gschema (thresholds + colors for normal/warning/critical panel label and bars). Defaults identical to gschema defaults.
+KConfig schema with the same 13 keys as the gschema (thresholds + colors for normal/warning/critical panel label and bars) **plus `popupFontFamily` string (default `"monospace"`)**. Defaults identical to gschema defaults.
+
+For the font family setting, use Qt's `FontDialog` (Qt 6 / Plasma 6) or `Qt.FontDialog` rather than a plain `TextField`. Open it via a `Button` that shows the current font name; on `accepted`, write `font.family` to the KConfig key and to `~/.config/claude-usage/config.json` so `generate-icon.py` can read it (parity with the GNOME prefs round-trip). This matches the GNOME `Gtk.FontDialogButton` approach.
 
 On config save, `ConfigGeneral.qml` writes `~/.config/claude-usage/config.json` so `generate-icon.py` picks up user-customized dock ring colors.
 

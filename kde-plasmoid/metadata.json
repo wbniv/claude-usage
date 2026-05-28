@@ -1,0 +1,19 @@
+{
+    "KPlugin": {
+        "Authors": [
+            {
+                "Email": "will@biohack.net",
+                "Name": "Will Norris"
+            }
+        ],
+        "Category": "System Information",
+        "Description": "Claude.ai weekly usage indicator — panel label and popup breakdown",
+        "Icon": "utilities-system-monitor",
+        "Id": "org.indri.claude-usage",
+        "License": "MIT",
+        "Name": "Claude Usage",
+        "Version": "1",
+        "Website": "https://github.com/wbniv/claude-usage"
+    },
+    "X-Plasma-API-Minimum-Version": "5.27"
+}

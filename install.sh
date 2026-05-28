@@ -70,26 +70,58 @@ uninstall() {
 [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]] && usage
 [[ "${1:-}" == "--uninstall" ]] && uninstall
 
+# Detect desktop environment
+_IS_KDE=0
+if echo "${XDG_CURRENT_DESKTOP:-}" | grep -qi "KDE"; then
+    _IS_KDE=1
+fi
+
+kde_install_plasmoid() {
+    local dest="$XDG_DATA_HOME/plasma/plasmoids/org.indri.claude-usage"
+    rsync -a "$REPO_DIR/kde-plasmoid/" "$dest/"
+    echo "  ✓ KDE plasmoid installed to $dest"
+    echo "  ℹ  Restart Plasma to load the widget:"
+    echo "     Plasma 6: kquitapp6 plasmashell && kstart6 plasmashell"
+    echo "     Plasma 5: kquitapp5 plasmashell && kstart5 plasmashell"
+    echo "     Then right-click the panel → Add Widgets → search 'Claude Usage'"
+}
+
 # Pre-flight checks for tooling install.sh uses but doesn't auto-install.
 # (The Python bindings — pycairo, pillow — are handled by step 0 below.)
 # Placed after the --help/--uninstall short-circuits so those still work on a
 # host that's missing pieces; the rsync check at the very top of this file
 # predates these and runs unconditionally.
 
-# glib-compile-schemas — compiles gschema XML to gschemas.compiled. Used in
-# steps 1 + the user-glib mirror. Ships in libglib2.0-bin / glib2.
-if ! command -v glib-compile-schemas >/dev/null 2>&1; then
-    echo "install.sh: glib-compile-schemas not found." >&2
-    if command -v apt-get >/dev/null; then
-        echo "    Install: sudo apt-get install libglib2.0-bin" >&2
-    elif command -v dnf >/dev/null; then
-        echo "    Install: sudo dnf install glib2" >&2
-    elif command -v pacman >/dev/null; then
-        echo "    Install: sudo pacman -S glib2" >&2
-    else
-        echo "    Install the GLib tools via your distribution's package manager." >&2
+if [[ "$_IS_KDE" -eq 0 ]]; then
+    # glib-compile-schemas — compiles gschema XML to gschemas.compiled. Used in
+    # steps 1 + the user-glib mirror. Ships in libglib2.0-bin / glib2.
+    if ! command -v glib-compile-schemas >/dev/null 2>&1; then
+        echo "install.sh: glib-compile-schemas not found." >&2
+        if command -v apt-get >/dev/null; then
+            echo "    Install: sudo apt-get install libglib2.0-bin" >&2
+        elif command -v dnf >/dev/null; then
+            echo "    Install: sudo dnf install glib2" >&2
+        elif command -v pacman >/dev/null; then
+            echo "    Install: sudo pacman -S glib2" >&2
+        else
+            echo "    Install the GLib tools via your distribution's package manager." >&2
+        fi
+        exit 1
     fi
-    exit 1
+
+    # GNOME Shell version — warn-only. metadata.json targets shell 45–50; outside
+    # that range the files install fine but the indicator won't load until shell
+    # catches up. Don't fail — the user may be staging an install before upgrading.
+    if command -v gnome-shell >/dev/null 2>&1; then
+        _gs_ver=$(gnome-shell --version 2>/dev/null | awk '{print $3}' | cut -d. -f1)
+        if [[ -n "$_gs_ver" ]] && { (( _gs_ver < 45 )) || (( _gs_ver > 50 )); }; then
+            echo "  ⚠  GNOME Shell ${_gs_ver} detected — extension targets 45–50."
+            echo "     Files will install, but the panel indicator won't load on this version."
+        fi
+    else
+        echo "  ⚠  gnome-shell not found — the panel indicator requires GNOME Shell 45–50."
+        echo "     Continuing; installing files anyway."
+    fi
 fi
 
 # systemctl --user — required to enable claude-usage-fetch.service. Probes
@@ -99,20 +131,6 @@ if ! systemctl --user --version >/dev/null 2>&1; then
     echo "install.sh: 'systemctl --user' is not available — required for the data-fetch service." >&2
     echo "    On a non-systemd host, the panel indicator won't refresh." >&2
     exit 1
-fi
-
-# GNOME Shell version — warn-only. metadata.json targets shell 45–50; outside
-# that range the files install fine but the indicator won't load until shell
-# catches up. Don't fail — the user may be staging an install before upgrading.
-if command -v gnome-shell >/dev/null 2>&1; then
-    _gs_ver=$(gnome-shell --version 2>/dev/null | awk '{print $3}' | cut -d. -f1)
-    if [[ -n "$_gs_ver" ]] && { (( _gs_ver < 45 )) || (( _gs_ver > 50 )); }; then
-        echo "  ⚠  GNOME Shell ${_gs_ver} detected — extension targets 45–50."
-        echo "     Files will install, but the panel indicator won't load on this version."
-    fi
-else
-    echo "  ⚠  gnome-shell not found — the panel indicator requires GNOME Shell 45–50."
-    echo "     Continuing; installing files anyway."
 fi
 
 echo "Installing Claude Usage..."
@@ -151,7 +169,11 @@ if [ $_need_cairo -eq 1 ] || [ $_need_pil -eq 1 ]; then
 fi
 echo "  ✓ Python dependencies OK"
 
-# 1. GNOME Shell extension
+# 1. Desktop environment extension / plasmoid
+if [[ "$_IS_KDE" -eq 1 ]]; then
+    kde_install_plasmoid
+else
+# 1a. GNOME Shell extension
 mkdir -p "$GNOME_EXT_DIR/schemas" "$GNOME_EXT_DIR/icons"
 # JS-1 (pass-18, post-pass-21): regenerate _defaults.js from the gschema XML
 # before copying so the installed extension carries the current values even
@@ -170,6 +192,7 @@ mkdir -p "$GLIB_SCHEMA_DIR"
 cp "$REPO_DIR/gnome-extension/schemas/"*.xml "$GLIB_SCHEMA_DIR/"
 glib-compile-schemas "$GLIB_SCHEMA_DIR/"
 echo "  ✓ GNOME extension installed"
+fi  # end KDE/GNOME branch
 
 # 2. Local data server + diagnostics
 # I-1 (pass-16 §11): nuke and recreate the install.sh-owned subtrees so a
@@ -258,15 +281,19 @@ sed "s|%HOME%|$HOME|g" "$REPO_DIR/desktop/claude-usage.desktop" \
 update-desktop-database "$XDG_DATA_HOME/applications/" 2>/dev/null || true
 echo "  ✓ Dock entry installed — find 'Claude Usage' in the app grid, right-click → Add to Favorites"
 
-# 6. Enable GNOME extension (may fail until after re-login)
-# I-2 (pass-15 §7): `enable` returns 0 on Wayland even though the extension
-# code only loads after logout — gnome-shell can't be restarted in-place on
-# Wayland. Always mention the log-out fallback so the success message is
-# accurate on both X11 (where it self-activates) and Wayland (where it
-# doesn't appear until next session).
-gnome-extensions enable claude-usage@indri.studio 2>/dev/null \
-    && echo "  ✓ GNOME extension enabled (log out and back in if the panel indicator isn't visible)" \
-    || echo "  ℹ  GNOME extension registered — log out and back in to activate it"
+# 6. Enable panel indicator for the detected desktop
+if [[ "$_IS_KDE" -eq 1 ]]; then
+    echo "  ℹ  Restart Plasma shell to activate the widget (see instructions above)"
+else
+    # I-2 (pass-15 §7): `enable` returns 0 on Wayland even though the extension
+    # code only loads after logout — gnome-shell can't be restarted in-place on
+    # Wayland. Always mention the log-out fallback so the success message is
+    # accurate on both X11 (where it self-activates) and Wayland (where it
+    # doesn't appear until next session).
+    gnome-extensions enable claude-usage@indri.studio 2>/dev/null \
+        && echo "  ✓ GNOME extension enabled (log out and back in if the panel indicator isn't visible)" \
+        || echo "  ℹ  GNOME extension registered — log out and back in to activate it"
+fi
 
 echo ""
 echo "Next step: load the Chrome extension"
