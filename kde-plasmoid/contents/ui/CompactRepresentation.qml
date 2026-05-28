@@ -11,8 +11,8 @@ RowLayout {
     Image {
         id: icon
         source: Qt.resolvedUrl("../../icons/claude-22.png")
-        width: Plasmoid.configuration.panelIconSize || 16
-        height: width
+        implicitWidth: Plasmoid.configuration.panelIconSize || 16
+        implicitHeight: implicitWidth
         Layout.alignment: Qt.AlignVCenter
         fillMode: Image.PreserveAspectFit
 
