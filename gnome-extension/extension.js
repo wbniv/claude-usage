@@ -20,7 +20,7 @@ const CACHE_FILE         = CACHE_DIR + '/usage.json';
 const NOTIF_TS_FILE      = CACHE_DIR + '/notif-ts';
 const NOTIF_CRIT_TS_FILE = CACHE_DIR + '/notif-crit-ts';
 const USAGE_URL          = 'https://claude.ai/settings/usage';
-const STATUS_URL         = 'https://status.claude.ai/';
+const STATUS_URL         = 'https://status.anthropic.com/';
 
 // Source install puts generate-icon.py under ~/.local/share; .deb under /usr/share.
 // Resolve once at module load — the script location doesn't change at runtime.
