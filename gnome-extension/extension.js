@@ -5,6 +5,7 @@ import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import * as MessageTray from 'resource:///org/gnome/shell/ui/messageTray.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
@@ -19,6 +20,7 @@ const CACHE_FILE         = CACHE_DIR + '/usage.json';
 const NOTIF_TS_FILE      = CACHE_DIR + '/notif-ts';
 const NOTIF_CRIT_TS_FILE = CACHE_DIR + '/notif-crit-ts';
 const USAGE_URL          = 'https://claude.ai/settings/usage';
+const STATUS_URL         = 'https://status.claude.ai/';
 
 // Source install puts generate-icon.py under ~/.local/share; .deb under /usr/share.
 // Resolve once at module load — the script location doesn't change at runtime.
@@ -311,6 +313,8 @@ class ClaudeIndicator extends PanelMenu.Button {
 
         this._anyCrit = false;
         this._flashSuppressed = false;
+        this._statusItemLinked = false;
+        this._statusItemActivateId = null;
         try {
             const [ok, bytes] = GLib.file_get_contents(NOTIF_TS_FILE);
             this._lastNotifyTs = ok ? (parseInt(new TextDecoder().decode(bytes), 10) || 0) : 0;
@@ -554,6 +558,26 @@ class ClaudeIndicator extends PanelMenu.Button {
         }
         this._statusItem.label.set_text(reason || `${plan}${ageStr}`);
 
+        // Make _statusItem a clickable link only when Anthropic itself reports
+        // a problem — scrape-failure and age-timeout broken cases are local
+        // issues where status.claude.ai wouldn't have relevant information.
+        const wantLink = tier === 'broken' &&
+            ((astat.indicator && astat.indicator !== 'none') ||
+             (astat.claude_ai_component_status && astat.claude_ai_component_status !== 'operational'));
+        if (wantLink !== this._statusItemLinked) {
+            this._statusItem.reactive = wantLink;
+            if (wantLink) {
+                this._statusItemActivateId = this._statusItem.connect('activate', () => {
+                    Gio.AppInfo.launch_default_for_uri(STATUS_URL, null);
+                    this.menu.close();
+                });
+            } else if (this._statusItemActivateId) {
+                this._statusItem.disconnect(this._statusItemActivateId);
+                this._statusItemActivateId = null;
+            }
+            this._statusItemLinked = wantLink;
+        }
+
         // Tier transition: notify on entry to stale/broken, spawn dock-icon
         // regen with the new tier. Recovery to normal also regens so the
         // dock clears the stale/red override. Notifications are rate-limited
@@ -567,7 +591,17 @@ class ClaudeIndicator extends PanelMenu.Button {
             if (tier === 'broken') {
                 const now = Date.now();
                 if (now - (this._lastNotifyTs || 0) > 5 * 60 * 1000) {
-                    Main.notify('Claude Usage', reason || `Status: ${tier}`);
+                    const _src = MessageTray.getSystemSource();
+                    const _notif = new MessageTray.Notification({
+                        source: _src,
+                        title: 'Claude Usage',
+                        body: reason || 'Service disruption detected',
+                        isTransient: true,
+                    });
+                    _notif.addAction('View Status Page', () => {
+                        Gio.AppInfo.launch_default_for_uri(STATUS_URL, null);
+                    });
+                    _src.addNotification(_notif);
                     this._lastNotifyTs = now;
                     try { GLib.file_set_contents(NOTIF_TS_FILE, String(now)); } catch (_) {}
                 }
@@ -778,6 +812,10 @@ class ClaudeIndicator extends PanelMenu.Button {
         if (this._menuOpenId) {
             this.menu.disconnect(this._menuOpenId);
             this._menuOpenId = null;
+        }
+        if (this._statusItemActivateId) {
+            this._statusItem.disconnect(this._statusItemActivateId);
+            this._statusItemActivateId = null;
         }
         super.destroy();
     }
