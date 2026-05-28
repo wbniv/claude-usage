@@ -43,6 +43,36 @@ tasks:
     cmds:
       - python3 scripts/gen-js-defaults.py --check
 
+  lint-gnome:
+    desc: "Static checks for gnome-extension/extension.js: JS syntax + GNOME Shell API symbol verification against the installed libshell binary"
+    cmds:
+      - |
+        node --check gnome-extension/extension.js && echo "lint-gnome: syntax OK"
+      - |
+        set -euo pipefail
+        lib=$(ls /usr/lib/gnome-shell/libshell-*.so 2>/dev/null | head -1 || true)
+        if [ -z "$lib" ]; then
+          echo "lint-gnome: no libshell-*.so found — skipping API symbol checks"
+          exit 0
+        fi
+        tmp=$(mktemp)
+        trap 'rm -f "$tmp"' EXIT
+        LC_ALL=C strings "$lib" > "$tmp"
+        ok=true
+        check() {
+          if grep -qF "$1" "$tmp"; then
+            echo "lint-gnome: PRESENT  $1"
+          else
+            echo "lint-gnome: MISSING  $1" >&2
+            ok=false
+          fi
+        }
+        check 'getSystemSource'
+        check 'isTransient'
+        check 'addAction(label, callback)'
+        check 'launch_default_for_uri'
+        $ok && echo "lint-gnome: all API symbols verified"
+
   test:
     desc: Run all unit tests + parity/security lints
     cmds:
@@ -51,6 +81,7 @@ tasks:
       - task: lint-scraper-parity
       - task: lint-security-doc
       - task: lint-js-defaults
+      - task: lint-gnome
 
   build:
     desc: Build the .deb package
