@@ -11,6 +11,6 @@
     "50"
   ],
   "settings-schema": "org.gnome.shell.extensions.claude-usage",
-  "version": 12,
+  "version": 13,
   "url": ""
 }
