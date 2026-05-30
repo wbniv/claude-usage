@@ -224,6 +224,8 @@ gsettings reset org.gnome.shell.extensions.claude-usage popup-color-normal  # re
 | `popup-font-family` | `monospace` | Popup meter row font family |
 | `panel-icon-size` | `16` | Panel icon pixel size |
 
+> The four dock-ring colors (`weekly-color-*`, `sonnet-color`) also accept an 8-digit `#RRGGBBAA` value to make the ring translucent. The popup and panel-label colors are text and require the 6-digit `#RRGGBB` form.
+
 ---
 
 ## Troubleshooting

@@ -325,10 +325,13 @@ async function setFailCount(n) {
 function parseResetMinutes(reset) {
   if (!reset) return null;
   let m;
+  // BASE-6 (2026-05-30 review): cap at 31 days like the weekday branch below —
+  // an outlier (claude.ai glitch) over the server's reset_minutes bound (44640)
+  // would otherwise get the whole POST rejected by the validator.
   m = reset.match(/[Rr]esets? in (\d+) hr (\d+) min/);
-  if (m) return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+  if (m) return Math.min(parseInt(m[1], 10) * 60 + parseInt(m[2], 10), 60 * 24 * 31);
   m = reset.match(/[Rr]esets? in (\d+) min/);
-  if (m) return parseInt(m[1], 10);
+  if (m) return Math.min(parseInt(m[1], 10), 60 * 24 * 31);
   m = reset.match(/[Rr]esets? (\w{3}) (\d+):(\d+) (AM|PM)/);
   if (m) {
     const [, day, hStr, mnStr, ap] = m;
@@ -609,11 +612,29 @@ async function fetchUsage() {
     // Match by tab ID — not by URL — so we never close a tab the user
     // opened themselves at the same URL.
     try {
-      const { _scrape_tabs = [] } = await chrome.storage.local.get('_scrape_tabs');
+      const { _scrape_tabs = [], _scrape_tab_pending = null } =
+          await chrome.storage.local.get(['_scrape_tabs', '_scrape_tab_pending']);
       for (const id of _scrape_tabs) {
         try { await chrome.tabs.remove(id); } catch (_) {}
       }
-      if (_scrape_tabs.length) await chrome.storage.local.set({ _scrape_tabs: [] });
+      // BASE-3 (2026-05-30 review): if a prior fetch set the pending marker but
+      // died in the gap between tabs.create and persisting the id below, the
+      // id-based sweep above can't find the orphan. When the marker is stale
+      // (older than the 30 s load timeout, so it can't be a create still in
+      // flight), close orphaned BACKGROUND scrape tabs by URL. Restricted to
+      // active:false so a tab the user is actively viewing is never touched;
+      // the stale-marker guard confines the rare false-positive (a user's own
+      // background usage tab) to the SW-death-mid-create window.
+      if (_scrape_tab_pending && Date.now() - _scrape_tab_pending > 30_000) {
+        try {
+          const orphans = await chrome.tabs.query(
+              { url: 'https://claude.ai/settings/usage*', active: false });
+          for (const t of orphans) { try { await chrome.tabs.remove(t.id); } catch (_) {} }
+        } catch (_) {}
+      }
+      if (_scrape_tabs.length || _scrape_tab_pending) {
+        await chrome.storage.local.set({ _scrape_tabs: [], _scrape_tab_pending: null });
+      }
     } catch (_) {}
 
     // Prefer an already-loaded user tab — skips the tab-create + page-load
@@ -634,9 +655,13 @@ async function fetchUsage() {
     }
 
     if (scrapeTabId === null) {
+      // BASE-3 (2026-05-30 review): record intent BEFORE create so a SW death
+      // between create and the id-persist below is still recoverable by the
+      // sweep's pending-marker path above.
+      await chrome.storage.local.set({ _scrape_tab_pending: Date.now() });
       createdTab = await chrome.tabs.create({ url: USAGE_URL, active: false });
       scrapeTabId = createdTab.id;
-      await chrome.storage.local.set({ _scrape_tabs: [scrapeTabId] });
+      await chrome.storage.local.set({ _scrape_tabs: [scrapeTabId], _scrape_tab_pending: null });
 
       await new Promise((resolve, reject) => {
         // Lifted to consts so the timeout, the load listener, and the
@@ -708,7 +733,7 @@ async function fetchUsage() {
   } finally {
     if (createdTab) {
       try { await chrome.tabs.remove(createdTab.id); } catch (_) {}
-      try { await chrome.storage.local.set({ _scrape_tabs: [] }); } catch (_) {}
+      try { await chrome.storage.local.set({ _scrape_tabs: [], _scrape_tab_pending: null }); } catch (_) {}
     }
     _fetching = false;
   }

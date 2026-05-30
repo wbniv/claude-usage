@@ -134,6 +134,18 @@ def test_ring_color_at_crit_is_red(g):
 
 # ── hex_to_rgba ──────────────────────────────────────────────────────────────
 
+def test_hex_to_rgba_eight_digit_alpha(g):
+    # BASE-5 (2026-05-30 review): an 8-digit #RRGGBBAA honours the alpha channel
+    # (was silently forced to opaque).
+    r, gn, b, a = g.hex_to_rgba('#4dbfff80')
+    assert (r, gn, b) == (0x4d / 255, 0xbf / 255, 0xff / 255)
+    assert abs(a - 0x80 / 255) < 1e-9
+
+
+def test_hex_to_rgba_six_digit_stays_opaque(g):
+    assert g.hex_to_rgba('#4dbfff')[3] == 1.0
+
+
 def test_hex_to_rgba_with_hash(g):
     r, gn, b, a = g.hex_to_rgba('#ff0000')
     assert r == 1.0

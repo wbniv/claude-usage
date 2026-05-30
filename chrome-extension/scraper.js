@@ -13,10 +13,13 @@ export function isHydrated(textContent) {
 export function parseResetMinutes(reset) {
   if (!reset) return null;
   let m;
+  // BASE-6 (2026-05-30 review): cap at 31 days like the weekday branch below —
+  // an outlier (claude.ai glitch) over the server's reset_minutes bound (44640)
+  // would otherwise get the whole POST rejected by the validator.
   m = reset.match(/[Rr]esets? in (\d+) hr (\d+) min/);
-  if (m) return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+  if (m) return Math.min(parseInt(m[1], 10) * 60 + parseInt(m[2], 10), 60 * 24 * 31);
   m = reset.match(/[Rr]esets? in (\d+) min/);
-  if (m) return parseInt(m[1], 10);
+  if (m) return Math.min(parseInt(m[1], 10), 60 * 24 * 31);
   m = reset.match(/[Rr]esets? (\w{3}) (\d+):(\d+) (AM|PM)/);
   if (m) {
     const [, day, hStr, mnStr, ap] = m;

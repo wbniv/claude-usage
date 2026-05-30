@@ -45,6 +45,18 @@ def test_parse_reset_minute_pads_to_two_digits():
     assert display == '0:05'
 
 
+def test_parse_reset_minute_only_rolls_over():
+    # BASE-4 (2026-05-30 review): a minute-only value >= 60 rolls over instead
+    # of rendering "0:90".
+    assert _t.parse_reset('Resets in 90 min') == (True, '1:30')
+    assert _t.parse_reset('Resets in 125 min') == (True, '2:05')
+
+
+def test_parse_reset_hour_minute_normalises():
+    # BASE-4: defensive — "1 hr 90 min" normalises to 2:30, never "1:90".
+    assert _t.parse_reset('Resets in 1 hr 90 min') == (True, '2:30')
+
+
 def test_parse_reset_day_time_form():
     """`Resets Tue 1:00 PM` format — countdown-or-day depending on how far
     out it is. parse_reset itself doesn't render the day name; the test

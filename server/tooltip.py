@@ -35,10 +35,15 @@ def parse_reset(reset, reset_minutes=None, anchor_ts=None):
 
     m = re.match(r'[Rr]esets? in (\d+) hr (\d+) min', reset)
     if m:
-        return (True, f"{m.group(1)}:{int(m.group(2)):02d}")
+        # BASE-4 (2026-05-30 review): normalise total minutes so an input like
+        # "1 hr 90 min" rolls over to 2:30 instead of rendering "1:90". Mirrors
+        # the live branch above and gnome-extension/extension.js::formatReset.
+        total = int(m.group(1)) * 60 + int(m.group(2))
+        return (True, f"{total // 60}:{total % 60:02d}")
     m = re.match(r'[Rr]esets? in (\d+) min', reset)
     if m:
-        return (True, f"0:{int(m.group(1)):02d}")
+        total = int(m.group(1))
+        return (True, f"{total // 60}:{total % 60:02d}")
     m = re.match(r'[Rr]esets? (\w{3}) (\d+):(\d+) (AM|PM)', reset)
     if m:
         day, h, mn, ap = m.group(1), int(m.group(2)), int(m.group(3)), m.group(4)

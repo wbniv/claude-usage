@@ -42,9 +42,17 @@ function formatReset(reset) {
     if (!reset || typeof reset !== 'string') return '';
     let m;
     m = reset.match(/[Rr]esets? in (\d+) hr (\d+) min/);
-    if (m) return `resets in ⏱${m[1]}:${m[2].padStart(2, '0')}`;
+    if (m) {
+        // BASE-4 (2026-05-30 review): normalise total minutes so "1 hr 90 min"
+        // rolls over to 2:30, never "1:90". Mirrors server/tooltip.py::parse_reset.
+        const t = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+        return `resets in ⏱${Math.floor(t / 60)}:${(t % 60).toString().padStart(2, '0')}`;
+    }
     m = reset.match(/[Rr]esets? in (\d+) min/);
-    if (m) return `resets in ⏱0:${m[1].padStart(2, '0')}`;
+    if (m) {
+        const t = parseInt(m[1], 10);
+        return `resets in ⏱${Math.floor(t / 60)}:${(t % 60).toString().padStart(2, '0')}`;
+    }
     m = reset.match(/[Rr]esets? (\w{3}) (\d+):(\d+) (AM|PM)/);
     if (m) {
         const [, day, hStr, mnStr, ap] = m;
@@ -513,7 +521,11 @@ class ClaudeIndicator extends PanelMenu.Button {
         this._anyCrit = anyCrit;
 
         const plan   = d.plan || 'Claude';
-        const age    = d._timestamp ? Math.round((Date.now() / 1000 - d._timestamp) / 60) : null;
+        // BASE-6 (2026-05-30 review): clamp to ≥ 0 so a _timestamp slightly in
+        // the future (a backward clock step / NTP correction between scrape and
+        // read) shows "<1m ago" rather than a negative age; it self-heals once
+        // the clock catches up.
+        const age    = d._timestamp ? Math.max(0, Math.round((Date.now() / 1000 - d._timestamp) / 60)) : null;
         const ageStr = age !== null ? ` · ${age < 1 ? '<1' : age}m ago` : '';
 
         // Tier: highest-confidence active failure signal.

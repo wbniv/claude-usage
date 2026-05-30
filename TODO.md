@@ -5,13 +5,13 @@
 ## Fixes
 
 - [ ] **2026-05-30** [verify] **[live]** KDE plasmoid on real Plasma 6 + GNOME‑45 notify fallback — steps 10–11 of [plan](docs/plans/2026-05-30-code-review-fixes.md) (no Plasma/Chrome runtime on the dev box; static checks done in-pass)
-- [ ] **2026-05-30** Deferred review findings — BASE‑3 created-tab persisted to `_scrape_tabs` after `tabs.create` (SW-death leak) · BASE‑4 `tooltip.py` static min-only branch renders `0:90` (no 60-rollover) · BASE‑5 `generate-icon.py` float-pct rejected vs JS accepted / 8-digit-hex alpha dropped / dock ring hardwired to `all` meter · BASE‑6 future `_timestamp` → negative age never escalates · KDE‑2 deep dedup (generate plasmoid QML from a shared source) — [review](docs/plans/2026-05-30-code-review-fixes.md)
+- [ ] **2026-05-30** Deferred: KDE‑2 deep dedup — generate the plasmoid QML pacing/threshold/label/URL logic from the shared source (server/gschema) so it can't drift; the new `lint-kde-parity` is the interim guard. (BASE‑5c left as a design choice: dock ring = fixed `all` overview, panel = selectable metric.) — [review](docs/plans/2026-05-30-code-review-fixes.md)
 
 - [ ] **2026-05-22** Add pre-flight dep checks in `install.sh` (`glib-compile-schemas` hard-fail, `systemctl --user` hard-fail, `gnome-shell` 45–50 warn) + relabel MANUAL.md Option B "From source" → "From a clone" + add Option C `curl | bash` one-liner — [plan](docs/plans/2026-05-22-curlbash-installer.md)
 
 ## Deferred
 ## Done
-- [x] 2026-05-30 — Code-review fixes landed (`8818294` + BASE‑2 follow-up): KDE plasmoid KDE‑1..5 (shipped non-functional), DIFF‑1..4, BASE‑1 corrupt-cache loop, BASE‑2 offline-buffer supersede + new `lint-kde-parity`; scraper 53/53, server 99/99. [Plan](docs/plans/2026-05-30-code-review-fixes.md).
+- [x] 2026-05-30 — Code-review fixes landed (`8818294` + BASE‑2/3/4/5/6 follow-ups): KDE plasmoid KDE‑1..5 (shipped non-functional), DIFF‑1..4, BASE‑1 corrupt-cache loop, BASE‑2 buffer supersede, BASE‑3 orphan-tab recovery, BASE‑4 minute rollover (both twins), BASE‑5 float-pct + 8-digit alpha, BASE‑6 age clamp + reset cap + new `lint-kde-parity` & SW runtime tests; scraper 57/57, server 104/104. [Plan](docs/plans/2026-05-30-code-review-fixes.md).
 - [x] 2026-05-21 — IN‑1 closed: removed `"tabs"` from manifest permissions — `host_permissions` sufficient for `tabs.query({url})`. Tested: "sent 5 meters to local server" confirmed, no errors after reload.
 - [x] 2026-05-21 — RD‑1 closed: `chrome.idle.onStateChanged` 'active' handler now debounces against `_last_scrape_ts` with `WAKE_MIN_INTERVAL_MS = INTERVAL_MINUTES * 60 * 1000` (7 min); lock/unlock cycles no longer burn a claude.ai page-load each, CI-2's wake-from-suspend purpose preserved (storage error → falls through to fire). [Plan](docs/plans/2026-05-21-rd1-idle-debounce.md).
 - [x] 2026-05-21 — SV‑1 closed: GNOME 50 supported (tested via Docker smoke test — 9/9 checks pass); `task test-gnome` + weekly GH Actions version-check workflow added. [Plan](docs/plans/2026-05-21-sv1-gnome50-support.md).

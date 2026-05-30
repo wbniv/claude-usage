@@ -72,6 +72,17 @@ def test_session_3pct_at_6min_does_not_pace():
     assert pacing_pct(meter, {'Current session': 295}) == 3
 
 
+def test_pacing_pct_accepts_float():
+    """BASE-5 (2026-05-30 review): a float pct must pace like extension.js
+    (typeof number), not fall back to raw. 50% with half the period elapsed
+    → ~100; a float and the equivalent int must agree."""
+    period = {'x': 100}
+    flt = pacing_pct({'label': 'x', 'pct': 50.0, 'reset_minutes': 50}, period)
+    integ = pacing_pct({'label': 'x', 'pct': 50, 'reset_minutes': 50}, period)
+    assert abs(flt - 100.0) < 1e-9
+    assert flt == integ
+
+
 # ── Floor boundary cases ────────────────────────────────────────────────────
 
 @pytest.mark.parametrize('elapsed_min,expect_suppressed', [

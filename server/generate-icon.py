@@ -129,7 +129,10 @@ def load_config():
 def hex_to_rgba(h):
     h = h.lstrip('#')
     r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
-    return (r/255, g/255, b/255, 1.0)
+    # BASE-5 (2026-05-30 review): honour an 8-digit #RRGGBBAA alpha instead of
+    # silently forcing opacity — a user-set translucent ring colour now renders.
+    a = int(h[6:8], 16) / 255 if len(h) == 8 else 1.0
+    return (r/255, g/255, b/255, a)
 
 def ring_color(pct, cfg):
     # load_config() unconditionally populates both threshold keys (live or DEFAULTS),
@@ -148,7 +151,12 @@ def pacing_pct(meter, period_lens):
     if not meter:
         return 0
     pct = meter.get('pct')
-    if not isinstance(pct, int) or pct == 0:
+    # BASE-5 (2026-05-30 review): accept float as well as int to match
+    # extension.js's `typeof pct === 'number'` — the server emits ints, but a
+    # foreign/corrupt cache may carry a float, and Python must not silently fall
+    # back to raw pct where JS would pace. bool ⊂ int in Python, so exclude it
+    # (JS `typeof true === 'boolean'`).
+    if isinstance(pct, bool) or not isinstance(pct, (int, float)) or pct == 0:
         return pct or 0
     rm = meter.get('reset_minutes')
     period = period_lens.get(meter.get('label'))

@@ -1,14 +1,13 @@
-// BASE-2 (2026-05-30 review): offline-buffer supersede regression.
+// Service-worker runtime regressions (2026-05-30 review). Drives the real
+// background.js functions in a vm sandbox with a STATEFUL storage mock and a
+// stubbed claude-usage server:
 //
-// A successful full-scrape post must drop the offline buffer (`claude_usage`).
-// Otherwise a later fetchUsage flush re-posts the now-stale buffer and the
-// server's ordering-blind merge regresses its _timestamp/meters to that older
-// snapshot. (It also makes the flush's non-atomic remove() safe — a re-flushed
-// buffer is never newer than the freshest confirmed post.)
-//
-// This drives scrapeAndPost() in a vm sandbox with a STATEFUL storage mock and
-// a stubbed claude-usage server, and asserts the buffer is cleared on a
-// successful post and (re)written when the post fails.
+//   • BASE-2 — a successful full-scrape post must drop the offline buffer
+//     (`claude_usage`); otherwise a later fetchUsage flush re-posts the stale
+//     buffer and the server's ordering-blind merge regresses _timestamp/meters.
+//   • BASE-3 — the orphan-tab sweep must close a background scrape tab that a
+//     prior fetch created but died before recording (stale pending marker), and
+//     must NOT sweep by URL when there's no pending marker (user tabs safe).
 
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -23,7 +22,7 @@ const SRC = readFileSync(join(__dirname, '..', 'background.js'), 'utf8');
 // Run background.js in a fresh context with a stateful storage mock and a
 // stubbed server. `postOk` toggles the /update POST outcome. The server port
 // is pre-seeded fresh so getServerUrl() returns it without probing.
-function makeContext({ store = {}, postOk = true } = {}) {
+function makeContext({ store = {}, postOk = true, orphans = [], reusable = [] } = {}) {
   const storage = { serverPort: { port: 7331, cachedAt: Date.now() }, ...store };
   const local = {
     get: async (keys) => {
@@ -41,6 +40,7 @@ function makeContext({ store = {}, postOk = true } = {}) {
   };
   const noop = () => {};
   const listener = { addListener: noop, removeListener: noop };
+  const removeCalls = [];
   const updateResp = {
     ok: postOk, status: postOk ? 200 : 503,
     headers: { get: (k) => (k === 'x-claude-usage-server' ? '1.0.0' : null) },
@@ -53,8 +53,12 @@ function makeContext({ store = {}, postOk = true } = {}) {
       storage: { local },
       action: { setTitle: async () => {}, onClicked: listener },
       tabs: {
-        create: async () => ({ id: 1 }), get: async () => ({}), query: async () => [],
-        remove: async () => {}, onUpdated: listener, onActivated: listener,
+        create: async () => ({ id: 1 }), get: async () => ({}),
+        // The orphan sweep queries with {active:false}; the reusable-tab lookup
+        // queries without it. Differentiate so we can exercise both.
+        query: async (opts) => ((opts && opts.active === false) ? orphans : reusable),
+        remove: async (id) => { removeCalls.push(id); },
+        onUpdated: listener, onActivated: listener,
       },
       webNavigation: { onCompleted: listener, onHistoryStateUpdated: listener, onErrorOccurred: listener },
       scripting: {
@@ -82,7 +86,7 @@ function makeContext({ store = {}, postOk = true } = {}) {
   };
   vm.createContext(context);
   vm.runInContext(SRC, context, { filename: 'background.js' });
-  return { context, storage };
+  return { context, storage, removeCalls };
 }
 
 describe('background.js — offline buffer supersede (BASE-2)', () => {
@@ -107,5 +111,33 @@ describe('background.js — offline buffer supersede (BASE-2)', () => {
       'a failed post must buffer the scrape for later flush');
     assert.equal(storage.claude_usage.meters[0].label, 'Current session',
       'buffer holds the just-scraped meters');
+  });
+});
+
+describe('background.js — orphan scrape-tab recovery (BASE-3)', () => {
+  const usageTab = (id, active) =>
+    ({ id, active, status: 'complete', url: 'https://claude.ai/settings/usage' });
+
+  it('closes an orphaned background usage tab when the pending marker is stale', async () => {
+    const { context, storage, removeCalls } = makeContext({
+      store: { _scrape_tab_pending: Date.now() - 60_000 },   // stale (> 30 s)
+      orphans: [usageTab(99, false)],
+      reusable: [usageTab(5, undefined)],  // reusable tab → skip create + 30 s load-wait
+      postOk: true,
+    });
+    await context.fetchUsage();
+    assert.ok(removeCalls.includes(99), 'the orphaned background scrape tab is closed');
+    assert.equal(storage._scrape_tab_pending, null, 'pending marker cleared after recovery');
+  });
+
+  it('does NOT sweep by URL when there is no pending marker (user tabs safe)', async () => {
+    const { context, removeCalls } = makeContext({
+      orphans: [usageTab(99, false)],
+      reusable: [usageTab(5, undefined)],
+      postOk: true,
+    });
+    await context.fetchUsage();
+    assert.equal(removeCalls.includes(99), false,
+      'no pending marker → no URL-based orphan sweep');
   });
 });

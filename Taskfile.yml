@@ -16,7 +16,7 @@ tasks:
   test-scraper:
     desc: Run Chrome extension unit tests (scraper + background load-smoke)
     cmds:
-      - node --test chrome-extension/test/scraper.test.js chrome-extension/test/background-load.test.js chrome-extension/test/background-buffer.test.js
+      - node --test chrome-extension/test/scraper.test.js chrome-extension/test/background-load.test.js chrome-extension/test/background-runtime.test.js
 
   test-validate:
     desc: Run server-side validator pytest suite (input contract for usage-server.py)

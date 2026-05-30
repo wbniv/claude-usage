@@ -39,12 +39,16 @@ recur.
 | DIFF‑4 | MED | `generate-icon.py:78` | new `config.json` reader validates colours but not thresholds → non-int → `int >= str` TypeError → icon gen aborts |
 | BASE‑1 | MED | `usage-server.py:393,411,416` | CM‑1 guard validates only root dict; corrupt nested `prev` (`_period_lengths`/`meters`) → crash → 400, no write → permanent loop |
 | BASE‑2 | MED | `background.js:538` | a stale offline buffer flushes over newer server data (ordering-blind merge) → cache regresses to an older snapshot |
+| BASE‑3 | LOW | `background.js:626` | created-tab id persisted after `tabs.create`; SW death in the gap orphans a background tab |
+| BASE‑4 | LOW | `tooltip.py:41` + `extension.js` | min-only reset renders `0:90` (no 60-rollover); same in the GNOME `formatReset` twin |
+| BASE‑5 | LOW | `generate-icon.py:118,140` | `hex_to_rgba` drops 8-digit alpha; `pacing_pct` rejects float pct while JS accepts it |
+| BASE‑6 | LOW | `extension.js:516` + `scraper.js`/`background.js` | future `_timestamp` → negative age; `parseResetMinutes` hr/min branches uncapped |
 
-**Deferred** (logged in TODO, not in this pass — lows / need live runtime):
-BASE‑3 created-tab persist gap, BASE‑4 tooltip `0:90` rollover, BASE‑5 icon
-float-pct / alpha / 'all'-ring divergences, BASE‑6 future-timestamp age. KDE‑2's
-deeper "generate the QML from a shared source" dedup is also deferred — the
-parity lint below is the interim guard.
+**Deferred** (logged in TODO): KDE‑2's deeper "generate the QML from a shared
+source" dedup — the parity lint below is the interim guard. **BASE‑5(c)** (dock
+ring tracks the `all` meter while the panel honours the user-selected metric) is
+left as a deliberate design choice — the dock icon is a fixed overview, the panel
+is selectable — not a defect.
 
 ---
 
@@ -89,7 +93,13 @@ parity lint below is the interim guard.
 - `scripts/lint-kde-parity.py`: (a) any `kde-plasmoid` QML referencing `StandardPaths` must `import QtCore`; (b) `meter.<field>` / `usageData.<field>` reads must be in the known `usage.json` allowlist; (c) `main.xml` colour/threshold defaults must equal the gschema. Wire into `Taskfile` `test`.
 
 ### 12. BASE‑2 — offline buffer supersede
-- `background.js`: drop the offline buffer (`claude_usage`) on a successful full-scrape post, so a later `fetchUsage` flush can't re-post a now-stale buffer over newer cache data (the server merge is ordering-blind). Also makes the flush's non-atomic `remove()` harmless. Chosen over a server-side `_timestamp`-monotonic guard, which would false-reject legitimately-newer data under client clock skew. New runtime test `chrome-extension/test/background-buffer.test.js` (vm sandbox + stateful storage + stubbed server).
+- `background.js`: drop the offline buffer (`claude_usage`) on a successful full-scrape post, so a later `fetchUsage` flush can't re-post a now-stale buffer over newer cache data (the server merge is ordering-blind). Also makes the flush's non-atomic `remove()` harmless. Chosen over a server-side `_timestamp`-monotonic guard, which would false-reject legitimately-newer data under client clock skew. Runtime test in `chrome-extension/test/background-runtime.test.js` (vm sandbox + stateful storage + stubbed server).
+
+### 13–16. Deferred lows (BASE‑3..6)
+- **BASE‑3** `background.js`: persist a `_scrape_tab_pending` marker before `tabs.create`; the orphan sweep closes background scrape tabs by URL only when that marker is stale (`active:false`-guarded, so a tab the user is viewing is never touched). Runtime test asserts it closes the orphan and that no pending marker means no URL-sweep.
+- **BASE‑4** `tooltip.py::parse_reset` + `extension.js::formatReset`: normalise total minutes so a min-only / hr-min reset rolls over (`90 min` → `1:30`), consistently across both twins.
+- **BASE‑5** `generate-icon.py`: `hex_to_rgba` honours an 8-digit `#RRGGBBAA` alpha; `pacing_pct` accepts float pct (matching `extension.js`'s `typeof number`). 5(c) left as a design choice.
+- **BASE‑6** `extension.js` clamps age ≥ 0 (future `_timestamp`); `scraper.js` + `background.js` cap `parseResetMinutes` hr/min branches at 31 days (the server's `reset_minutes` bound).
 
 ---
 
@@ -193,8 +203,8 @@ parity lint below is the interim guard.
 9. **Full suite green:** `task test` → all unit tests + parity/security lints pass.
 
    ```
-   # tests 53 / # pass 53 / # fail 0        (test-scraper: scraper + load-smoke + buffer)
-   99 passed in 0.07s                       (test-validate: server pytest, was 98 + BASE-1)
+   # tests 57 / # pass 57 / # fail 0        (test-scraper: scraper + load-smoke + runtime; incl. lows)
+   104 passed in 0.07s                      (test-validate: server pytest, 98 → +BASE-1/4/5)
    lint-scraper-parity / lint-anchor-strings / lint-pacing-parity ×4 / lint-pair-inventory: OK
    lint-security-doc: OK   lint-js-defaults: in sync   lint-kde-parity: OK   lint-gnome: verified
    task test: ALL PASS (exit 0)
@@ -215,7 +225,7 @@ parity lint below is the interim guard.
     ```
     **DEFERRED** → TODO `[verify] [live]`. Feature-detect logic verified by reading; runtime throw-path needs a real GNOME-45 shell.
 
-12. **BASE‑2 buffer supersede:** `node --test …/background-buffer.test.js` — buffer cleared on successful post, retained on failure; fails with the fix reverted.
+12. **BASE‑2 buffer supersede:** `node --test …/background-runtime.test.js` — buffer cleared on successful post, retained on failure; fails with the fix reverted.
 
     ```
     ok 1 - clears a stale offline buffer after a successful full-scrape post
@@ -224,3 +234,14 @@ parity lint below is the interim guard.
     --- negative (fix disabled): not ok 1 … / # fail 1
     ```
     **PASS** (real regression guard — bites when the fix is removed).
+
+13. **Deferred lows (BASE‑3..6):** new tests pass; suite stays green.
+
+    ```
+    # tests 57 / # pass 57 / # fail 0   (scraper 52 + load 1 + runtime 4: BASE-2×2 + BASE-3×2)
+    104 passed                          (server: +2 tooltip rollover, +2 hex-alpha, +1 pacing-float)
+    BASE-3 negative (sweep guard disabled): # fail 1 — orphan test bites
+    lint-scraper-parity: OK (regexes unchanged; scraper↔background cap kept in sync)
+    task test: ALL PASS (exit 0)
+    ```
+    **PASS** — BASE‑3 pending-marker orphan recovery, BASE‑4 minute rollover (both twins), BASE‑5 float-pct + 8-digit alpha, BASE‑6 age clamp + reset cap.

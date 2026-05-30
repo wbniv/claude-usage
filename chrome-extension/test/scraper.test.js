@@ -41,6 +41,12 @@ describe('parseResetMinutes', () => {
   it('"resets in 1 min" → 1 (case-insensitive)', () => {
     assert.equal(parseResetMinutes('resets in 1 min'), 1);
   });
+  it('caps an over-long "Resets in 99999 hr 0 min" at 31 days (BASE-6)', () => {
+    assert.equal(parseResetMinutes('Resets in 99999 hr 0 min'), 60 * 24 * 31);
+  });
+  it('caps an over-long "Resets in 99999 min" at 31 days (BASE-6)', () => {
+    assert.equal(parseResetMinutes('Resets in 99999 min'), 60 * 24 * 31);
+  });
 
   // Weekday form — result is time-dependent; verify it's in [1, 10080] minutes
   const WEEK_MINS = 7 * 24 * 60;
