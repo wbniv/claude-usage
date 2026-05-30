@@ -101,6 +101,9 @@ is selectable — not a defect.
 - **BASE‑5** `generate-icon.py`: `hex_to_rgba` honours an 8-digit `#RRGGBBAA` alpha; `pacing_pct` accepts float pct (matching `extension.js`'s `typeof number`). 5(c) left as a design choice.
 - **BASE‑6** `extension.js` clamps age ≥ 0 (future `_timestamp`); `scraper.js` + `background.js` cap `parseResetMinutes` hr/min branches at 31 days (the server's `reset_minutes` bound).
 
+### 17. KDE‑2 — pacing/URL parity (deep dedup)
+- The plasmoid's QML re-implements the pacing curve and hardcodes the usage URL — a third copy after `extension.js` and `generate-icon.py`. Logic can't be shared across the JS/Python/QML runtimes, so the project's mechanism is a parity lint (the `pacingPct`↔`pacing_pct` twins are hand-synced + `lint-pacing-parity`-checked, not generated). `scripts/lint-kde-parity.py` gains two checks bringing the QML copy under the same guard: **(4)** `main.qml::pacingFraction`'s floor `Math.max(15, period*0.05)` must match `extension.js::pacingPct`; **(5)** the QML usage URL must equal `USAGE_URL`. Config defaults + fields were already covered (checks 2–3), so all four surfaces the dedup targeted (pacing/threshold/label/URL) are now drift-guarded. **No QML runtime change.** Full code-generation of a shared QML constants module was considered and rejected: it adds an unverifiable QML import path to a widget with no live CI, for no more protection than the lint already gives.
+
 ---
 
 ## Critical files
@@ -211,12 +214,19 @@ is selectable — not a defect.
    ```
    **PASS**
 
-10. **[live] KDE plasmoid loads:** `task kde-install`; add widget; `journalctl --user` shows no QML errors; panel shows `%`, popup shows meters + reset + status/age; config round-trip writes `~/.config/claude-usage/config.json`.
+10. **[live] KDE plasmoid — Plasma 6 manual checklist.** Static lint now covers the import / field / default / pacing / URL drift classes (steps 1–4 + 14); what remains needs a running Plasma 6 session. On a Plasma 6 box with the Chrome extension + local server already populating `~/.cache/claude-usage/usage.json`:
+    1. `task kde-install` (or install the .deb) → `~/.local/share/plasma/plasmoids/org.indri.claude-usage/` exists.
+    2. Add the "Claude Usage" widget to a panel; `journalctl --user -f` shows **no** QML errors (especially no `StandardPaths is not defined`, no `PlasmoidItem is not a type`).
+    3. Compact panel shows the live `%` in the pacing colour; the bundled icon renders (not the "C" text fallback).
+    4. Popup shows meter rows with bars + "resets in …" countdowns, the "Updated Xm ago" age line, and "⚠ Anthropic service degraded" during an outage.
+    5. Scroll the panel label → cycles meters; the choice persists (`panelMetric`).
+    6. Config dialog → change a popup colour / threshold / font / dock-ring colour → values persist (KConfig) and `~/.config/claude-usage/config.json` is written; re-run `generate-icon.py` → dock icon reflects the dock-ring colours.
+    7. `XDG_CACHE_HOME` set to a non-default dir → the plasmoid still finds `usage.json` (GenericCacheLocation).
 
     ```
-    DEFERRED — no Plasma session on this (GNOME) box.
+    DEFERRED — no Plasma 6 session on this (GNOME 49/50) box.
     ```
-    **DEFERRED** → TODO `[verify] [live]`. Static guards (steps 1–4) cover the field/import/path classes; the executable-engine config write and live rendering need real Plasma 6.
+    **DEFERRED** → TODO `[verify] [live]`.
 
 11. **[live] GNOME 45:** on a GNOME-45 shell, force `tier=broken`; notification fires (no action button) with no `_updateDisplay` throw.
 
@@ -245,3 +255,23 @@ is selectable — not a defect.
     task test: ALL PASS (exit 0)
     ```
     **PASS** — BASE‑3 pending-marker orphan recovery, BASE‑4 minute rollover (both twins), BASE‑5 float-pct + 8-digit alpha, BASE‑6 age clamp + reset cap.
+
+14. **KDE‑2 pacing/URL parity:** `python3 scripts/lint-kde-parity.py` passes; both negative tests bite (exact in-memory restore, QML unchanged after).
+
+    ```
+    lint-kde-parity: OK (6 QML files clean, 18 config keys + pacing floor + usage URL mirror the canonical source)
+    pacing-drift (15→20): exit 1 — "pacing floor drift: main.qml (20, 0.05) != extension.js pacingPct (15, 0.05)"
+    url-drift (usage→usage2): exit 1 — "usage URL …/usage2 != … USAGE_URL …/usage"
+    git diff --stat kde-plasmoid/ → empty (restored exactly)
+    ```
+    **PASS** — QML pacing floor + usage URL now drift-guarded against `extension.js`.
+
+---
+
+## KDE test coverage
+
+The plasmoid shipped broken with zero KDE/QML CI. Coverage now:
+
+- **Static (CI, `task test`):** `lint-kde-parity` — (1) `StandardPaths` requires `import QtCore`; (2) only real `usage.json` fields are read; (3) `main.xml` defaults == gschema; (4) pacing floor == `extension.js::pacingPct`; (5) usage URL == `USAGE_URL`. These catch the exact regressions that shipped (KDE‑1/2) plus cross-source drift (KDE‑5, KDE‑2). Each check has a negative test proving it bites.
+- **Live (manual, Plasma 6):** the checklist in verification step 10 — load-without-QML-error, rendering, scroll-cycle, config round-trip, XDG path. Needs hardware; tracked as the `[verify] [live]` TODO.
+- **Future (optional):** a `test-kde` headless smoke test mirroring `test-gnome` (Docker + `plasmoidviewer`/`plasmashell` asserting the plasmoid loads with no QML errors). Harder than the GNOME analog — Plasma needs a running shell — and unverifiable from this box, so proposed, not built.
