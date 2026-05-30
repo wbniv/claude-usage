@@ -13,8 +13,7 @@ PlasmoidItem {
     // Read usage.json via the executable engine, NOT XMLHttpRequest: a file://
     // XHR never reaches readyState DONE inside the Plasma 6 plasmoid QML
     // sandbox (verified live on Plasma 6 / Qt 6.8 — it hangs at readyState 1),
-    // so usageData would stay null forever. The executable engine is the same
-    // mechanism ConfigGeneral.qml uses to write config.json.
+    // so usageData would stay null forever.
     Plasma5Support.DataSource {
         id: reader
         engine: "executable"
@@ -31,6 +30,49 @@ PlasmoidItem {
             }
         }
     }
+
+    // Mirror dock-icon-relevant config to ~/.config/claude-usage/config.json so
+    // server/generate-icon.py picks up KDE colour/threshold/font choices (KConfig
+    // is invisible to it). This lives here — not in the config page — because the
+    // page can't reliably write files, and watching Plasmoid.configuration fires
+    // on every change (dialog OK, scroll, defaults reset), not just a dialog save.
+    Plasma5Support.DataSource {
+        id: writer
+        engine: "executable"
+        connectedSources: []
+        onNewData: (source) => disconnectSource(source)
+    }
+
+    function writeConfigJson() {
+        const c = Plasmoid.configuration
+        const cfg = {
+            weekly_color_green:   c.weeklyColorGreen,
+            weekly_color_amber:   c.weeklyColorAmber,
+            weekly_color_red:     c.weeklyColorRed,
+            sonnet_color:         c.sonnetColor,
+            popup_color_normal:   c.popupColorNormal,
+            popup_color_warning:  c.popupColorWarning,
+            popup_color_critical: c.popupColorCritical,
+            threshold_warning:    c.thresholdWarning,
+            threshold_critical:   c.thresholdCritical,
+            popup_font_family:    c.popupFontFamily,
+        }
+        // base64-pipe the payload so colour/font values can't break the command.
+        const b64 = Qt.btoa(JSON.stringify(cfg))
+        writer.connectSource(
+            'mkdir -p "$HOME/.config/claude-usage" && ' +
+            "printf %s '" + b64 + "' | base64 -d > \"$HOME/.config/claude-usage/config.json\"")
+    }
+
+    // Recomputes whenever any mirrored key changes → onChanged re-writes the file.
+    readonly property string _configSnapshot: [
+        Plasmoid.configuration.weeklyColorGreen, Plasmoid.configuration.weeklyColorAmber,
+        Plasmoid.configuration.weeklyColorRed, Plasmoid.configuration.sonnetColor,
+        Plasmoid.configuration.popupColorNormal, Plasmoid.configuration.popupColorWarning,
+        Plasmoid.configuration.popupColorCritical, Plasmoid.configuration.thresholdWarning,
+        Plasmoid.configuration.thresholdCritical, Plasmoid.configuration.popupFontFamily
+    ].join("")
+    on_ConfigSnapshotChanged: writeConfigJson()
 
     // Derive index from saved panelMetric name, or use 0
     function resolveActiveMeter() {
@@ -92,7 +134,7 @@ PlasmoidItem {
         onTriggered: root.loadData()
     }
 
-    Component.onCompleted: root.loadData()
+    Component.onCompleted: { root.loadData(); root.writeConfigJson() }
 
     // Scroll cycles through meters
     MouseArea {

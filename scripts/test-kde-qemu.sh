@@ -63,7 +63,7 @@ qemu-system-x86_64 -m "${QEMU_MEM:-4096}" "${KVM[@]}" \
   -drive if=pflash,format=raw,readonly=on,file="$OVMF_CODE" \
   -drive if=pflash,format=raw,file="$VARS" \
   -drive file="$ISO",media=cdrom,format=raw,readonly=on \
-  -boot order=d -device virtio-vga-gl -display gtk,gl=on \
+  -boot order=d -device virtio-vga-gl,xres="${QEMU_XRES:-1280}",yres="${QEMU_YRES:-800}" -display gtk,gl=on \
   -serial file:"$SERIAL" -no-reboot \
   -device virtio-net,netdev=n0 -netdev user,id=n0,hostfwd=tcp::${PORT}-:22 &
 QEMU_PID=$!
@@ -98,6 +98,17 @@ cpuser "$REPO/gnome-extension/icons/claude-64.png" user@localhost:'~/.local/shar
 cpuser "$FIX" user@localhost:'~/.cache/claude-usage/usage.json'
 asuser 'python3 -c "import json,time,os;p=os.path.expanduser(\"~/.cache/claude-usage/usage.json\");d=json.load(open(p));d[\"_timestamp\"]=int(time.time())-120;json.dump(d,open(p,\"w\"))"'
 
+echo "=== Set display to >=1024x768 (default virtio-gpu mode is a cramped 640x480) ==="
+# The virtio-vga-gl xres/yres device hint is ignored by the guest, so bump the
+# mode with kscreen-doctor. Done ONCE, early (before screenshots) so the buffer
+# repaints cleanly. Prefer 1280x1024, fall back through to 1024x768.
+insession 'out=$(kscreen-doctor -o 2>/dev/null | grep -oE "Output:[[:space:]]+[0-9]+[[:space:]]+[^[:space:]]+" | awk "{print \$3}" | head -1);
+  for res in 1280x1024 1280x768 1024x768; do
+    id=$(kscreen-doctor -o 2>/dev/null | grep -oE "[0-9]+:${res}@[0-9.]+" | head -1 | cut -d: -f1);
+    [ -n "$id" ] && { kscreen-doctor output.$out.mode.$id 2>/dev/null && echo "set $out -> $res (mode $id)"; break; };
+  done' || true
+sleep 2
+
 echo "=== Loading plasmoid into the running shell ==="
 # Mark the journal cursor BEFORE the restart so the error-check below only sees
 # errors from this load — not stale ones from earlier in the boot.
@@ -110,6 +121,16 @@ echo "=== Assert: no QML errors loading the plasmoid (since $MARK) ==="
 ERRS=$(asuser "journalctl --user --no-pager --since '$MARK' 2>/dev/null | grep -iE 'claude-usage|StandardPaths|ReferenceError' | grep -iE 'error|unavailable|Invalid|ReferenceError' | grep -v 'does not match requested format' || true")
 if [[ -n "$ERRS" ]]; then echo "FAIL — QML errors:"; echo "$ERRS"; exit 1; fi
 echo "  PASS — no QML load errors"
+
+echo "=== Assert: config QML compiles clean against real Plasma modules (qmllint) ==="
+# The config page's QML errors surface only when the config dialog opens, which
+# we can't trigger headlessly — so qmllint it against the guest's real Plasma
+# modules instead (the GNOME dev box lacks them). Catches unresolved imports/
+# types AND the Plasma-5 lowercase `plasmoid.` idiom that silently drops the page.
+asroot 'command -v /usr/lib/qt6/bin/qmllint >/dev/null 2>&1 || DEBIAN_FRONTEND=noninteractive apt-get install -y -qq qt6-declarative-dev-tools >/dev/null 2>&1' || true
+QL=$(asuser 'Q=/usr/lib/x86_64-linux-gnu/qt6/qml; P="$HOME/.local/share/plasma/plasmoids/org.indri.claude-usage/contents/ui"; for f in "$P"/config/*.qml; do /usr/lib/qt6/bin/qmllint -I "$Q" -I "$P" "$f" 2>&1; done | grep -iE "Error:|plasmoid\." || true')
+if [[ -n "$QL" ]]; then echo "FAIL — config QML qmllint issues:"; echo "$QL"; exit 1; fi
+echo "  PASS — config QML qmllint-clean (no errors, no unqualified plasmoid)"
 
 echo "=== Screenshot → $SHOTDIR/kde-plasmoid-live.png ==="
 insession 'spectacle -b -n -f -o /tmp/cu-final.png 2>/dev/null' || true

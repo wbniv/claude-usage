@@ -89,6 +89,8 @@ _FIELD_RE = re.compile(r'\b(usageData|meter|modelData)\.([A-Za-z_]\w*)')
 _FLOOR_RE = re.compile(r'Math\.max\(\s*(\d+)\s*,\s*period\s*\*\s*([\d.]+)\s*\)')
 _USAGE_URL_RE = re.compile(r"USAGE_URL\s*=\s*'([^']+)'")
 _QML_USAGE_URL_RE = re.compile(r"https://claude\.ai/settings/usage[^'\"\s<)]*")
+# Plasma 5 idiom: lowercase `plasmoid.` — null in a Plasma 6 config page.
+_LOWER_PLASMOID_RE = re.compile(r'\bplasmoid\.')
 
 
 def _qml_files():
@@ -190,10 +192,27 @@ def check_url_parity():
     return errs
 
 
+def check_config_idiom():
+    """Config pages must use the Plasma 6 cfg_<key> convention, NOT the Plasma 5
+    lowercase `plasmoid.configuration`. In Plasma 6 the config page has no
+    lowercase `plasmoid` context, so those bindings throw at load and Plasma
+    silently drops the page (leaving only Keyboard Shortcuts + About — the
+    2026-05-30 live finding). Use `cfg_<key>` aliases (or capital `Plasmoid`)."""
+    errs = []
+    for f in KDE.glob('contents/**/config/*.qml'):
+        for n, line in enumerate(f.read_text().splitlines(), 1):
+            code = line.split('//', 1)[0]  # drop // line comments
+            if _LOWER_PLASMOID_RE.search(code):
+                errs.append(f"{f.relative_to(REPO)}:{n}: lowercase `plasmoid.` in a config "
+                            f"page — Plasma 6 has no `plasmoid` context here; use the "
+                            f"cfg_<key> convention (or capital `Plasmoid`)")
+    return errs
+
+
 def main():
     errs = []
     for fn in (check_standardpaths_import, check_usage_fields, check_config_parity,
-               check_pacing_floor_parity, check_url_parity):
+               check_pacing_floor_parity, check_url_parity, check_config_idiom):
         errs.extend(fn())
     if errs:
         for e in errs:

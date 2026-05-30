@@ -1,209 +1,92 @@
+// Plasma 6 config page. Uses the cfg_<key> auto-binding convention (the
+// framework loads/saves cfg_<key> ↔ KConfig from main.xml on OK/Apply/Defaults);
+// the cfg_ property names MUST match the <entry name> values in
+// contents/config/main.xml exactly.
+//
+// NB: do NOT access `plasmoid.configuration` here — in Plasma 6 the config page
+// has no lowercase `plasmoid` context, so that throws at load and Plasma
+// silently drops the page (showing only Keyboard Shortcuts + About). The
+// dock-icon side-effect (writing ~/.config/claude-usage/config.json for
+// generate-icon.py) lives in main.qml, which watches Plasmoid.configuration.
 import QtQuick
 import QtQuick.Controls as QQC2
 import QtQuick.Layouts
-import QtQuick.Dialogs
+import org.kde.kcmutils as KCM
 import org.kde.kirigami as Kirigami
-import org.kde.kquickcontrols as KQuickControls
-import org.kde.plasma.plasma5support as Plasma5Support
 
-Kirigami.ScrollablePage {
-    id: configPage
+KCM.SimpleKCM {
+    id: root
 
-    Plasma5Support.DataSource {
-        id: executable
-        engine: "executable"
-        connectedSources: []
-        onNewData: (sourceName, data) => disconnectSource(sourceName)
-    }
+    // Dock icon ring colours
+    property alias cfg_weeklyColorGreen: weeklyGreen.colorString
+    property alias cfg_weeklyColorAmber: weeklyAmber.colorString
+    property alias cfg_weeklyColorRed: weeklyRed.colorString
+    property alias cfg_sonnetColor: sonnetColor.colorString
+    // Popup meter colours
+    property alias cfg_popupColorNormal: popupNormal.colorString
+    property alias cfg_popupColorWarning: popupWarning.colorString
+    property alias cfg_popupColorCritical: popupCritical.colorString
+    // Panel label colours
+    property alias cfg_panelColorNormal: panelNormal.colorString
+    property alias cfg_panelColorWarning: panelWarning.colorString
+    property alias cfg_panelColorCritical: panelCritical.colorString
+    // Thresholds
+    property alias cfg_thresholdWarning: warningSpin.value
+    property alias cfg_thresholdCritical: criticalSpin.value
+    // Popup font family
+    property alias cfg_popupFontFamily: fontCombo.editText
+    // Sizes
+    property alias cfg_barWidth: barSpin.value
+    property alias cfg_panelFontSize: panelFontSpin.value
+    property alias cfg_popupFontSize: popupFontSpin.value
+    property alias cfg_panelIconSize: panelIconSpin.value
 
-    // Persist the dock-icon-relevant config to ~/.config/claude-usage/config.json
-    // so server/generate-icon.py picks up KDE colour/threshold/font choices.
-    // QML can't write files directly, so shell out via the executable engine;
-    // base64-pipe the payload so colour/font values can't break the command.
-    function saveConfigJson() {
-        const cfg = {
-            weekly_color_green:   cfg_weeklyColorGreen.color.toString(),
-            weekly_color_amber:   cfg_weeklyColorAmber.color.toString(),
-            weekly_color_red:     cfg_weeklyColorRed.color.toString(),
-            sonnet_color:         cfg_sonnetColor.color.toString(),
-            popup_color_normal:   cfg_popupColorNormal.color.toString(),
-            popup_color_warning:  cfg_popupColorWarning.color.toString(),
-            popup_color_critical: cfg_popupColorCritical.color.toString(),
-            threshold_warning:    cfg_thresholdWarning.value,
-            threshold_critical:   cfg_thresholdCritical.value,
-            popup_font_family:    plasmoid.configuration.popupFontFamily,
+    Kirigami.FormLayout {
+
+        Kirigami.Separator { Kirigami.FormData.isSection: true; Kirigami.FormData.label: "Dock Icon Colors" }
+        ColorField { id: weeklyGreen;  Kirigami.FormData.label: "Weekly — low:" }
+        ColorField { id: weeklyAmber;  Kirigami.FormData.label: "Weekly — mid:" }
+        ColorField { id: weeklyRed;    Kirigami.FormData.label: "Weekly — high:" }
+        ColorField { id: sonnetColor;  Kirigami.FormData.label: "Sonnet ring:" }
+
+        Kirigami.Separator { Kirigami.FormData.isSection: true; Kirigami.FormData.label: "Popup Colors" }
+        ColorField { id: popupNormal;   Kirigami.FormData.label: "Normal:" }
+        ColorField { id: popupWarning;  Kirigami.FormData.label: "Warning:" }
+        ColorField { id: popupCritical; Kirigami.FormData.label: "Critical:" }
+
+        Kirigami.Separator { Kirigami.FormData.isSection: true; Kirigami.FormData.label: "Panel Label Colors" }
+        ColorField { id: panelNormal;   Kirigami.FormData.label: "Normal:" }
+        ColorField { id: panelWarning;  Kirigami.FormData.label: "Warning:" }
+        ColorField { id: panelCritical; Kirigami.FormData.label: "Critical:" }
+
+        Kirigami.Separator { Kirigami.FormData.isSection: true; Kirigami.FormData.label: "Thresholds" }
+        QQC2.SpinBox {
+            id: warningSpin
+            Kirigami.FormData.label: "Warning (%):"
+            from: 1; to: 499
+            onValueModified: if (value >= criticalSpin.value) criticalSpin.value = value + 1
         }
-        const b64 = Qt.btoa(JSON.stringify(cfg))
-        executable.connectSource(
-            'mkdir -p "$HOME/.config/claude-usage" && ' +
-            "printf %s '" + b64 + "' | base64 -d > \"$HOME/.config/claude-usage/config.json\"")
-    }
-
-    ColumnLayout {
-        spacing: Kirigami.Units.largeSpacing
-
-        // ── Dock Icon Colors ─────────────────────────────────────────────────
-        Kirigami.FormLayout {
-            Layout.fillWidth: true
-            Kirigami.Separator { Kirigami.FormData.isSection: true; Kirigami.FormData.label: "Dock Icon Colors" }
-
-            KQuickControls.ColorButton {
-                id: cfg_weeklyColorGreen
-                Kirigami.FormData.label: "Weekly — low:"
-                color: plasmoid.configuration.weeklyColorGreen
-                onAccepted: { plasmoid.configuration.weeklyColorGreen = color.toString(); saveConfigJson() }
-            }
-            KQuickControls.ColorButton {
-                id: cfg_weeklyColorAmber
-                Kirigami.FormData.label: "Weekly — mid:"
-                color: plasmoid.configuration.weeklyColorAmber
-                onAccepted: { plasmoid.configuration.weeklyColorAmber = color.toString(); saveConfigJson() }
-            }
-            KQuickControls.ColorButton {
-                id: cfg_weeklyColorRed
-                Kirigami.FormData.label: "Weekly — high:"
-                color: plasmoid.configuration.weeklyColorRed
-                onAccepted: { plasmoid.configuration.weeklyColorRed = color.toString(); saveConfigJson() }
-            }
-            KQuickControls.ColorButton {
-                id: cfg_sonnetColor
-                Kirigami.FormData.label: "Sonnet ring:"
-                color: plasmoid.configuration.sonnetColor
-                onAccepted: { plasmoid.configuration.sonnetColor = color.toString(); saveConfigJson() }
-            }
+        QQC2.SpinBox {
+            id: criticalSpin
+            Kirigami.FormData.label: "Critical (%):"
+            from: 2; to: 500
+            onValueModified: if (value <= warningSpin.value) warningSpin.value = value - 1
         }
 
-        // ── Popup Colors ─────────────────────────────────────────────────────
-        Kirigami.FormLayout {
-            Layout.fillWidth: true
-            Kirigami.Separator { Kirigami.FormData.isSection: true; Kirigami.FormData.label: "Popup Colors" }
-
-            KQuickControls.ColorButton {
-                id: cfg_popupColorNormal
-                Kirigami.FormData.label: "Normal:"
-                color: plasmoid.configuration.popupColorNormal
-                onAccepted: { plasmoid.configuration.popupColorNormal = color.toString(); saveConfigJson() }
-            }
-            KQuickControls.ColorButton {
-                id: cfg_popupColorWarning
-                Kirigami.FormData.label: "Warning:"
-                color: plasmoid.configuration.popupColorWarning
-                onAccepted: { plasmoid.configuration.popupColorWarning = color.toString(); saveConfigJson() }
-            }
-            KQuickControls.ColorButton {
-                id: cfg_popupColorCritical
-                Kirigami.FormData.label: "Critical:"
-                color: plasmoid.configuration.popupColorCritical
-                onAccepted: { plasmoid.configuration.popupColorCritical = color.toString(); saveConfigJson() }
-            }
+        Kirigami.Separator { Kirigami.FormData.isSection: true; Kirigami.FormData.label: "Popup Font" }
+        QQC2.ComboBox {
+            id: fontCombo
+            Kirigami.FormData.label: "Font family:"
+            editable: true
+            model: Qt.fontFamilies()
+            // Reflect the loaded cfg value in the dropdown selection too.
+            Component.onCompleted: { var i = find(editText); if (i >= 0) currentIndex = i }
         }
 
-        // ── Thresholds ────────────────────────────────────────────────────────
-        Kirigami.FormLayout {
-            Layout.fillWidth: true
-            Kirigami.Separator { Kirigami.FormData.isSection: true; Kirigami.FormData.label: "Thresholds" }
-
-            QQC2.SpinBox {
-                id: cfg_thresholdWarning
-                Kirigami.FormData.label: "Warning (%):"
-                from: 1; to: 499
-                value: plasmoid.configuration.thresholdWarning
-                onValueModified: {
-                    if (value >= cfg_thresholdCritical.value)
-                        cfg_thresholdCritical.value = value + 1
-                    plasmoid.configuration.thresholdWarning = value
-                    saveConfigJson()
-                }
-            }
-            QQC2.SpinBox {
-                id: cfg_thresholdCritical
-                Kirigami.FormData.label: "Critical (%):"
-                from: 2; to: 500
-                value: plasmoid.configuration.thresholdCritical
-                onValueModified: {
-                    if (value <= cfg_thresholdWarning.value)
-                        cfg_thresholdWarning.value = value - 1
-                    plasmoid.configuration.thresholdCritical = value
-                    saveConfigJson()
-                }
-            }
-        }
-
-        // ── Font ──────────────────────────────────────────────────────────────
-        Kirigami.FormLayout {
-            Layout.fillWidth: true
-            Kirigami.Separator { Kirigami.FormData.isSection: true; Kirigami.FormData.label: "Popup Font" }
-
-            RowLayout {
-                Kirigami.FormData.label: "Font family:"
-                QQC2.Button {
-                    id: fontBtn
-                    text: plasmoid.configuration.popupFontFamily || "monospace"
-                    onClicked: fontDialog.open()
-                }
-                FontDialog {
-                    id: fontDialog
-                    title: "Choose popup font family"
-                    onAccepted: {
-                        plasmoid.configuration.popupFontFamily = selectedFont.family
-                        fontBtn.text = selectedFont.family
-                        saveConfigJson()
-                    }
-                }
-            }
-        }
-
-        // ── Sizes ─────────────────────────────────────────────────────────────
-        Kirigami.FormLayout {
-            Layout.fillWidth: true
-            Kirigami.Separator { Kirigami.FormData.isSection: true; Kirigami.FormData.label: "Sizes" }
-
-            QQC2.SpinBox {
-                Kirigami.FormData.label: "Panel icon (px):"
-                from: 8; to: 64
-                value: plasmoid.configuration.panelIconSize
-                onValueModified: plasmoid.configuration.panelIconSize = value
-            }
-            QQC2.SpinBox {
-                Kirigami.FormData.label: "Panel font (px):"
-                from: 6; to: 48
-                value: plasmoid.configuration.panelFontSize
-                onValueModified: plasmoid.configuration.panelFontSize = value
-            }
-            QQC2.SpinBox {
-                Kirigami.FormData.label: "Popup font (px):"
-                from: 6; to: 48
-                value: plasmoid.configuration.popupFontSize
-                onValueModified: plasmoid.configuration.popupFontSize = value
-            }
-            QQC2.SpinBox {
-                Kirigami.FormData.label: "Bar segments:"
-                from: 4; to: 40
-                value: plasmoid.configuration.barWidth
-                onValueModified: plasmoid.configuration.barWidth = value
-            }
-        }
-
-        // ── Panel Colors ──────────────────────────────────────────────────────
-        Kirigami.FormLayout {
-            Layout.fillWidth: true
-            Kirigami.Separator { Kirigami.FormData.isSection: true; Kirigami.FormData.label: "Panel Label Colors" }
-
-            KQuickControls.ColorButton {
-                Kirigami.FormData.label: "Normal:"
-                color: plasmoid.configuration.panelColorNormal
-                onAccepted: plasmoid.configuration.panelColorNormal = color.toString()
-            }
-            KQuickControls.ColorButton {
-                Kirigami.FormData.label: "Warning:"
-                color: plasmoid.configuration.panelColorWarning
-                onAccepted: plasmoid.configuration.panelColorWarning = color.toString()
-            }
-            KQuickControls.ColorButton {
-                Kirigami.FormData.label: "Critical:"
-                color: plasmoid.configuration.panelColorCritical
-                onAccepted: plasmoid.configuration.panelColorCritical = color.toString()
-            }
-        }
+        Kirigami.Separator { Kirigami.FormData.isSection: true; Kirigami.FormData.label: "Sizes" }
+        QQC2.SpinBox { id: panelIconSpin; Kirigami.FormData.label: "Panel icon (px):"; from: 8; to: 64 }
+        QQC2.SpinBox { id: panelFontSpin; Kirigami.FormData.label: "Panel font (px):"; from: 6; to: 48 }
+        QQC2.SpinBox { id: popupFontSpin; Kirigami.FormData.label: "Popup font (px):"; from: 6; to: 48 }
+        QQC2.SpinBox { id: barSpin;       Kirigami.FormData.label: "Bar segments:";    from: 4; to: 40 }
     }
 }
