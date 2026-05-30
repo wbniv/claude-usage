@@ -289,6 +289,11 @@ tasks:
       - rm -rf ~/.local/share/plasma/plasmoids/org.indri.claude-usage
       - echo "Plasmoid removed."
 
+  test-kde-live:
+    desc: "Verify the plasmoid live on a real Plasma 6 session (boots the Foundry ISO in QEMU). Pass ISO=path to override; defaults to newest foundry-anvil-*.iso."
+    cmds:
+      - bash scripts/test-kde-qemu.sh {{.ISO}}
+
   md:
     desc: Preview a markdown file in the browser
     cmds:

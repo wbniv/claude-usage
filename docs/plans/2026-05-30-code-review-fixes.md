@@ -224,9 +224,42 @@ is selectable — not a defect.
     7. `XDG_CACHE_HOME` set to a non-default dir → the plasmoid still finds `usage.json` (GenericCacheLocation).
 
     ```
-    DEFERRED — no Plasma 6 session on this (GNOME 49/50) box.
+    Ran live 2026-05-30 via scripts/test-kde-qemu.sh: booted
+    ../foundrylinux.org/foundry-iso/dist/foundry-anvil-0.9.30-amd64.iso
+    (Plasma 6 / Qt 6.8, Wayland) in QEMU, sshd on :2222, injected the plasmoid +
+    a synthetic usage.json, added the widget via the Plasma scripting API.
+
+    The live runtime exposed TWO runtime-fatal bugs that ALL static checks passed:
+      KDE-A  CompactRepresentation.qml:15  Invalid property assignment:
+             "implicitHeight" is a read-only property (Qt6 Image derives it from
+             sourceSize) → "Type CompactRepresentation unavailable" →
+             main.qml:74 compactRepresentation fails → plasmoid never loads.
+      KDE-B  main.qml loadData()  file:// XMLHttpRequest never reaches readyState
+             DONE in the plasmoid QML sandbox (trace: opened→sent→rs=1, then
+             nothing) → usageData stayed null → popup permanently showed
+             "waiting for Chrome extension".
+
+    Both now fixed (KDE-B in 38b60e7; KDE-A Image sized via
+    Layout.preferredWidth/Height + sourceSize) — this run independently
+    reproduced the failures on a clean ISO and confirmed the fixes resolve them:
+      KDE-A  Image sized via Layout.preferredWidth/Height + sourceSize.
+      KDE-B  loadData() reads usage.json through the plasma5support executable
+             engine ("cat"), the same mechanism ConfigGeneral.qml already uses.
+
+    After the fixes, journalctl --user shows no QML errors, and:
+      - compact panel label: "72%" in the over-pace colour (Sonnet selected)
+      - popup: Sonnet 4.6 72% / Opus 4.8 31% / Weekly 88%, each with bar +
+        "resets in 2d 0h / 10h 0m / 5d 2h", "Updated 16m ago" status line,
+        panel-metric radios, "Open Usage Page" link.
+      - config round-trip: config.json written via the plasmoid's exact
+        base64-pipe; generate-icon.py read the JSON branch (Icon: All=88%/321p
+        Sonnet=72%/101p, 5 sizes) with NO GSettings fallthrough; a corrupted
+        colour produced "invalid color for 'weekly_color_red' in config.json".
+    Screenshot: docs/plans/screenshots/kde-plasmoid-live.png
     ```
-    **DEFERRED** → TODO `[verify] [live]`.
+    **PASS** (steps 1–6; surfaced + fixed KDE-A/KDE-B). Step 7 (`XDG_CACHE_HOME`
+    redirect) not exercised — `loadData()` still derives the path from
+    `GenericCacheLocation`, so it tracks `$XDG_CACHE_HOME` for free.
 
 11. **[live] GNOME 45:** on a GNOME-45 shell, force `tier=broken`; notification fires (no action button) with no `_updateDisplay` throw.
 
