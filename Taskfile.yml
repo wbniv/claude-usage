@@ -23,6 +23,11 @@ tasks:
     cmds:
       - python3 -m pytest server/tests/ -v
 
+  test-gnome-format:
+    desc: "Unit tests for extension.js's pure popup formatters (formatRows/formatReset/bar), extracted + run under node"
+    cmds:
+      - node --test gnome-extension/test/format.test.js
+
   lint-scraper-parity:
     desc: "Parity lints for hand-synced pairs: scraper.js↔background.js inline (regex sets) and pacingPct↔pacing_pct (numeric constants)"
     cmds:
@@ -124,6 +129,7 @@ tasks:
     cmds:
       - task: test-scraper
       - task: test-validate
+      - task: test-gnome-format
       - task: lint-scraper-parity
       - task: lint-security-doc
       - task: lint-js-defaults

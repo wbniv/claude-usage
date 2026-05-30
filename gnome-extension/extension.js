@@ -211,7 +211,13 @@ function formatRows(meters, barWidth) {
             const col2 = `${pct}%`.padStart(maxCol2);
             const pre = `${label}  ${col2}  `;
             const col3 = bar(pct, barWidth);
-            const post = m.reset ? `  ${formatReset(m.reset)}` : '';
+            // A 0%/unused "Current session" has no reset string — its rolling
+            // window hasn't started — so show "(not started)" rather than a
+            // blank tail. Weekly/extra meters always carry a reset, so this
+            // only ever fires for the session bucket.
+            const post = m.reset
+                ? `  ${formatReset(m.reset)}`
+                : (pct === 0 && /session/i.test(m.label || '') ? '  (not started)' : '');
             rows.push({text: pre + col3 + post, pre, post, barWidth,
                        meter: m, isSub: false, isExtra});
         }
