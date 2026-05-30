@@ -444,6 +444,41 @@ def test_cache_reset_on_non_dict_prev():
             f'(corrupt prev={bad_prev!r})')
 
 
+def test_corrupt_nested_prev_does_not_400_loop():
+    """BASE-1 (2026-05-30 review): CM-1 only validated the cache's ROOT type.
+    A cache corrupted out-of-band with a non-dict _period_lengths, a non-list
+    meters, a meters list holding non-dict elements, or a non-int period value
+    crashed the merge (dict(non-dict) / 'str'.get() / max(int, str)). do_POST
+    caught the exception and returned 400 WITHOUT writing — so the bad cache was
+    never replaced and every subsequent POST re-crashed (a permanent loop) until
+    the file was hand-deleted. After the fix the nested shapes are sanitised and
+    the POST succeeds, replacing the corrupt cache.
+
+    `_schema in result` proves a write happened (do_POST stamps it on every
+    successful write); a crashed POST leaves the original corrupt prev on disk,
+    which has no _schema.
+    """
+    corrupt_prevs = [
+        {'_period_lengths': [1, 2]},                    # non-dict → dict([1,2]) TypeError
+        {'_period_lengths': {'A': 'not-an-int'}},       # bad value → max(int, str) TypeError
+        {'meters': 'corrupt-string'},                   # non-list → 'str'.get AttributeError
+        {'meters': ['not-a-dict']},                     # list of non-dicts → str.get AttributeError
+        {'_period_lengths': 42, 'meters': {'k': 'v'}},  # both wrong types
+    ]
+    for prev in corrupt_prevs:
+        # Status-only POST keeps prev's (corrupt) meters/_period_lengths through
+        # the {**prev, **body} merge — the exact path that used to crash.
+        result = _do_post({'_scrape_fail_count': 1}, prev_cache=prev)
+        assert '_schema' in result, (
+            f'POST must succeed (write a clean cache) against corrupt nested '
+            f'prev={prev!r}; got {result!r}')
+        assert result.get('_scrape_fail_count') == 1, (
+            f'legit body key must survive; corrupt prev={prev!r}, got {result!r}')
+        pl = result.get('_period_lengths')
+        assert pl is None or isinstance(pl, dict), (
+            f'_period_lengths must be sanitised to a dict (or dropped); got {pl!r}')
+
+
 def test_partial_post_does_not_wipe_period_lengths():
     """PL-1: a single-meter POST without _timestamp / with < 2 meters should
     NOT evict the period_lengths accumulator. Previously, any POST with

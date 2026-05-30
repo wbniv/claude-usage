@@ -15,5 +15,5 @@
         "Version": "1",
         "Website": "https://github.com/wbniv/claude-usage"
     },
-    "X-Plasma-API-Minimum-Version": "5.27"
+    "X-Plasma-API-Minimum-Version": "6.0"
 }

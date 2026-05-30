@@ -4,11 +4,22 @@ import QtQuick.Layouts
 import QtQuick.Dialogs
 import org.kde.kirigami as Kirigami
 import org.kde.kquickcontrols as KQuickControls
+import org.kde.plasma.plasma5support as Plasma5Support
 
 Kirigami.ScrollablePage {
     id: configPage
 
-    // Write config.json whenever any value changes so generate-icon.py picks it up
+    Plasma5Support.DataSource {
+        id: executable
+        engine: "executable"
+        connectedSources: []
+        onNewData: (sourceName, data) => disconnectSource(sourceName)
+    }
+
+    // Persist the dock-icon-relevant config to ~/.config/claude-usage/config.json
+    // so server/generate-icon.py picks up KDE colour/threshold/font choices.
+    // QML can't write files directly, so shell out via the executable engine;
+    // base64-pipe the payload so colour/font values can't break the command.
     function saveConfigJson() {
         const cfg = {
             weekly_color_green:   cfg_weeklyColorGreen.color.toString(),
@@ -22,12 +33,10 @@ Kirigami.ScrollablePage {
             threshold_critical:   cfg_thresholdCritical.value,
             popup_font_family:    plasmoid.configuration.popupFontFamily,
         }
-        // XHR can't write files; use plasmoid.nativeInterface if available, else skip
-        // The KConfig values are already stored by Plasma; config.json is bonus for generate-icon.py
-        // Workaround: store serialised JSON in a dummy config key for now —
-        // generate-icon.py will read KConfig via qdbus in a future iteration.
-        // For now, emit a notification so the user knows to re-run generate-icon manually.
-        console.log("claude-usage config saved:", JSON.stringify(cfg))
+        const b64 = Qt.btoa(JSON.stringify(cfg))
+        executable.connectSource(
+            'mkdir -p "$HOME/.config/claude-usage" && ' +
+            "printf %s '" + b64 + "' | base64 -d > \"$HOME/.config/claude-usage/config.json\"")
     }
 
     ColumnLayout {
@@ -141,6 +150,37 @@ Kirigami.ScrollablePage {
                         saveConfigJson()
                     }
                 }
+            }
+        }
+
+        // ── Sizes ─────────────────────────────────────────────────────────────
+        Kirigami.FormLayout {
+            Layout.fillWidth: true
+            Kirigami.Separator { Kirigami.FormData.isSection: true; Kirigami.FormData.label: "Sizes" }
+
+            QQC2.SpinBox {
+                Kirigami.FormData.label: "Panel icon (px):"
+                from: 8; to: 64
+                value: plasmoid.configuration.panelIconSize
+                onValueModified: plasmoid.configuration.panelIconSize = value
+            }
+            QQC2.SpinBox {
+                Kirigami.FormData.label: "Panel font (px):"
+                from: 6; to: 48
+                value: plasmoid.configuration.panelFontSize
+                onValueModified: plasmoid.configuration.panelFontSize = value
+            }
+            QQC2.SpinBox {
+                Kirigami.FormData.label: "Popup font (px):"
+                from: 6; to: 48
+                value: plasmoid.configuration.popupFontSize
+                onValueModified: plasmoid.configuration.popupFontSize = value
+            }
+            QQC2.SpinBox {
+                Kirigami.FormData.label: "Bar segments:"
+                from: 4; to: 40
+                value: plasmoid.configuration.barWidth
+                onValueModified: plasmoid.configuration.barWidth = value
             }
         }
 

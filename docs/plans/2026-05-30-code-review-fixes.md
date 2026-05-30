@@ -1,0 +1,213 @@
+# Code-review fixes — KDE plasmoid + diff/baseline findings
+
+## Context
+
+A max-effort code review (2026-05-29/30) covered the unreviewed wave since the
+last loop pass (`d48d593..HEAD`) **and**, by user request, a fresh deep read of
+the baseline. The headline: the **KDE Plasma plasmoid shipped completely
+non-functional** in 0.11.27 — it throws on the first line of its data-load path
+and never recovers. It slipped through because **CI has zero KDE/QML coverage**
+(only `lint-gnome` + GNOME/server tests exist).
+
+Root cause of the KDE breakage traces back to *this very plan's predecessor*
+(`2026-05-24-kde-desktop-support.md`): it specified the wrong cache-read idiom
+(`StandardPaths.HomeLocation + "/.cache/..."` with no `import QtCore`) and the
+wrong JSON schema (line 51: "fields: `meters[]`, `status`, `last_update`"). The
+implementation faithfully built the plan's wrong contract. The real server
+schema is `meters[].reset_minutes`, top-level `_period_lengths`,
+`_anthropic_status`, `_timestamp` (confirmed in `usage-server.py` /
+`scraper.js` / `extension.js`).
+
+This plan fixes the broken KDE feature, the clear diff regressions, the
+server cache-corruption gap, and adds a KDE parity lint so the class can't
+recur.
+
+---
+
+## Findings being fixed
+
+| ID | Sev | File | Bug |
+|----|-----|------|-----|
+| KDE‑1 | CRIT | `main.qml:58,73` | `StandardPaths` used with no `import QtCore` → `loadData()` throws every call → plasmoid never loads data |
+| KDE‑2 | HIGH | `main.qml`, `MeterRow.qml`, `FullRepresentation.qml` | reads `reset_ts`/`period_secs`/`status`/`last_update` — none exist (real: `reset_minutes`, `_period_lengths`, `_anthropic_status`, `_timestamp`) |
+| KDE‑3 | MED | `CompactRepresentation.qml:13` | icon path `../../icons/` one level too high → bundled icon never loads |
+| KDE‑4 | MED | `ConfigGeneral.qml:12` | `saveConfigJson()` is a `console.log`-only no-op → KDE config never reaches `generate-icon.py` |
+| KDE‑5 | LOW | `main.xml`, `metadata.json` | 4 config keys read in QML but undeclared; `X-Plasma-API-Minimum-Version 5.27` but Plasma‑6-only `PlasmoidItem` |
+| DIFF‑1 | HIGH | `extension.js:594` | GNOME 46+ notify API (`getSystemSource` + object `Notification`) but `metadata.json` declares `"45"` → throws on 45, wedges `_updateDisplay` |
+| DIFF‑2 | MED | `background.js:556` | `_last_scrape_ts` only written on success-with-meters → empty-meters return skips it → idle/auto debounce defeated when logged out |
+| DIFF‑3 | MED | `background.js:645` | removing `tabs` perm defeats the TC‑1 `chrome-error://` guard (host_permissions doesn't cover that origin) |
+| DIFF‑4 | MED | `generate-icon.py:78` | new `config.json` reader validates colours but not thresholds → non-int → `int >= str` TypeError → icon gen aborts |
+| BASE‑1 | MED | `usage-server.py:393,411,416` | CM‑1 guard validates only root dict; corrupt nested `prev` (`_period_lengths`/`meters`) → crash → 400, no write → permanent loop |
+
+**Deferred** (logged in TODO, not in this pass — lows / need live runtime):
+BASE‑2 offline-buffer flush ordering (MED, MV3), BASE‑3 created-tab persist
+gap, BASE‑4 tooltip `0:90` rollover, BASE‑5 icon float-pct / alpha / 'all'-ring
+divergences, BASE‑6 future-timestamp age. KDE‑2's deeper "generate the QML from
+a shared source" dedup is also deferred — the parity lint below is the interim
+guard.
+
+---
+
+## Implementation
+
+### 1. KDE‑1 — `main.qml` imports + cache path
+- Add `import QtCore` (defines the `StandardPaths` singleton, Qt 6.2+).
+- Rewrite `loadData()` to use `StandardPaths.GenericCacheLocation` (= `$XDG_CACHE_HOME` or `~/.cache`, **no** app-name suffix — matches where `usage-server.py` writes), normalise url-vs-path, drop the dead `const path`.
+
+### 2. KDE‑2 — real schema fields
+- `main.qml`: single `pacingFraction(meter)` mirroring `extension.js:pacingPct` exactly — `reset_minutes` + `usageData._period_lengths[label]` (minutes), floor `max(15, period*0.05)`. Collapse `pacingColor`/`popupPacingColor` into one `pacingColor(meter, cNormal, cWarn, cCrit)` helper (also fixes the duplication finding).
+- `MeterRow.qml`: reset countdown from `meter.reset_minutes` (minutes), not `reset_ts`.
+- `FullRepresentation.qml`: status from `_anthropic_status` (`.indicator`/`.claude_ai_component_status`); age from `_timestamp` (epoch-s).
+
+### 3. KDE‑3 — icon path
+- `CompactRepresentation.qml:13` `../../icons/claude-22.png` → `../icons/claude-22.png`.
+
+### 4. KDE‑5 — config schema + min version
+- `main.xml`: add `barWidth`(10), `panelFontSize`(11), `popupFontSize`(10), `panelIconSize`(16) — defaults matching the gschema.
+- `ConfigGeneral.qml`: add a "Sizes" section (SpinBoxes) so they're user-settable.
+- `metadata.json`: `X-Plasma-API-Minimum-Version` `5.27` → `6.0`.
+
+### 5. KDE‑4 — write `config.json` for real
+- `ConfigGeneral.qml`: `saveConfigJson()` writes `~/.config/claude-usage/config.json` via `Plasma5Support.DataSource{engine:"executable"}`, base64-piped (injection-safe) — matches the predecessor plan's intent (its line 77).
+
+### 6. DIFF‑1 — GNOME 45 notify fallback
+- `extension.js`: feature-detect `typeof MessageTray.getSystemSource === 'function'`; on older shells fall back to `Main.notify('Claude Usage', body)` (no action button, but no throw). Restores declared 45 support.
+
+### 7. DIFF‑2 — debounce hole
+- `background.js`: move the `_last_scrape_ts` write to right after the scrape executes (`const data = result?.result;`), **before** the empty-meters early return, so a persistently-failing scrape still debounces.
+
+### 8. DIFF‑3 — error-page guard without `tabs`
+- `background.js`: add a one-shot `chrome.webNavigation.onErrorOccurred` listener (frame 0, host `claude.ai`) inside the created-tab load-wait Promise that rejects on nav failure — independent of `tab.url` visibility.
+
+### 9. DIFF‑4 — config threshold validation
+- `generate-icon.py:load_config()`: coerce `threshold_warning`/`threshold_critical` to `int` in the `config.json` branch (mirroring the colour validation); fall back to defaults on bad values.
+
+### 10. BASE‑1 — server corrupt-cache hardening
+- `usage-server.py`: after the CM‑1 root-dict check, sanitise `prev`'s nested shapes — drop a non-dict `_period_lengths`, filter its entries to `{str:int}`, drop a non-list `meters`, filter to dict elements. Add a regression test.
+
+### 11. KDE parity lint
+- `scripts/lint-kde-parity.py`: (a) any `kde-plasmoid` QML referencing `StandardPaths` must `import QtCore`; (b) `meter.<field>` / `usageData.<field>` reads must be in the known `usage.json` allowlist; (c) `main.xml` colour/threshold defaults must equal the gschema. Wire into `Taskfile` `test`.
+
+---
+
+## Critical files
+
+| File | Action |
+|------|--------|
+| `kde-plasmoid/contents/ui/main.qml` | import QtCore; rewrite loadData; dedupe pacing on real fields |
+| `kde-plasmoid/contents/ui/MeterRow.qml` | reset countdown from reset_minutes |
+| `kde-plasmoid/contents/ui/FullRepresentation.qml` | _anthropic_status / _timestamp |
+| `kde-plasmoid/contents/ui/CompactRepresentation.qml` | icon path `../icons/` |
+| `kde-plasmoid/contents/config/main.xml` | add barWidth/panelFontSize/popupFontSize/panelIconSize |
+| `kde-plasmoid/contents/ui/config/ConfigGeneral.qml` | real config.json write; Sizes section |
+| `kde-plasmoid/metadata.json` | min API 6.0 |
+| `gnome-extension/extension.js` | GNOME-45 notify feature-detect |
+| `chrome-extension/background.js` | _last_scrape_ts move; webNavigation error guard |
+| `server/generate-icon.py` | threshold validation in config.json branch |
+| `server/usage-server.py` | sanitise prev nested shapes |
+| `server/tests/test_validate.py` | corrupt-cache regression test |
+| `scripts/lint-kde-parity.py` | new lint |
+| `Taskfile.yml` | wire lint-kde-parity into `test` |
+
+---
+
+## Verification
+
+> Static/automated only — a live Plasma session and a live Chrome profile are
+> not available on this (GNOME) box. Steps needing live KDE/Chrome are marked
+> **[live]** and deferred to target hardware; everything else runs here.
+
+1. **KDE‑1 import present:** `grep -L 'import QtCore' kde-plasmoid/contents/ui/main.qml` returns nothing (file has the import).
+
+   ```
+   >>> PASS: import present
+   ```
+   **PASS**
+
+2. **KDE‑2 no phantom fields:** `grep -REn 'reset_ts|period_secs|usageData\.status|last_update' kde-plasmoid/` returns nothing.
+
+   ```
+   >>> PASS: none found
+   ```
+   **PASS** (also caught `popupPacingColor` leftover — none).
+
+3. **KDE parity lint passes:** `python3 scripts/lint-kde-parity.py` → exit 0, reports import + field + default parity OK.
+
+   ```
+   lint-kde-parity: OK (6 QML files clean, 18 config keys match the gschema)
+   exit=0
+   ```
+   Negative test — a planted bad QML (StandardPaths w/o import + `meter.reset_ts` + `usageData.last_update`) is rejected:
+   ```
+   lint-kde-parity: …: uses StandardPaths but imports neither QtCore nor Qt.labs.platform …
+   lint-kde-parity: …:5: meter.reset_ts is not a known usage.json field …
+   lint-kde-parity: …:5: usageData.last_update is not a known usage.json field …
+   lint-kde-parity: FAIL (3 issue(s))   exit=1
+   ```
+   **PASS** (guards KDE‑1/2/5; fails on regression).
+
+4. **KDE‑3 icon path resolves:** the path in `CompactRepresentation.qml` resolves to an existing file (`contents/icons/claude-22.png`).
+
+   ```
+   >>> PASS: ../icons/ + file exists
+   ```
+   **PASS**
+
+5. **GNOME extension syntax + lint:** `task lint-gnome` passes; `extension.js` has the `getSystemSource` feature-detect.
+
+   ```
+   lint-gnome: syntax OK
+   lint-gnome: PRESENT  getSystemSource / isTransient / addAction(label, callback) / launch_default_for_uri
+   lint-gnome: all API symbols verified
+   ```
+   **PASS** (note: `lint-gnome` checks the *dev box's* libshell — the 46+ symbols are present here; the GNOME‑45 fallback is feature-detected at runtime, step 11).
+
+6. **Chrome JS syntax:** `node --check chrome-extension/background.js && node --check gnome-extension/extension.js` → OK.
+
+   ```
+   background.js OK
+   extension.js OK
+   ```
+   **PASS** (background.js load-time invariants test also green — see step 9).
+
+7. **DIFF‑4 threshold validation:** a `config.json` with `"threshold_critical":"high"` no longer crashes `ring_color` (repro returns default, prints a warning).
+
+   ```
+   warning: invalid 'threshold_warning' in config.json, using default
+   warning: invalid 'threshold_critical' in config.json, using default
+   coerced thresholds: 70 90
+   ring_color(95) => (1.0, 0.349…, 0.2, 1.0) (no TypeError = PASS)
+   ```
+   **PASS**
+
+8. **BASE‑1 corrupt cache no longer loops:** the merge-step repro with a non-dict `_period_lengths` / non-list `meters` returns OK (sanitised), not a crash.
+
+   ```
+   server/tests/test_validate.py::test_corrupt_nested_prev_does_not_400_loop  1 passed in 0.05s
+   ```
+   **PASS** (5 corruption shapes; each POST now writes a clean cache instead of 400-looping).
+
+9. **Full suite green:** `task test` → all unit tests + parity/security lints pass.
+
+   ```
+   # tests 51 / # pass 51 / # fail 0        (test-scraper: scraper + background load-smoke)
+   99 passed in 0.06s                       (test-validate: server pytest, was 98 + BASE-1)
+   lint-scraper-parity / lint-anchor-strings / lint-pacing-parity ×4 / lint-pair-inventory: OK
+   lint-security-doc: OK   lint-js-defaults: in sync   lint-kde-parity: OK   lint-gnome: verified
+   task test: ALL PASS (exit 0)
+   ```
+   **PASS**
+
+10. **[live] KDE plasmoid loads:** `task kde-install`; add widget; `journalctl --user` shows no QML errors; panel shows `%`, popup shows meters + reset + status/age; config round-trip writes `~/.config/claude-usage/config.json`.
+
+    ```
+    DEFERRED — no Plasma session on this (GNOME) box.
+    ```
+    **DEFERRED** → TODO `[verify] [live]`. Static guards (steps 1–4) cover the field/import/path classes; the executable-engine config write and live rendering need real Plasma 6.
+
+11. **[live] GNOME 45:** on a GNOME-45 shell, force `tier=broken`; notification fires (no action button) with no `_updateDisplay` throw.
+
+    ```
+    DEFERRED — dev box is GNOME 49/50.
+    ```
+    **DEFERRED** → TODO `[verify] [live]`. Feature-detect logic verified by reading; runtime throw-path needs a real GNOME-45 shell.

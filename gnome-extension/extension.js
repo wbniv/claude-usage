@@ -591,17 +591,33 @@ class ClaudeIndicator extends PanelMenu.Button {
             if (tier === 'broken') {
                 const now = Date.now();
                 if (now - (this._lastNotifyTs || 0) > 5 * 60 * 1000) {
-                    const _src = MessageTray.getSystemSource();
-                    const _notif = new MessageTray.Notification({
-                        source: _src,
-                        title: 'Claude Usage',
-                        body: reason || 'Service disruption detected',
-                        isTransient: true,
-                    });
-                    _notif.addAction('View Status Page', () => {
-                        Gio.AppInfo.launch_default_for_uri(STATUS_URL, null);
-                    });
-                    _src.addNotification(_notif);
+                    // DIFF-1 (2026-05-30 review): getSystemSource() and the
+                    // object-form Notification ctor are GNOME 46+. metadata.json
+                    // still declares "45", where the old code threw — wedging
+                    // _updateDisplay every tick (no icon regen, no meter render).
+                    // Feature-detect for the rich (action-button) path; fall back
+                    // to a plain Main.notify on 45. The try/catch is belt-and-
+                    // suspenders so a notify failure can never again skip the
+                    // _lastNotifyTs/_spawnIconRegen/_lastTier tail below.
+                    try {
+                        if (typeof MessageTray.getSystemSource === 'function') {
+                            const _src = MessageTray.getSystemSource();
+                            const _notif = new MessageTray.Notification({
+                                source: _src,
+                                title: 'Claude Usage',
+                                body: reason || 'Service disruption detected',
+                                isTransient: true,
+                            });
+                            _notif.addAction('View Status Page', () => {
+                                Gio.AppInfo.launch_default_for_uri(STATUS_URL, null);
+                            });
+                            _src.addNotification(_notif);
+                        } else {
+                            Main.notify('Claude Usage', reason || 'Service disruption detected');
+                        }
+                    } catch (e) {
+                        console.warn('claude-usage: notification failed:', e.message);
+                    }
                     this._lastNotifyTs = now;
                     try { GLib.file_set_contents(NOTIF_TS_FILE, String(now)); } catch (_) {}
                 }

@@ -474,6 +474,13 @@ async function scrapeAndPost(tabId) {
 
   const data = result?.result;
 
+  // DIFF-2 (2026-05-30 review): stamp the scrape time as soon as the scrape
+  // executes — BEFORE the empty-meters early return below — so a persistently
+  // failing scrape (logged out, or a claude.ai DOM change → zero meters) still
+  // debounces idle-wake and auto-scrape. Previously this ran only on the
+  // success path, so a logged-out user re-scraped on every screen unlock.
+  await chrome.storage.local.set({ _last_scrape_ts: Date.now() });
+
   // Fetch Anthropic's status page in parallel — included in every POST
   // (full or partial) so the GNOME extension can flag confirmed outages.
   const anthropic_status = await fetchAnthropicStatus();
@@ -551,9 +558,6 @@ async function scrapeAndPost(tabId) {
     await chrome.storage.local.set({ claude_usage: { ...data, _buffered_at: Date.now() } });
   }
 
-  // Record successful scrape time so the auto-scrape listener can
-  // debounce repeated fires (page reload, multiple tabs, etc.).
-  await chrome.storage.local.set({ _last_scrape_ts: Date.now() });
 }
 
 async function fetchUsage() {
@@ -628,20 +632,24 @@ async function fetchUsage() {
       await chrome.storage.local.set({ _scrape_tabs: [scrapeTabId] });
 
       await new Promise((resolve, reject) => {
-        // Lifted to a const so both the timeout and the listener body can
-        // reference it. Named-function-expression scoping rules would otherwise
-        // leave `listener` undefined inside the setTimeout closure.
+        // Lifted to consts so the timeout, the load listener, and the
+        // navigation-error listener can all reference each other.
+        const cleanup = () => {
+          chrome.tabs.onUpdated.removeListener(listener);
+          chrome.webNavigation.onErrorOccurred.removeListener(errListener);
+          clearTimeout(timeout);
+        };
         const listener = (tabId, info, tab) => {
           if (tabId !== createdTab.id) return;
           if (info.status === 'complete') {
-            chrome.tabs.onUpdated.removeListener(listener);
-            clearTimeout(timeout);
+            cleanup();
             // TC-1 (pass-26): error pages (502, DNS failure, corporate proxy)
-            // also fire status='complete'. Without this check the scraper runs
-            // against the error DOM, finds nothing, and produces a mysterious
-            // empty-meters POST with no diagnostic. Reject so the caller's
-            // catch block surfaces "navigation failed: chrome-error://…"
-            // instead of a silent scrape-fail-count increment.
+            // also fire status='complete'. The onErrorOccurred listener below
+            // is the primary guard; this URL check is a cheap belt-and-
+            // suspenders. DIFF-3 (2026-05-30 review): tab.url is hidden for the
+            // chrome-error:// origin now that the broad 'tabs' permission is
+            // gone (host_permissions doesn't cover it), so the URL check alone
+            // can no longer detect a failed nav.
             const url = tab?.url || '';
             if (url.startsWith('chrome-error://') || url.startsWith('chrome://')) {
               reject(new Error(`navigation failed: ${url}`));
@@ -650,11 +658,21 @@ async function fetchUsage() {
             resolve();
           }
         };
+        // DIFF-3 (2026-05-30 review): detect navigation failure directly via
+        // webNavigation (an already-granted permission), independent of whether
+        // tab.url is exposed. Main frame (frameId 0) on a claude.ai navigation.
+        const errListener = (details) => {
+          if (details.tabId !== createdTab.id || details.frameId !== 0) return;
+          cleanup();
+          reject(new Error(`navigation failed: ${details.error || 'unknown'}`));
+        };
         const timeout = setTimeout(() => {
-          chrome.tabs.onUpdated.removeListener(listener);
+          cleanup();
           reject(new Error('tab load timeout'));
         }, 30_000);
         chrome.tabs.onUpdated.addListener(listener);
+        chrome.webNavigation.onErrorOccurred.addListener(
+          errListener, { url: [{ hostEquals: 'claude.ai' }] });
       });
     }
 

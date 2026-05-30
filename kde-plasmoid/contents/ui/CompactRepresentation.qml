@@ -10,7 +10,7 @@ RowLayout {
     // Icon
     Image {
         id: icon
-        source: Qt.resolvedUrl("../../icons/claude-22.png")
+        source: Qt.resolvedUrl("../icons/claude-22.png")
         implicitWidth: Plasmoid.configuration.panelIconSize || 16
         implicitHeight: implicitWidth
         Layout.alignment: Qt.AlignVCenter
@@ -33,7 +33,10 @@ RowLayout {
             const m = root.currentMeter()
             return m ? Math.round(m.pct) + "%" : "—"
         }
-        color: root.pacingColor(root.currentMeter())
+        color: root.pacingColor(root.currentMeter(),
+                                Plasmoid.configuration.panelColorNormal,
+                                Plasmoid.configuration.panelColorWarning,
+                                Plasmoid.configuration.panelColorCritical)
         font.pixelSize: Plasmoid.configuration.panelFontSize || 11
     }
 }

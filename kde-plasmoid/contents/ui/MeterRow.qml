@@ -47,13 +47,14 @@ ColumnLayout {
 
         PlasmaComponents3.Label {
             text: {
-                if (!meter || !meter.reset_ts) return ""
-                const now = Date.now() / 1000
-                const secsLeft = meter.reset_ts - now
-                if (secsLeft <= 0) return " resets soon"
-                const d = Math.floor(secsLeft / 86400)
-                const h = Math.floor((secsLeft % 86400) / 3600)
-                const m = Math.floor((secsLeft % 3600) / 60)
+                // reset_minutes = minutes-from-now snapshot (server schema);
+                // refreshed each 30 s poll, so a coarse d/h/m display is fine.
+                if (!meter || meter.reset_minutes === undefined || meter.reset_minutes === null) return ""
+                const total = meter.reset_minutes
+                if (total <= 0) return " resets soon"
+                const d = Math.floor(total / 1440)
+                const h = Math.floor((total % 1440) / 60)
+                const m = Math.floor(total % 60)
                 if (d > 0) return " resets in " + d + "d " + h + "h"
                 if (h > 0) return " resets in " + h + "h " + m + "m"
                 return " resets in " + m + "m"

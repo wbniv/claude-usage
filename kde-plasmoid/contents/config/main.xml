@@ -53,6 +53,19 @@
         <entry name="popupFontFamily" type="String">
             <default>monospace</default>
         </entry>
+        <!-- Sizes (defaults match the gschema: bar-width, panel/popup font, panel icon) -->
+        <entry name="barWidth" type="Int">
+            <default>10</default>
+        </entry>
+        <entry name="panelFontSize" type="Int">
+            <default>11</default>
+        </entry>
+        <entry name="popupFontSize" type="Int">
+            <default>10</default>
+        </entry>
+        <entry name="panelIconSize" type="Int">
+            <default>16</default>
+        </entry>
         <!-- Panel metric selection (empty = auto) -->
         <entry name="panelMetric" type="String">
             <default></default>

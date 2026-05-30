@@ -17,11 +17,13 @@ ColumnLayout {
         Layout.fillWidth: true
         text: {
             if (!root.usageData) return "No data — waiting for Chrome extension"
-            if (root.usageData.status && root.usageData.status !== "ok")
+            // Real server schema: _anthropic_status (object) + _timestamp (epoch-s).
+            const astat = root.usageData._anthropic_status
+            if (astat && ((astat.indicator && astat.indicator !== "none") ||
+                (astat.claude_ai_component_status && astat.claude_ai_component_status !== "operational")))
                 return "⚠ Anthropic service degraded"
-            if (root.usageData.last_update) {
-                const ageSecs = Date.now() / 1000 - root.usageData.last_update
-                const ageMin = Math.round(ageSecs / 60)
+            if (root.usageData._timestamp) {
+                const ageMin = Math.round((Date.now() / 1000 - root.usageData._timestamp) / 60)
                 return "Updated " + (ageMin < 1 ? "just now" : ageMin + "m ago")
             }
             return ""
@@ -40,7 +42,10 @@ ColumnLayout {
         MeterRow {
             Layout.fillWidth: true
             meter: modelData
-            meterColor: root.popupPacingColor(modelData)
+            meterColor: root.pacingColor(modelData,
+                                         Plasmoid.configuration.popupColorNormal,
+                                         Plasmoid.configuration.popupColorWarning,
+                                         Plasmoid.configuration.popupColorCritical)
             barWidth: Plasmoid.configuration.barWidth || 10
             fontFamily: Plasmoid.configuration.popupFontFamily || "monospace"
             fontSize: Plasmoid.configuration.popupFontSize || 10

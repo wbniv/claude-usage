@@ -4,6 +4,10 @@
 
 ## Fixes
 
+- [ ] **2026-05-30** Code-review fixes — KDE plasmoid shipped non-functional (KDE‑1 `StandardPaths` no `import QtCore`; KDE‑2 reads phantom `reset_ts`/`period_secs`/`status`/`last_update` vs real `reset_minutes`/`_period_lengths`/`_anthropic_status`/`_timestamp`; KDE‑3 icon path `../../`; KDE‑4 `saveConfigJson` no-op; KDE‑5 undeclared keys + Plasma‑6 min ver) + DIFF‑1 GNOME‑45 notify throw + DIFF‑2 `_last_scrape_ts` debounce hole + DIFF‑3 `tabs`-removal vs chrome-error guard + DIFF‑4 `config.json` threshold TypeError + BASE‑1 server corrupt-cache 400-loop + new `lint-kde-parity` — [plan](docs/plans/2026-05-30-code-review-fixes.md)
+- [ ] **2026-05-30** [verify] **[live]** KDE plasmoid on real Plasma 6 + GNOME‑45 notify fallback — steps 10–11 of [plan](docs/plans/2026-05-30-code-review-fixes.md) (no Plasma/Chrome runtime on the dev box; static checks done in-pass)
+- [ ] **2026-05-30** Deferred review findings — BASE‑2 offline-buffer flush has no `_timestamp` ordering (stale buffer overwrites newer cache; MV3) · BASE‑3 created-tab persisted to `_scrape_tabs` after `tabs.create` (SW-death leak) · BASE‑4 `tooltip.py` static min-only branch renders `0:90` (no 60-rollover) · BASE‑5 `generate-icon.py` float-pct rejected vs JS accepted / 8-digit-hex alpha dropped / dock ring hardwired to `all` meter · BASE‑6 future `_timestamp` → negative age never escalates · KDE‑2 deep dedup (generate plasmoid QML from a shared source) — [review](docs/plans/2026-05-30-code-review-fixes.md)
+
 - [ ] **2026-05-22** Add pre-flight dep checks in `install.sh` (`glib-compile-schemas` hard-fail, `systemctl --user` hard-fail, `gnome-shell` 45–50 warn) + relabel MANUAL.md Option B "From source" → "From a clone" + add Option C `curl | bash` one-liner — [plan](docs/plans/2026-05-22-curlbash-installer.md)
 
 ## Deferred

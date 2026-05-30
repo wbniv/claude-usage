@@ -359,6 +359,29 @@ class Handler(BaseHTTPRequestHandler):
                                   f"(got {type(prev).__name__}); resetting",
                                   file=sys.stderr, flush=True)
                             prev = {}
+                        else:
+                            # CM-1 follow-up (2026-05-30 review): the root-dict
+                            # check isn't enough — the merge below trusts the
+                            # SHAPE of prev's nested fields. A cache corrupted
+                            # out-of-band (hand-edit, bit-rot, older writer) with
+                            # a non-dict _period_lengths or non-list meters
+                            # crashed every POST in a permanent 400 loop (the
+                            # crash skips the write, so the bad cache is never
+                            # replaced). Coerce the two fields the merge reads.
+                            _pl = prev.get('_period_lengths')
+                            if isinstance(_pl, dict):
+                                prev['_period_lengths'] = {
+                                    k: v for k, v in _pl.items()
+                                    if isinstance(k, str) and isinstance(v, int)
+                                    and not isinstance(v, bool)
+                                }
+                            elif _pl is not None:
+                                prev.pop('_period_lengths', None)
+                            _m = prev.get('meters')
+                            if isinstance(_m, list):
+                                prev['meters'] = [x for x in _m if isinstance(x, dict)]
+                            elif _m is not None:
+                                prev.pop('meters', None)
                     except Exception:
                         pass
 

@@ -85,6 +85,17 @@ def load_config():
                     print(f"warning: invalid color for {key!r} in config.json, using default",
                           file=sys.stderr, flush=True)
                     cfg[key] = DEFAULTS[key]
+            # DIFF-4 (2026-05-30 review): thresholds must be ints. The GSettings
+            # path gets that for free from get_uint(), but config.json values are
+            # trusted verbatim — a non-int (e.g. "high") would raise TypeError in
+            # ring_color's `pct >= cfg[...]` and abort every icon render.
+            for key in ('threshold_warning', 'threshold_critical'):
+                try:
+                    cfg[key] = int(cfg[key])
+                except (TypeError, ValueError):
+                    print(f"warning: invalid {key!r} in config.json, using default",
+                          file=sys.stderr, flush=True)
+                    cfg[key] = DEFAULTS[key]
             return cfg
         except Exception as e:
             print(f"warning: config.json load failed ({e}); falling through to GSettings",

@@ -43,6 +43,11 @@ tasks:
     cmds:
       - python3 scripts/gen-js-defaults.py --check
 
+  lint-kde-parity:
+    desc: "KDE plasmoid lints: StandardPaths import, usage.json field allowlist, main.xml↔gschema default parity"
+    cmds:
+      - python3 scripts/lint-kde-parity.py
+
   lint-gnome:
     desc: "Static checks for gnome-extension/extension.js: JS syntax + GNOME Shell API symbol verification against the installed libshell binary"
     cmds:
@@ -81,6 +86,7 @@ tasks:
       - task: lint-scraper-parity
       - task: lint-security-doc
       - task: lint-js-defaults
+      - task: lint-kde-parity
       - task: lint-gnome
 
   build:
