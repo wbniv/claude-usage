@@ -5,6 +5,7 @@ Closes pass-17 T-1 partially. Passes 14–16 found real bugs in derive_tier
 (threshold boundaries). The regression net was missing.
 """
 import importlib.util
+import json
 import os
 import sys
 import tempfile
@@ -144,6 +145,24 @@ def test_hex_to_rgba_eight_digit_alpha(g):
 
 def test_hex_to_rgba_six_digit_stays_opaque(g):
     assert g.hex_to_rgba('#4dbfff')[3] == 1.0
+
+
+def test_config_json_non_int_threshold_coerced(g, tmp_path, monkeypatch):
+    # DIFF-4 (2026-05-30 review): a non-int threshold in config.json must be
+    # coerced to the default, not flow into ring_color's numeric comparison
+    # (which was `int >= str` → TypeError, aborting every icon render). The
+    # GSettings path is immune (get_uint); only the JSON path needed the guard.
+    cfgdir = tmp_path / 'claude-usage'
+    cfgdir.mkdir()
+    (cfgdir / 'config.json').write_text(json.dumps({
+        'threshold_warning': 'low', 'threshold_critical': 'high',
+        'weekly_color_red': '#ff5933',
+    }))
+    monkeypatch.setenv('XDG_CONFIG_HOME', str(tmp_path))
+    cfg = g.load_config()
+    assert isinstance(cfg['threshold_warning'], int)
+    assert isinstance(cfg['threshold_critical'], int)
+    g.ring_color(95, cfg)  # must not raise (was TypeError)
 
 
 def test_hex_to_rgba_with_hash(g):

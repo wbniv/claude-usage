@@ -4,7 +4,7 @@
 
 ## Fixes
 
-- [ ] **2026-05-30** [verify] **[live]** KDE plasmoid on real Plasma 6 + GNOME‑45 notify fallback — step 10–11 checklist in [plan](docs/plans/2026-05-30-code-review-fixes.md) (no Plasma/Chrome runtime on the dev box; all static drift classes now lint-covered)
+- [ ] **2026-05-30** [verify] **[live]** Remaining: GNOME‑45 notify fallback (needs a 45 box) + run `test-gnome` in CI (gaps 3–4 in [plan](docs/plans/2026-05-30-code-review-fixes.md)). **KDE DONE** — live-verified on Plasma 6: `file://` XHR hangs at readyState 1 in the plasmoid sandbox, so `loadData()` switched to the executable engine (`cat`); Qt6 read-only `implicitWidth` fixed; screenshot `docs/plans/screenshots/kde-plasmoid-live.png`.
 
 - [ ] **2026-05-22** Add pre-flight dep checks in `install.sh` (`glib-compile-schemas` hard-fail, `systemctl --user` hard-fail, `gnome-shell` 45–50 warn) + relabel MANUAL.md Option B "From source" → "From a clone" + add Option C `curl | bash` one-liner — [plan](docs/plans/2026-05-22-curlbash-installer.md)
 

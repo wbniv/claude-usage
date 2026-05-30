@@ -48,6 +48,11 @@ jobs:
       - name: Install pytest
         run: python3 -m pip install --user pytest
 
+      - name: Install qmllint (for the lint-qml gate)
+        # Provides /usr/lib/qt6/bin/qmllint so `task test`'s lint-qml runs in CI
+        # instead of skipping. 2026-05-30 review, gap 1.
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends qt6-declarative-dev-tools
+
       - name: Run all tests + parity lints
         # Was two separate steps (test-scraper + test-validate). The aggregate
         # `task test` now also runs `lint-scraper-parity` (which covers the

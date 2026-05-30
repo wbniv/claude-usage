@@ -48,6 +48,30 @@ tasks:
     cmds:
       - python3 scripts/lint-kde-parity.py
 
+  lint-qml:
+    desc: "qmllint syntax/structural gate for the KDE plasmoid (skips if qmllint absent; deep type checks need the Plasma QML modules)"
+    cmds:
+      - |
+        set -euo pipefail
+        qmllint=$(command -v qmllint || command -v qmllint-qt6 || true)
+        if [ -z "$qmllint" ] && [ -x /usr/lib/qt6/bin/qmllint ]; then qmllint=/usr/lib/qt6/bin/qmllint; fi
+        if [ -z "$qmllint" ]; then
+          echo "lint-qml: qmllint not found — skipping (install qt6-declarative-dev-tools to enable)"
+          exit 0
+        fi
+        # The Plasma QML modules (org.kde.plasma.*, Kirigami) are not assumed
+        # present, so their unresolved-type / import / unqualified cascade is
+        # disabled: this is a SYNTAX/structural gate. Semantic regressions
+        # (StandardPaths-without-import, phantom fields, default drift) are
+        # covered by scripts/lint-kde-parity.py. Full type-checking needs the
+        # Plasma QML modules installed (a KDE box / future test-kde image).
+        files=$(find kde-plasmoid/contents -name '*.qml' | sort)
+        "$qmllint" --max-warnings 0 \
+          --import disable --unqualified disable --unresolved-type disable \
+          --missing-property disable --unused-imports disable \
+          $files
+        echo "lint-qml: OK ($(echo "$files" | grep -c . ) QML files parse cleanly)"
+
   lint-gnome:
     desc: "Static checks for gnome-extension/extension.js: JS syntax + GNOME Shell API symbol verification against the installed libshell binary"
     cmds:
@@ -77,6 +101,23 @@ tasks:
         check 'addAction(label, callback)'
         check 'launch_default_for_uri'
         $ok && echo "lint-gnome: all API symbols verified"
+      - |
+        set -euo pipefail
+        # Source guards for fixes in extension.js (no unit-test harness exists —
+        # gjs `resource:///` imports can't be loaded under node). These assert
+        # the 2026-05-30 review fixes can't be silently removed.
+        ext=gnome-extension/extension.js
+        fail=0
+        # DIFF-1: broken-tier notify must keep the GNOME-45 fallback.
+        grep -qF "typeof MessageTray.getSystemSource === 'function'" "$ext" \
+          || { echo "lint-gnome: MISSING getSystemSource feature-detect (DIFF-1 regression)" >&2; fail=1; }
+        grep -qF "Main.notify('Claude Usage', reason" "$ext" \
+          || { echo "lint-gnome: MISSING Main.notify GNOME-45 fallback (DIFF-1 regression)" >&2; fail=1; }
+        # BASE-6a: panel age must be clamped >= 0 (future _timestamp).
+        grep -qF "Math.max(0, Math.round((Date.now() / 1000 - d._timestamp)" "$ext" \
+          || { echo "lint-gnome: MISSING age>=0 clamp (BASE-6a regression)" >&2; fail=1; }
+        [ "$fail" -eq 0 ] && echo "lint-gnome: extension.js source guards OK (DIFF-1, BASE-6a)"
+        exit "$fail"
 
   test:
     desc: Run all unit tests + parity/security lints
@@ -87,6 +128,7 @@ tasks:
       - task: lint-security-doc
       - task: lint-js-defaults
       - task: lint-kde-parity
+      - task: lint-qml
       - task: lint-gnome
 
   build:

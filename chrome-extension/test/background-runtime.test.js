@@ -22,7 +22,9 @@ const SRC = readFileSync(join(__dirname, '..', 'background.js'), 'utf8');
 // Run background.js in a fresh context with a stateful storage mock and a
 // stubbed server. `postOk` toggles the /update POST outcome. The server port
 // is pre-seeded fresh so getServerUrl() returns it without probing.
-function makeContext({ store = {}, postOk = true, orphans = [], reusable = [] } = {}) {
+function makeContext({ store = {}, postOk = true, orphans = [], reusable = [],
+                      scrapeMeters = [{ pct: 5, label: 'Current session', reset_minutes: 100 }],
+                      navError = false } = {}) {
   const storage = { serverPort: { port: 7331, cachedAt: Date.now() }, ...store };
   const local = {
     get: async (keys) => {
@@ -41,6 +43,7 @@ function makeContext({ store = {}, postOk = true, orphans = [], reusable = [] } 
   const noop = () => {};
   const listener = { addListener: noop, removeListener: noop };
   const removeCalls = [];
+  const meta = { executeScriptCalls: 0 };
   const updateResp = {
     ok: postOk, status: postOk ? 200 : 503,
     headers: { get: (k) => (k === 'x-claude-usage-server' ? '1.0.0' : null) },
@@ -60,12 +63,19 @@ function makeContext({ store = {}, postOk = true, orphans = [], reusable = [] } 
         remove: async (id) => { removeCalls.push(id); },
         onUpdated: listener, onActivated: listener,
       },
-      webNavigation: { onCompleted: listener, onHistoryStateUpdated: listener, onErrorOccurred: listener },
+      webNavigation: {
+        onCompleted: listener, onHistoryStateUpdated: listener,
+        // navError: fire the error callback the instant the load-wait registers
+        // it, so the created-tab Promise rejects (exercises the DIFF-3 guard).
+        onErrorOccurred: navError
+          ? { addListener: (cb) => cb({ tabId: 1, frameId: 0, error: 'net::ERR_TEST' }), removeListener: noop }
+          : listener,
+      },
       scripting: {
-        executeScript: async () => [{ result: {
-          meters: [{ pct: 5, label: 'Current session', reset_minutes: 100 }],
-          plan: 'Pro', _timestamp: 999,
-        } }],
+        executeScript: async () => {
+          meta.executeScriptCalls++;
+          return [{ result: { meters: scrapeMeters, plan: 'Pro', _timestamp: 999 } }];
+        },
       },
       idle: { onStateChanged: listener },
     },
@@ -86,7 +96,7 @@ function makeContext({ store = {}, postOk = true, orphans = [], reusable = [] } 
   };
   vm.createContext(context);
   vm.runInContext(SRC, context, { filename: 'background.js' });
-  return { context, storage, removeCalls };
+  return { context, storage, removeCalls, meta };
 }
 
 describe('background.js — offline buffer supersede (BASE-2)', () => {
@@ -139,5 +149,30 @@ describe('background.js — orphan scrape-tab recovery (BASE-3)', () => {
     await context.fetchUsage();
     assert.equal(removeCalls.includes(99), false,
       'no pending marker → no URL-based orphan sweep');
+  });
+});
+
+describe('background.js — scrape edge cases (DIFF-2, DIFF-3)', () => {
+  it('stamps _last_scrape_ts even when the scrape returns no meters (DIFF-2)', async () => {
+    // The empty-meters path returns early; the fix sets _last_scrape_ts BEFORE
+    // that return, so a logged-out user still debounces idle-wake / auto-scrape.
+    const { context, storage } = makeContext({ scrapeMeters: [], postOk: true });
+    await context.scrapeAndPost(1);
+    assert.ok(storage._last_scrape_ts > 0,
+      'a zero-meter scrape still records the scrape time (debounce holds)');
+  });
+
+  it('aborts the scrape when the created tab hits a navigation error (DIFF-3)', async () => {
+    // No reusable tab → fetchUsage creates one; the nav fails (onErrorOccurred),
+    // so the load-wait rejects before any executeScript runs and the tab is
+    // cleaned up — independent of tab.url, which the dropped 'tabs' perm hides.
+    const { context, removeCalls, meta } = makeContext({
+      reusable: [], navError: true, postOk: true,
+    });
+    await context.fetchUsage();
+    assert.equal(meta.executeScriptCalls, 0,
+      'scrape is not run against the error page');
+    assert.ok(removeCalls.includes(1),
+      'the failed scrape tab (id 1) is cleaned up in the finally');
   });
 });

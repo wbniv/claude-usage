@@ -24,6 +24,11 @@ test -f /usr/share/claude-usage/schemas/org.gnome.shell.extensions.claude-usage.
 test -f /usr/share/gnome-shell/extensions/claude-usage@indri.studio/extension.js
 test -f /usr/share/gnome-shell/extensions/claude-usage@indri.studio/schemas/gschemas.compiled
 test -f /usr/share/glib-2.0/schemas/org.gnome.shell.extensions.claude-usage.gschema.xml
+# KDE plasmoid — build-deb.sh rsyncs kde-plasmoid/ here. Gap 5 (2026-05-30
+# review): the plasmoid is shipped but was previously unverified by this script.
+test -f /usr/share/plasma/plasmoids/org.indri.claude-usage/metadata.json
+test -f /usr/share/plasma/plasmoids/org.indri.claude-usage/contents/ui/main.qml
+test -f /usr/share/plasma/plasmoids/org.indri.claude-usage/contents/config/main.xml
 # Desktop entry, icons, systemd unit
 test -f /usr/share/applications/claude-usage.desktop
 test -f /usr/share/pixmaps/claude-usage.png
