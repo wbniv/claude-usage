@@ -268,10 +268,20 @@ is selectable — not a defect.
 
 ---
 
-## KDE test coverage
+## Test coverage & gaps (review)
 
-The plasmoid shipped broken with zero KDE/QML CI. Coverage now:
+A review of the testing strategy after these fixes — what's in place and what's still open.
 
-- **Static (CI, `task test`):** `lint-kde-parity` — (1) `StandardPaths` requires `import QtCore`; (2) only real `usage.json` fields are read; (3) `main.xml` defaults == gschema; (4) pacing floor == `extension.js::pacingPct`; (5) usage URL == `USAGE_URL`. These catch the exact regressions that shipped (KDE‑1/2) plus cross-source drift (KDE‑5, KDE‑2). Each check has a negative test proving it bites.
-- **Live (manual, Plasma 6):** the checklist in verification step 10 — load-without-QML-error, rendering, scroll-cycle, config round-trip, XDG path. Needs hardware; tracked as the `[verify] [live]` TODO.
-- **Future (optional):** a `test-kde` headless smoke test mirroring `test-gnome` (Docker + `plasmoidviewer`/`plasmashell` asserting the plasmoid loads with no QML errors). Harder than the GNOME analog — Plasma needs a running shell — and unverifiable from this box, so proposed, not built.
+**In place:**
+- **Unit:** 104 server (pytest) + 57 scraper/SW (node).
+- **Parity lints (`task test`):** scraper↔background, JS↔gschema, security-doc, and `lint-kde-parity` (5 checks: StandardPaths-import, usage.json fields, main.xml↔gschema defaults, pacing floor, usage URL) — each negative-tested.
+- **CI (`release.yml`):** `task test` → build .deb → static `test-deb` on Ubuntu 24.04 + 25.10 → live **server** smoke (`test-deb-live.sh`: starts the service, POSTs a probe, verifies the cache write).
+
+**Gaps (ranked) — recommended testing follow-ups, not part of this fix pass:**
+1. **Static QML validation via `qmllint` (HIGH).** Nothing parses the QML, which is why KDE‑1 shipped. `qmllint` is **headless** (no Plasma shell) and flags the unresolved-`StandardPaths` / syntax / `PlasmoidItem`-on-Plasma‑5 class directly — the *easy* gate the earlier "future `test-kde` needs a running shell" note wrongly conflated with the *hard* render smoke. Recommend a `task lint-qml` in `task test` (needs the `org.kde.plasma.*` QML modules installed, or those imports allowlisted). It also covers `lint-kde-parity`'s regex blind spots (e.g. a phantom field read via a differently-named variable: `const m = currentMeter(); m.reset_ts`).
+2. **Missing regression tests (HIGH).** Of this pass's fixes, **DIFF‑1** (GNOME‑45 notify fallback), **DIFF‑3** (webNavigation error guard), **DIFF‑4** (config.json threshold validation) and **BASE‑6a** (age clamp) have no committed test; **DIFF‑2** (empty-meters debounce) is only indirect (the runtime test asserts `_last_scrape_ts` on a *successful* scrape, not the empty path that was the fix). The `background-runtime.test.js` harness + the DIFF‑4 repro make most cheap to add.
+3. **GNOME 45 (declared min) untested (MED).** `lint-gnome` checks the dev's libshell (49/50); `test-gnome` defaults to 26.04 and isn't in CI; `gnome-version-check` only watches for *newer* versions. DIFF‑1 lived exactly here — add a GNOME‑45 image to `test-gnome` (in CI), or drop `"45"` from `shell-version`.
+4. **`test-gnome` not in CI (MED).** The release pipeline smoke-tests the *server* but never loads the GNOME extension or the plasmoid; an extension-load regression ships unless a human runs `task test-gnome`.
+5. **`test-deb` doesn't verify KDE files (LOW).** `build-deb.sh` ships the plasmoid to `/usr/share/plasma/plasmoids/`; `test-deb-verify.sh` only checks the GNOME files.
+
+**Live (manual, Plasma 6):** the verification step‑10 checklist is the only render/behaviour check; tracked as the `[verify] [live]` TODO. The more that moves into `qmllint` (gap 1), the less rides on it.

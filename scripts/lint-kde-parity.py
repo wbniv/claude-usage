@@ -21,6 +21,13 @@ never emits. These checks guard exactly those failure modes.
 5. usage-URL parity — the plasmoid's hardcoded usage URL must equal
    extension.js's USAGE_URL.                                            [KDE-2]
 
+This is a regex-based DRIFT/parity guard, not a QML validator: it can be fooled
+by reformatting or by a phantom field read through a differently-named variable
+(e.g. `const m = currentMeter(); m.reset_ts`). Pair it with a headless `qmllint`
+pass for syntax / unresolved-type / import errors — that is what would have
+caught KDE-1 (StandardPaths without `import QtCore`) directly. See
+docs/plans/2026-05-30-code-review-fixes.md, "Test coverage & gaps".
+
 Exits 0 on success, 1 on any failure.
 """
 import re
