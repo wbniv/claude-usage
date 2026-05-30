@@ -11,8 +11,13 @@ RowLayout {
     Image {
         id: icon
         source: Qt.resolvedUrl("../icons/claude-22.png")
-        implicitWidth: Plasmoid.configuration.panelIconSize || 16
-        implicitHeight: implicitWidth
+        // Image.implicitWidth/implicitHeight are read-only in Qt 6 (derived from
+        // sourceSize) — size it through the layout + sourceSize instead.
+        readonly property int px: Plasmoid.configuration.panelIconSize || 16
+        Layout.preferredWidth: px
+        Layout.preferredHeight: px
+        sourceSize.width: px
+        sourceSize.height: px
         Layout.alignment: Qt.AlignVCenter
         fillMode: Image.PreserveAspectFit
 

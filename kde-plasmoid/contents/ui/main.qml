@@ -2,12 +2,35 @@ import QtQuick
 import QtQuick.Layouts
 import QtCore
 import org.kde.plasma.plasmoid
+import org.kde.plasma.plasma5support as Plasma5Support
 
 PlasmoidItem {
     id: root
 
     property var usageData: null
     property int activeMeterIndex: 0
+
+    // Read usage.json via the executable engine, NOT XMLHttpRequest: a file://
+    // XHR never reaches readyState DONE inside the Plasma 6 plasmoid QML
+    // sandbox (verified live on Plasma 6 / Qt 6.8 — it hangs at readyState 1),
+    // so usageData would stay null forever. The executable engine is the same
+    // mechanism ConfigGeneral.qml uses to write config.json.
+    Plasma5Support.DataSource {
+        id: reader
+        engine: "executable"
+        connectedSources: []
+        onNewData: (source, data) => {
+            disconnectSource(source)   // one-shot per poll
+            const out = (data && data["stdout"] ? data["stdout"] : "").trim()
+            if (!out) return
+            try {
+                usageData = JSON.parse(out)
+                resolveActiveMeter()
+            } catch(e) {
+                console.warn("claude-usage: failed to parse usage.json:", e)
+            }
+        }
+    }
 
     // Derive index from saved panelMetric name, or use 0
     function resolveActiveMeter() {
@@ -54,21 +77,9 @@ PlasmoidItem {
         // may return a file:// url or a bare path; normalise both.
         var base = StandardPaths.writableLocation(StandardPaths.GenericCacheLocation).toString()
         base = base.replace(/^file:\/\//, "")
-        const url = "file://" + base + "/claude-usage/usage.json"
-        const xhr = new XMLHttpRequest()
-        xhr.onreadystatechange = function() {
-            if (xhr.readyState !== XMLHttpRequest.DONE) return
-            if (xhr.status === 0 && xhr.responseText) {
-                try {
-                    usageData = JSON.parse(xhr.responseText)
-                    resolveActiveMeter()
-                } catch(e) {
-                    console.warn("claude-usage: failed to parse usage.json:", e)
-                }
-            }
-        }
-        xhr.open("GET", url)
-        xhr.send()
+        const path = base + "/claude-usage/usage.json"
+        // Single-quote the path for the shell; cache paths never contain quotes.
+        reader.connectSource("cat '" + path + "' 2>/dev/null")
     }
 
     compactRepresentation: CompactRepresentation { }
