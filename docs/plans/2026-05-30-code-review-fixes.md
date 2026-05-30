@@ -38,13 +38,13 @@ recur.
 | DIFF‑3 | MED | `background.js:645` | removing `tabs` perm defeats the TC‑1 `chrome-error://` guard (host_permissions doesn't cover that origin) |
 | DIFF‑4 | MED | `generate-icon.py:78` | new `config.json` reader validates colours but not thresholds → non-int → `int >= str` TypeError → icon gen aborts |
 | BASE‑1 | MED | `usage-server.py:393,411,416` | CM‑1 guard validates only root dict; corrupt nested `prev` (`_period_lengths`/`meters`) → crash → 400, no write → permanent loop |
+| BASE‑2 | MED | `background.js:538` | a stale offline buffer flushes over newer server data (ordering-blind merge) → cache regresses to an older snapshot |
 
 **Deferred** (logged in TODO, not in this pass — lows / need live runtime):
-BASE‑2 offline-buffer flush ordering (MED, MV3), BASE‑3 created-tab persist
-gap, BASE‑4 tooltip `0:90` rollover, BASE‑5 icon float-pct / alpha / 'all'-ring
-divergences, BASE‑6 future-timestamp age. KDE‑2's deeper "generate the QML from
-a shared source" dedup is also deferred — the parity lint below is the interim
-guard.
+BASE‑3 created-tab persist gap, BASE‑4 tooltip `0:90` rollover, BASE‑5 icon
+float-pct / alpha / 'all'-ring divergences, BASE‑6 future-timestamp age. KDE‑2's
+deeper "generate the QML from a shared source" dedup is also deferred — the
+parity lint below is the interim guard.
 
 ---
 
@@ -87,6 +87,9 @@ guard.
 
 ### 11. KDE parity lint
 - `scripts/lint-kde-parity.py`: (a) any `kde-plasmoid` QML referencing `StandardPaths` must `import QtCore`; (b) `meter.<field>` / `usageData.<field>` reads must be in the known `usage.json` allowlist; (c) `main.xml` colour/threshold defaults must equal the gschema. Wire into `Taskfile` `test`.
+
+### 12. BASE‑2 — offline buffer supersede
+- `background.js`: drop the offline buffer (`claude_usage`) on a successful full-scrape post, so a later `fetchUsage` flush can't re-post a now-stale buffer over newer cache data (the server merge is ordering-blind). Also makes the flush's non-atomic `remove()` harmless. Chosen over a server-side `_timestamp`-monotonic guard, which would false-reject legitimately-newer data under client clock skew. New runtime test `chrome-extension/test/background-buffer.test.js` (vm sandbox + stateful storage + stubbed server).
 
 ---
 
@@ -190,8 +193,8 @@ guard.
 9. **Full suite green:** `task test` → all unit tests + parity/security lints pass.
 
    ```
-   # tests 51 / # pass 51 / # fail 0        (test-scraper: scraper + background load-smoke)
-   99 passed in 0.06s                       (test-validate: server pytest, was 98 + BASE-1)
+   # tests 53 / # pass 53 / # fail 0        (test-scraper: scraper + load-smoke + buffer)
+   99 passed in 0.07s                       (test-validate: server pytest, was 98 + BASE-1)
    lint-scraper-parity / lint-anchor-strings / lint-pacing-parity ×4 / lint-pair-inventory: OK
    lint-security-doc: OK   lint-js-defaults: in sync   lint-kde-parity: OK   lint-gnome: verified
    task test: ALL PASS (exit 0)
@@ -211,3 +214,13 @@ guard.
     DEFERRED — dev box is GNOME 49/50.
     ```
     **DEFERRED** → TODO `[verify] [live]`. Feature-detect logic verified by reading; runtime throw-path needs a real GNOME-45 shell.
+
+12. **BASE‑2 buffer supersede:** `node --test …/background-buffer.test.js` — buffer cleared on successful post, retained on failure; fails with the fix reverted.
+
+    ```
+    ok 1 - clears a stale offline buffer after a successful full-scrape post
+    ok 2 - writes the offline buffer when the post fails
+    # tests 2 / # pass 2 / # fail 0
+    --- negative (fix disabled): not ok 1 … / # fail 1
+    ```
+    **PASS** (real regression guard — bites when the fix is removed).

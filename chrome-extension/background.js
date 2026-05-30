@@ -543,6 +543,13 @@ async function scrapeAndPost(tabId) {
     // shows the last outcome, so a stale GNOME panel can be triaged from
     // inside Chrome without opening the SW DevTools.
     await setActionStatus('ok', data.meters.length);
+    // BASE-2 (2026-05-30 review): a successful full-scrape post supersedes any
+    // offline buffer, so drop it. Otherwise a later fetchUsage could flush the
+    // now-stale buffer and the server's ordering-blind merge would regress its
+    // _timestamp/meters to that older snapshot. This also makes the flush's
+    // non-atomic remove() safe — a re-flushed buffer is never newer than the
+    // freshest confirmed post.
+    await chrome.storage.local.remove('claude_usage');
   } catch (e) {
     // 4xx with the claude-usage signature means the server is up but rejected
     // the payload (validator caught something). Route the user to the journal,
