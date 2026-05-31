@@ -70,12 +70,20 @@ tasks:
         # (StandardPaths-without-import, phantom fields, default drift) are
         # covered by scripts/lint-kde-parity.py. Full type-checking needs the
         # Plasma QML modules installed (a KDE box / future test-kde image).
+        #
+        # qmllint's category-flag set drifts across Qt versions — the GH runner's
+        # qmllint rejects --max-warnings/--unresolved-type/--missing-property that
+        # 6.9 still ships, which broke the release with exit 201. Probe --help and
+        # pass only the flags this binary understands so the gate is portable.
+        help=$("$qmllint" --help 2>&1)
+        args=()
+        case "$help" in *--max-warnings*) args+=(--max-warnings 0) ;; esac
+        for cat in import unqualified unresolved-type missing-property unused-imports; do
+          case "$help" in *--"$cat"*) args+=(--"$cat" disable) ;; esac
+        done
         files=$(find desktop/kde/contents -name '*.qml' | sort)
-        "$qmllint" --max-warnings 0 \
-          --import disable --unqualified disable --unresolved-type disable \
-          --missing-property disable --unused-imports disable \
-          $files
-        echo "lint-qml: OK ($(echo "$files" | grep -c . ) QML files parse cleanly)"
+        "$qmllint" "${args[@]}" $files
+        echo "lint-qml: OK ($(echo "$files" | grep -c . ) QML files parse cleanly; flags: ${args[*]:-none})"
 
   lint-gnome:
     desc: "Static checks for desktop/gnome/extension.js: JS syntax + GNOME Shell API symbol verification against the installed libshell binary"
