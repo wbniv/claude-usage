@@ -9,6 +9,7 @@
 - [ ] **2026-05-22** Add pre-flight dep checks in `install.sh` (`glib-compile-schemas` hard-fail, `systemctl --user` hard-fail, `gnome-shell` 45–50 warn) + relabel MANUAL.md Option B "From source" → "From a clone" + add Option C `curl | bash` one-liner — [plan](docs/plans/2026-05-22-curlbash-installer.md)
 
 ## Deferred
+- [ ] **2026-05-31** Full qmllint type-check for the plasmoid: `lint-qml` currently disables the module-resolution categories (Plasma QML modules absent in CI), so it's a syntax/structural gate only. A Foundry-desktop image (Ubuntu 26.04 + Plasma 6 + org.kde.plasma.*/Kirigami QML modules — see `~/SRC/foundrylinux.org`) would let qmllint resolve `PlasmoidItem`/`Plasma5Support`/`cfg_*` aliases and type-check for real. Dogfood Foundry.
 - [ ] **2026-05-31** Server reads the GNOME gschema (`org.indri.claude-usage`) for icon-render defaults even on KDE-only boxes (`server/generate-icon.py`, `server/schema_defaults.py`). The `.deb` ships the gschema regardless so it resolves, but KDE's canonical config is KConfig + `~/.config/claude-usage/config.json` — the dock icon should prefer that on Plasma. Architectural quirk surfaced during the cross-desktop rename; not a naming issue. [Plan](docs/plans/2026-05-31-cross-desktop-rename.md).
 
 ## Done

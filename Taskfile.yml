@@ -54,36 +54,47 @@ tasks:
       - python3 scripts/lint-kde-parity.py
 
   lint-qml:
-    desc: "qmllint syntax/structural gate for the KDE plasmoid (skips if qmllint absent; deep type checks need the Plasma QML modules)"
+    desc: "qmllint structural gate for the KDE plasmoid. Uses the host qmllint when new enough (>=6.5), else a pinned ubuntu:26.04 container (Qt 6.10), else skips."
     cmds:
       - |
         set -euo pipefail
-        qmllint=$(command -v qmllint || command -v qmllint-qt6 || true)
-        if [ -z "$qmllint" ] && [ -x /usr/lib/qt6/bin/qmllint ]; then qmllint=/usr/lib/qt6/bin/qmllint; fi
-        if [ -z "$qmllint" ]; then
-          echo "lint-qml: qmllint not found — skipping (install qt6-declarative-dev-tools to enable)"
-          exit 0
-        fi
-        # The Plasma QML modules (org.kde.plasma.*, Kirigami) are not assumed
-        # present, so their unresolved-type / import / unqualified cascade is
-        # disabled: this is a SYNTAX/structural gate. Semantic regressions
-        # (StandardPaths-without-import, phantom fields, default drift) are
-        # covered by scripts/lint-kde-parity.py. Full type-checking needs the
-        # Plasma QML modules installed (a KDE box / future test-kde image).
-        #
-        # qmllint's category-flag set drifts across Qt versions — the GH runner's
-        # qmllint rejects --max-warnings/--unresolved-type/--missing-property that
-        # 6.9 still ships, which broke the release with exit 201. Probe --help and
-        # pass only the flags this binary understands so the gate is portable.
-        help=$("$qmllint" --help 2>&1)
-        args=()
-        case "$help" in *--max-warnings*) args+=(--max-warnings 0) ;; esac
-        for cat in import unqualified unresolved-type missing-property unused-imports; do
-          case "$help" in *--"$cat"*) args+=(--"$cat" disable) ;; esac
-        done
         files=$(find desktop/kde/contents -name '*.qml' | sort)
-        "$qmllint" "${args[@]}" $files
-        echo "lint-qml: OK ($(echo "$files" | grep -c . ) QML files parse cleanly; flags: ${args[*]:-none})"
+        # The Plasma QML modules (org.kde.plasma.*, Kirigami) aren't installed in
+        # CI, so qmllint can't resolve PlasmoidItem / Plasma5Support / the cfg_*
+        # config aliases and floods unresolved-type/-alias/missing-property/import
+        # warnings. That's environment noise, not a regression — semantic checks
+        # (phantom usage.json fields, main.xml↔gschema default drift, missing
+        # StandardPaths import) live in scripts/lint-kde-parity.py. We disable the
+        # module-resolution categories and keep qmllint as a SYNTAX/structural gate.
+        #
+        # Those granular --<category> flags only exist in qmllint >= 6.5; the GH
+        # ubuntu-24.04 runner ships Qt 6.4 and rejects them (exit 201). So prefer
+        # the host qmllint when it's new enough, else run a pinned ubuntu:26.04
+        # container (Foundry's base suite "resolute", Qt 6.10). Full type-checking
+        # — modules resolved, nothing suppressed — would want a foundry-desktop
+        # image with Plasma 6 present (see TODO).
+        FLAGS="--max-warnings 0 --import disable --unqualified disable --unresolved-type disable --missing-property disable --unused-imports disable --unresolved-alias disable"
+        host=$(command -v qmllint || command -v qmllint-qt6 || true)
+        if [ -z "$host" ] && [ -x /usr/lib/qt6/bin/qmllint ]; then host=/usr/lib/qt6/bin/qmllint; fi
+        if [ -n "$host" ] && "$host" --help 2>&1 | grep -q -- '--unresolved-alias'; then
+          "$host" $FLAGS $files
+          echo "lint-qml: OK ($(echo "$files" | grep -c . ) QML files parse cleanly via host $("$host" --version))"
+        elif command -v docker >/dev/null 2>&1; then
+          echo "lint-qml: host qmllint too old/absent — running in pinned ubuntu:26.04 container"
+          docker run --rm -e LANG=C.UTF-8 -e LC_ALL=C.UTF-8 -e "FLAGS=$FLAGS" \
+            -v "$PWD/desktop/kde:/kde:ro" ubuntu:26.04 bash -c '
+              set -e
+              export DEBIAN_FRONTEND=noninteractive
+              apt-get update -qq >/dev/null
+              apt-get install -y -qq qt6-declarative-dev-tools >/dev/null
+              ql=/usr/lib/qt6/bin/qmllint
+              files=$(find /kde/contents -name "*.qml" | sort)
+              "$ql" $FLAGS $files
+              echo "lint-qml: OK ($(echo "$files" | grep -c . ) QML files parse cleanly via $("$ql" --version), 26.04 container)"
+            '
+        else
+          echo "lint-qml: skipped — host qmllint is < 6.5 (or absent) and docker is unavailable"
+        fi
 
   lint-gnome:
     desc: "Static checks for desktop/gnome/extension.js: JS syntax + GNOME Shell API symbol verification against the installed libshell binary"
