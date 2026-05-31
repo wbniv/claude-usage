@@ -2,7 +2,7 @@
 """Render docs/panel-screenshot.png — the GNOME top-panel indicator.
 
 extension.js (line 151) loads its panel St.Icon from the static
-gnome-extension/icons/claude-22.png — the bare Anthropic star, NOT the
+desktop/gnome/icons/claude-22.png — the bare Anthropic star, NOT the
 ring-painted dock icon. The accompanying St.Label shows `{pct}%`,
 colour-flipped via the panel-color-* triplet based on pacing tier.
 On the broken tier the icon swaps to claude-22-red.png; this script
@@ -31,7 +31,7 @@ from schema_defaults import DEFAULTS as _SCHEMA
 
 # Source-of-truth panel icon: the bare star bundled with the GNOME extension.
 # extension.js loads this same file via Gio.icon_new_for_string at line 151.
-PANEL_ICON  = REPO / 'gnome-extension' / 'icons' / 'claude-22.png'
+PANEL_ICON  = REPO / 'desktop' / 'gnome' / 'icons' / 'claude-22.png'
 # PCT_VALUE is chosen to land between the schema's warn/crit thresholds so
 # the rendered strip exercises the colour-flip the surrounding MANUAL prose
 # discusses. Reading the threshold from the schema means a future schema

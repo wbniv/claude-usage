@@ -41,7 +41,7 @@ uninstall() {
     systemctl --user daemon-reload
     # Remove any claude-usage@* extension dir (current and historical UUIDs)
     rm -rf "$XDG_DATA_HOME/gnome-shell/extensions/"claude-usage@*
-    rm -f "$XDG_DATA_HOME/glib-2.0/schemas/org.gnome.shell.extensions.claude-usage.gschema.xml"
+    rm -f "$XDG_DATA_HOME/glib-2.0/schemas/org.indri.claude-usage.gschema.xml"
     glib-compile-schemas "$XDG_DATA_HOME/glib-2.0/schemas/" 2>/dev/null || true
     # Drop any claude-usage@* entries from the enabled/disabled lists
     for key in enabled-extensions disabled-extensions; do
@@ -78,7 +78,7 @@ fi
 
 kde_install_plasmoid() {
     local dest="$XDG_DATA_HOME/plasma/plasmoids/org.indri.claude-usage"
-    rsync -a "$REPO_DIR/kde-plasmoid/" "$dest/"
+    rsync -a "$REPO_DIR/desktop/kde/" "$dest/"
     echo "  ✓ KDE plasmoid installed to $dest"
     echo "  ℹ  Restart Plasma to load the widget:"
     echo "     Plasma 6: kquitapp6 plasmashell && kstart6 plasmashell"
@@ -179,17 +179,17 @@ mkdir -p "$GNOME_EXT_DIR/schemas" "$GNOME_EXT_DIR/icons"
 # before copying so the installed extension carries the current values even
 # if the checked-in artifact drifted (CI lint also catches this).
 python3 "$REPO_DIR/scripts/gen-js-defaults.py"
-cp "$REPO_DIR/gnome-extension/extension.js" "$GNOME_EXT_DIR/"
-cp "$REPO_DIR/gnome-extension/_defaults.js" "$GNOME_EXT_DIR/"
-cp "$REPO_DIR/gnome-extension/metadata.json" "$GNOME_EXT_DIR/"
-cp "$REPO_DIR/gnome-extension/prefs.js" "$GNOME_EXT_DIR/"
-cp "$REPO_DIR/gnome-extension/schemas/"*.xml "$GNOME_EXT_DIR/schemas/"
-cp "$REPO_DIR/gnome-extension/icons/"* "$GNOME_EXT_DIR/icons/" 2>/dev/null || true
+cp "$REPO_DIR/desktop/gnome/extension.js" "$GNOME_EXT_DIR/"
+cp "$REPO_DIR/desktop/gnome/_defaults.js" "$GNOME_EXT_DIR/"
+cp "$REPO_DIR/desktop/gnome/metadata.json" "$GNOME_EXT_DIR/"
+cp "$REPO_DIR/desktop/gnome/prefs.js" "$GNOME_EXT_DIR/"
+cp "$REPO_DIR/desktop/gnome/schemas/"*.xml "$GNOME_EXT_DIR/schemas/"
+cp "$REPO_DIR/desktop/gnome/icons/"* "$GNOME_EXT_DIR/icons/" 2>/dev/null || true
 glib-compile-schemas "$GNOME_EXT_DIR/schemas/"
 # Also install schema to user glib path so plain `gsettings` works without GSETTINGS_SCHEMA_DIR
 GLIB_SCHEMA_DIR="$XDG_DATA_HOME/glib-2.0/schemas"
 mkdir -p "$GLIB_SCHEMA_DIR"
-cp "$REPO_DIR/gnome-extension/schemas/"*.xml "$GLIB_SCHEMA_DIR/"
+cp "$REPO_DIR/desktop/gnome/schemas/"*.xml "$GLIB_SCHEMA_DIR/"
 glib-compile-schemas "$GLIB_SCHEMA_DIR/"
 echo "  ✓ GNOME extension installed"
 fi  # end KDE/GNOME branch
@@ -210,7 +210,7 @@ cp "$REPO_DIR/server/schema_defaults.py" "$SERVER_DIR/"
 # schema_defaults.py parses the gschema XML at import time; copy a sibling
 # `schemas/` so the installed module can find it. Same idea as build-deb.sh.
 mkdir -p "$SERVER_DIR/schemas"
-cp "$REPO_DIR/gnome-extension/schemas/org.gnome.shell.extensions.claude-usage.gschema.xml" \
+cp "$REPO_DIR/desktop/gnome/schemas/org.indri.claude-usage.gschema.xml" \
    "$SERVER_DIR/schemas/"
 chmod +x "$SERVER_DIR/usage-server.py" "$SERVER_DIR/generate-icon.py"
 cp "$REPO_DIR/scripts/claude-usage-status.py" "$SERVER_DIR/claude-usage-status"
@@ -248,7 +248,7 @@ echo "  ✓ Chrome extension files synced to $SERVER_DIR/chrome-extension"
 # Without this seed, `Icon=claude-usage` doesn't resolve until the first
 # generate-icon.py run writes the dynamic version.
 mkdir -p "$XDG_DATA_HOME/icons/hicolor/64x64/apps"
-cp "$REPO_DIR/gnome-extension/icons/claude-64.png" \
+cp "$REPO_DIR/desktop/gnome/icons/claude-64.png" \
     "$XDG_DATA_HOME/icons/hicolor/64x64/apps/claude-usage.png"
 gtk-update-icon-cache -f "$XDG_DATA_HOME/icons/hicolor/" 2>/dev/null || true
 echo "  ✓ Icon-theme baseline installed"
@@ -276,7 +276,7 @@ echo "  ✓ Systemd service enabled and (re)started"
 
 # 5. Dock launcher entry
 mkdir -p "$XDG_DATA_HOME/applications"
-sed "s|%HOME%|$HOME|g" "$REPO_DIR/desktop/claude-usage.desktop" \
+sed "s|%HOME%|$HOME|g" "$REPO_DIR/desktop/launcher/claude-usage.desktop" \
     > "$XDG_DATA_HOME/applications/claude-usage.desktop"
 update-desktop-database "$XDG_DATA_HOME/applications/" 2>/dev/null || true
 echo "  ✓ Dock entry installed — find 'Claude Usage' in the app grid, right-click → Add to Favorites"

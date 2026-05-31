@@ -20,6 +20,7 @@ page Anthropic serves you.
 | Chrome extension (MV3) | `claude.ai/settings/usage` page DOM (in your Chrome profile) | localhost ports 7331-7340 | Runs in your Chrome profile; sees only what your Chrome profile already sees. |
 | Local HTTP server (`usage-server.py`) | POSTs from the Chrome ext over 127.0.0.1 | `~/.cache/claude-usage/usage.json` (mode 0600), `~/.local/share/applications/claude-usage.desktop`, `~/.local/share/icons/hicolor/<size>/apps/claude-usage.png` | Runs under your UID. Bound to 127.0.0.1 only. |
 | GNOME extension | The cache JSON file | GNOME panel widgets only | Runs inside gnome-shell under your UID. |
+| KDE plasmoid | The cache JSON file | KDE panel widgets only | Runs inside plasmashell under your UID. |
 
 ### In scope
 
@@ -71,8 +72,9 @@ usage-server.py
         ├─▶ ~/.local/share/applications/claude-usage.desktop  (Name= tooltip)
         └─▶ ~/.local/share/icons/hicolor/*/apps/claude-usage.png  (live icon)
                 │
-                ▼  monitored by GNOME extension via Gio.FileMonitor
-        gnome-shell renders panel + popup
+                ▼  monitored by the panel frontend
+        GNOME extension (Gio.FileMonitor) → gnome-shell renders panel + popup
+        KDE plasmoid   (Plasma5Support DataSource) → plasmashell renders panel + popup
 ```
 
 No outbound network calls other than:

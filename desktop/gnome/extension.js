@@ -11,7 +11,7 @@ import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 // JS-1 (pass-18, post-pass-21): single source of truth for gschema defaults.
-// Generated from gnome-extension/schemas/<schema>.xml by scripts/gen-js-defaults.py;
+// Generated from desktop/gnome/schemas/<schema>.xml by scripts/gen-js-defaults.py;
 // CI sync check via `task lint-js-defaults` (which runs the generator with --check).
 import {DEFAULTS as SCHEMA_DEFAULTS} from './_defaults.js';
 
@@ -239,7 +239,7 @@ class ClaudeIndicator extends PanelMenu.Button {
     _init(ext) {
         super._init(0.0, 'Claude Usage');
         this._ext = ext;
-        this._settings = ext.getSettings('org.gnome.shell.extensions.claude-usage');
+        this._settings = ext.getSettings('org.indri.claude-usage');
         this._monitor = null;
         this._settingsId = null;
         this._tickId = null;

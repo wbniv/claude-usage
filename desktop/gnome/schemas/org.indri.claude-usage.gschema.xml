@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <schemalist>
-  <schema id="org.gnome.shell.extensions.claude-usage"
-          path="/org/gnome/shell/extensions/claude-usage/">
+  <schema id="org.indri.claude-usage"
+          path="/org/indri/claude-usage/">
     <key name="weekly-color-green" type="s">
       <default>'#8cff8c'</default>
       <summary>Dock outer ring color below warning threshold</summary>

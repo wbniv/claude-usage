@@ -1,4 +1,4 @@
-// AUTO-GENERATED from gnome-extension/schemas/org.gnome.shell.extensions.claude-usage.gschema.xml
+// AUTO-GENERATED from desktop/gnome/schemas/org.indri.claude-usage.gschema.xml
 // DO NOT HAND-EDIT — regenerate with `task gen-js-defaults`.
 //
 // JS-1 (pass-18, option b chosen post-pass-21): extension.js's `safeColor`

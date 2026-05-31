@@ -1,6 +1,6 @@
 """Single source of truth for gschema-tied constants.
 
-Parses `gnome-extension/schemas/org.gnome.shell.extensions.claude-usage.gschema.xml`
+Parses `desktop/gnome/schemas/org.indri.claude-usage.gschema.xml`
 at import time and exposes every `<default>` + `<range>` as plain Python
 dicts. Closes pass-17's drift cluster (DG-1, DR-1..4, PR-1 via prefs.js
 introspection) at the architectural level: there is now one place where
@@ -21,12 +21,12 @@ import os
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-_SCHEMA_FILENAME = 'org.gnome.shell.extensions.claude-usage.gschema.xml'
+_SCHEMA_FILENAME = 'org.indri.claude-usage.gschema.xml'
 
 
 def _find_schema():
     """Locate the gschema XML. Checked in order:
-      1. Source-checkout sibling (gnome-extension/schemas/)
+      1. Source-checkout sibling (desktop/gnome/schemas/)
       2. Same dir as this installed module (build-deb copies it next door)
       3. System glib schemas dir
       4. User-local GNOME extension dir
@@ -34,7 +34,7 @@ def _find_schema():
     here = Path(__file__).resolve().parent
     data_home = Path(os.environ.get('XDG_DATA_HOME') or Path.home() / '.local/share')
     candidates = [
-        here.parent / 'gnome-extension' / 'schemas' / _SCHEMA_FILENAME,
+        here.parent / 'desktop' / 'gnome' / 'schemas' / _SCHEMA_FILENAME,
         here / 'schemas' / _SCHEMA_FILENAME,
         Path('/usr/share/glib-2.0/schemas') / _SCHEMA_FILENAME,
         data_home / 'gnome-shell/extensions/claude-usage@indri.studio/schemas'

@@ -37,17 +37,17 @@ mkdir -p \
 # lint-js-defaults catches drift in the checked-in copy too).
 python3 "$REPO_DIR/scripts/gen-js-defaults.py"
 # GNOME extension
-cp -r "$REPO_DIR/gnome-extension/." \
+cp -r "$REPO_DIR/desktop/gnome/." \
     "$PKG/usr/share/gnome-shell/extensions/claude-usage@indri.studio/"
 # KDE plasmoid
-rsync -a "$REPO_DIR/kde-plasmoid/" \
+rsync -a "$REPO_DIR/desktop/kde/" \
     "$PKG/usr/share/plasma/plasmoids/org.indri.claude-usage/"
 
 # Python server. schema_defaults.py parses the gschema XML at import time to
 # expose every <default>/<range> as a Python constant — it needs the schema
 # file to be discoverable from /usr/share/claude-usage, so we copy it to a
 # `schemas/` sibling. The same XML is already installed under
-# /usr/share/gnome-shell/extensions/<uuid>/schemas/ for gnome-extension use;
+# /usr/share/gnome-shell/extensions/<uuid>/schemas/ for the GNOME extension;
 # the schemas/ sibling here is the Python-side lookup path.
 cp "$REPO_DIR/server/usage-server.py" \
    "$REPO_DIR/server/generate-icon.py" \
@@ -55,7 +55,7 @@ cp "$REPO_DIR/server/usage-server.py" \
    "$REPO_DIR/server/schema_defaults.py" \
    "$PKG/usr/share/claude-usage/"
 mkdir -p "$PKG/usr/share/claude-usage/schemas"
-cp "$REPO_DIR/gnome-extension/schemas/org.gnome.shell.extensions.claude-usage.gschema.xml" \
+cp "$REPO_DIR/desktop/gnome/schemas/org.indri.claude-usage.gschema.xml" \
    "$PKG/usr/share/claude-usage/schemas/"
 
 # Chrome extension (for load-unpacked until CWS listing is live).
@@ -100,9 +100,9 @@ if python3 "$REPO_DIR/server/generate-icon.py" --baseline "$BAKED_ICON" 2>/dev/n
     cp "$BAKED_ICON" "$PKG/usr/share/icons/hicolor/64x64/apps/claude-usage.png"
 else
     echo "  ⚠  Baseline icon bake failed; shipping raw star PNG" >&2
-    cp "$REPO_DIR/gnome-extension/icons/claude-64.png" \
+    cp "$REPO_DIR/desktop/gnome/icons/claude-64.png" \
         "$PKG/usr/share/pixmaps/claude-usage.png"
-    cp "$REPO_DIR/gnome-extension/icons/claude-64.png" \
+    cp "$REPO_DIR/desktop/gnome/icons/claude-64.png" \
         "$PKG/usr/share/icons/hicolor/64x64/apps/claude-usage.png"
 fi
 

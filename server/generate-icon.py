@@ -102,7 +102,7 @@ def load_config():
                   file=sys.stderr, flush=True)
     try:
         from gi.repository import Gio
-        s = Gio.Settings.new('org.gnome.shell.extensions.claude-usage')
+        s = Gio.Settings.new('org.indri.claude-usage')
         cfg = {
             'weekly_color_green': s.get_string('weekly-color-green'),
             'weekly_color_amber': s.get_string('weekly-color-amber'),
@@ -146,7 +146,7 @@ def pacing_pct(meter, period_lens):
     Falls back to raw pct when reset_minutes/period unknown or too few
     minutes have elapsed for one user action to be statistical noise.
 
-    Kept in sync by hand with gnome-extension/extension.js:pacingPct.
+    Kept in sync by hand with desktop/gnome/extension.js:pacingPct.
     """
     if not meter:
         return 0
@@ -168,7 +168,7 @@ def pacing_pct(meter, period_lens):
     # buckets meant any usage > ~0.14% in the first 16 min paced > critical.
     # Period-scaled component gives the weekly bucket ~8.4h suppression. The
     # session bucket sees max(15, 14.75)=15 — unchanged from 0.11.14.
-    # Kept in sync by hand with gnome-extension/extension.js:pacingPct.
+    # Kept in sync by hand with desktop/gnome/extension.js:pacingPct.
     if elapsed < max(15, period * 0.05):
         return pct
     return pct / (elapsed / period)
@@ -273,7 +273,7 @@ def elapsed_fraction(meter, period_lens):
     applies (early-period noise). Mirrors popup-preview.py:elapsed_fraction
     and extension.js:elapsedFraction.
 
-    Kept in sync by hand with gnome-extension/extension.js:elapsedFraction
+    Kept in sync by hand with desktop/gnome/extension.js:elapsedFraction
     — the parity lint also checks the numeric constants."""
     if not meter:
         return None

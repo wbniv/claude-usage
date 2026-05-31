@@ -1,6 +1,6 @@
 # Claude Usage Indicator — User Manual
 
-Shows your Claude.ai weekly usage percentage in the GNOME top panel and dock.
+Shows your Claude.ai weekly usage percentage in the GNOME or KDE Plasma panel and dock.
 
 ---
 
@@ -35,7 +35,7 @@ With extra usage enabled on your account, a second section appears:
 
 <img src="docs/tooltip-screenshot.png" width="495">
 
-Reset times show a countdown (`⏱h:mm`) when less than 24 h away, or a day + time otherwise. Sonnet is omitted from the tooltip when its usage is 0%.
+Reset times show a countdown (`⏱h:mm`) when less than 12 h away, or a day + time otherwise. Sonnet is omitted from the tooltip when its usage is 0%.
 
 The icon regenerates automatically on each data fetch.
 
@@ -57,9 +57,9 @@ Recovery is automatic: the next successful scrape resets the state and the icons
 
 ## Installation
 
-**Requirements:** GNOME Shell 45–50 + systemd-user + Google Chrome (logged in to Claude.ai).
+**Requirements:** GNOME Shell 45–50 **or** KDE Plasma 6 + systemd-user + Google Chrome (logged in to Claude.ai). The Chrome extension and local server are identical on both desktops; only the panel frontend differs (GNOME Shell extension vs KDE plasmoid — see *KDE Plasma* below).
 
-Minimum distro versions that ship GNOME Shell 45 or newer:
+Minimum distro versions that ship GNOME Shell 45 or newer (KDE users need Plasma 6.0+):
 
 | Distro | Minimum | Ships with |
 |---|---|---|
@@ -91,7 +91,7 @@ sudo apt update && sudo apt install claude-usage
 claude-usage-setup        # run as yourself, not root
 ```
 
-`claude-usage-setup` creates your config file, enables the systemd service, enables the GNOME extension, and installs the dock entry — all in one step.
+`claude-usage-setup` creates your config file, enables the systemd service, enables the GNOME extension, and installs the dock entry — all in one step. (On KDE Plasma the package installs the plasmoid; add it to a panel yourself — see *KDE Plasma* below.)
 
 ### Option B — From a source tarball (any distro with apt / dnf / pacman)
 
@@ -134,7 +134,7 @@ curl -fsSL https://apt.indri.studio/install-claude-usage.sh | bash -s -- --unins
    - One-liner install (Option C): `~/.local/share/claude-usage/chrome-extension/`
    - .deb install (Option A): `/usr/share/claude-usage/chrome-extension/`
 
-**Log out and back in** — activates the GNOME Shell extension.
+**Log out and back in** — activates the GNOME Shell extension. (KDE: instead add the widget to a panel — see *KDE Plasma* below.)
 
 **Pin the dock icon (one-time):**
 
@@ -152,6 +152,7 @@ Nothing to do. Everything starts automatically:
 | Local data server | systemd user service (`claude-usage-fetch.service`) |
 | Chrome extension | Persists in Chrome across restarts |
 | GNOME panel indicator | Loaded by GNOME Shell from enabled-extensions list |
+| KDE panel indicator | Loaded by Plasma once the widget is added to a panel |
 
 ---
 
@@ -205,9 +206,9 @@ Changes to colors, thresholds, bar width, and font sizes apply instantly — no 
 You can also set any value from the command line:
 
 ```bash
-gsettings set org.gnome.shell.extensions.claude-usage popup-color-normal '#0000ff'
-gsettings set org.gnome.shell.extensions.claude-usage threshold-warning 60
-gsettings reset org.gnome.shell.extensions.claude-usage popup-color-normal  # restore default
+gsettings set org.indri.claude-usage popup-color-normal '#0000ff'
+gsettings set org.indri.claude-usage threshold-warning 60
+gsettings reset org.indri.claude-usage popup-color-normal  # restore default
 ```
 
 **Color semantics:** colors reflect your current *pacing*, not raw % used. The driver is `pct ÷ fraction-of-period-elapsed` — so 50% used halfway through a week is "on pace for 100%" and shows red, while 80% used near the end of a week is "on pace for ~90%" and shows amber. Per-meter period lengths are inferred over time from observed reset distances; until enough history accumulates, colors fall back to raw % used.
@@ -247,7 +248,7 @@ The cache file doesn't exist yet. Click the Chrome extension toolbar icon to tri
 ### Panel shows stale data ("Xm ago" is large) or ⚠ in the popup
 The Chrome extension may not be running. Open Chrome → `chrome://extensions` → confirm Claude Usage Tracker is enabled. Click its toolbar icon to force a fetch.
 
-> **Reset times** are displayed in your system timezone. Claude.ai returns times in the browser's timezone, which GNOME controls. They will agree unless you have manually overridden the browser timezone.
+> **Reset times** are displayed in your system timezone. Claude.ai returns times in the browser's timezone, which your desktop controls. They will agree unless you have manually overridden the browser timezone.
 
 ### Server not running
 ```bash
@@ -259,11 +260,13 @@ systemctl --user restart claude-usage-fetch.service
 `chrome://extensions` → Claude Usage Tracker → **Errors**. Clear them, then click the toolbar icon to retry.
 
 ### Panel indicator missing after login
+**GNOME:**
 ```bash
 gnome-extensions list --enabled | grep claude-usage
 # If not listed:
 gnome-extensions enable claude-usage@indri.studio
 ```
+**KDE:** right-click a panel → **Add Widgets…** → search **Claude Usage**. If it's not listed, confirm the plasmoid is installed (`ls ~/.local/share/plasma/plasmoids/org.indri.claude-usage` or `/usr/share/plasma/plasmoids/org.indri.claude-usage`) and restart Plasma (`kquitapp6 plasmashell && kstart6 plasmashell`).
 
 ### Dock icon not updating after changing colors
 Force a data fetch (Chrome toolbar icon) or re-run the icon generator directly:
@@ -278,9 +281,9 @@ python3 /usr/share/claude-usage/generate-icon.py
 ### Check or reset a setting
 
 ```bash
-gsettings get org.gnome.shell.extensions.claude-usage popup-color-normal
-gsettings reset org.gnome.shell.extensions.claude-usage popup-color-normal
-gsettings reset-recursively org.gnome.shell.extensions.claude-usage  # restore all defaults
+gsettings get org.indri.claude-usage popup-color-normal
+gsettings reset org.indri.claude-usage popup-color-normal
+gsettings reset-recursively org.indri.claude-usage  # restore all defaults
 ```
 
 ---
@@ -300,10 +303,11 @@ The extension currently requires loading unpacked. To publish to the Chrome Web 
 ```
 claude-usage/
   chrome-extension/   Chrome extension (load via chrome://extensions → Load unpacked)
-  gnome-extension/    GNOME Shell 45–50 panel + dock indicator
+  desktop/gnome/      GNOME Shell 45–50 panel + dock indicator (extension)
+  desktop/kde/        KDE Plasma 6 panel + popup indicator (plasmoid)
+  desktop/launcher/   Dock launcher entry template (.desktop)
   server/             Local HTTP server + dock icon generator
   systemd/            User service definition
-  desktop/            Dock launcher entry template
   packaging/          .deb and Chrome Web Store build scripts
   scripts/            Build + maintenance utilities. Includes one
                       render-*.py per docs/*.png so screenshots are

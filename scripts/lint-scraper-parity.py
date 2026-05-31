@@ -278,7 +278,7 @@ def check_pacing_parity():
       pacingSegments      ↔ pacing_segments     (viz; PS-1 pass-23)    popup-preview.py
       colorFor            ↔ color_for           (viz; PS-1 pass-23)    popup-preview.py
     """
-    js_raw = _strip_comments((REPO / 'gnome-extension' / 'extension.js').read_text())
+    js_raw = _strip_comments((REPO / 'desktop' / 'gnome' / 'extension.js').read_text())
     gi_raw = _strip_py_docstrings(
         _strip_py_comments_tokenize(
             (REPO / 'server' / 'generate-icon.py').read_text()
@@ -345,7 +345,7 @@ def check_pair_inventory():
     Does NOT fail the lint — warnings only. Surfaces new pairs for human review
     so the next PS-1-class miss doesn't have to wait for a code review to find it.
     """
-    js_raw = _strip_comments((REPO / 'gnome-extension' / 'extension.js').read_text())
+    js_raw = _strip_comments((REPO / 'desktop' / 'gnome' / 'extension.js').read_text())
     gi_raw = _strip_py_docstrings(
         _strip_py_comments_tokenize(
             (REPO / 'server' / 'generate-icon.py').read_text()

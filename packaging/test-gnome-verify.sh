@@ -77,4 +77,4 @@ if [ "$FAIL" -gt 0 ]; then
     echo "OVERALL: FAIL — do not add $major to shell-version"
     exit 1
 fi
-echo "OVERALL: PASS — safe to add \"$major\" to gnome-extension/metadata.json shell-version"
+echo "OVERALL: PASS — safe to add \"$major\" to desktop/gnome/metadata.json shell-version"

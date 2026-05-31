@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate `gnome-extension/_defaults.js` from the gschema XML.
+"""Generate `desktop/gnome/_defaults.js` from the gschema XML.
 
 JS-1 (pass-18): `extension.js`'s `safeColor` carries hardcoded hex
 fallbacks (`#2a9a2a`, `#d07000`, etc.) used when GSettings reads return
@@ -8,7 +8,7 @@ because GJS can't import Python. Pass-19 chose option (b): generate a JS
 constants file from the same gschema XML, check it in, and let CI assert
 it stays in sync.
 
-Output is a plain ES module under `gnome-extension/` so `extension.js`
+Output is a plain ES module under `desktop/gnome/` so `extension.js`
 can `import { DEFAULTS } from './_defaults.js'`. The header notes that
 the file is auto-generated; do not hand-edit.
 """
@@ -17,8 +17,8 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-SCHEMA = REPO / 'gnome-extension/schemas/org.gnome.shell.extensions.claude-usage.gschema.xml'
-OUT = REPO / 'gnome-extension/_defaults.js'
+SCHEMA = REPO / 'desktop/gnome/schemas/org.indri.claude-usage.gschema.xml'
+OUT = REPO / 'desktop/gnome/_defaults.js'
 
 # GD-1 (pass-23): import the gschema parser from server/schema_defaults
 # instead of duplicating it. JS-1's original landing inlined a copy of
@@ -28,7 +28,7 @@ sys.path.insert(0, str(REPO / 'server'))
 from schema_defaults import _parse_default, _kebab_to_snake  # noqa: E402
 
 HEADER = """\
-// AUTO-GENERATED from gnome-extension/schemas/org.gnome.shell.extensions.claude-usage.gschema.xml
+// AUTO-GENERATED from desktop/gnome/schemas/org.indri.claude-usage.gschema.xml
 // DO NOT HAND-EDIT — regenerate with `task gen-js-defaults`.
 //
 // JS-1 (pass-18, option b chosen post-pass-21): extension.js's `safeColor`

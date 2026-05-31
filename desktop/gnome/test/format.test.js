@@ -1,4 +1,4 @@
-// Pure-formatting unit tests for gnome-extension/extension.js.
+// Pure-formatting unit tests for desktop/gnome/extension.js.
 //
 // extension.js can't be imported under node — its top-level `import … from
 // 'gi://…'` / `resource:///…` statements have no node resolver. So we EXTRACT

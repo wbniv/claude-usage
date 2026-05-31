@@ -6,7 +6,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gnome-shell gjs libglib2.0-bin \
     && rm -rf /var/lib/apt/lists/*
 
-COPY gnome-extension/ /root/.local/share/gnome-shell/extensions/claude-usage@indri.studio/
+COPY desktop/gnome/ /root/.local/share/gnome-shell/extensions/claude-usage@indri.studio/
 RUN glib-compile-schemas \
     /root/.local/share/gnome-shell/extensions/claude-usage@indri.studio/schemas/
 

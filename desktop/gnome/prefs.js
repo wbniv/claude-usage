@@ -238,7 +238,7 @@ export default class ClaudeUsagePreferences extends ExtensionPreferences {
         }));
         infoGroup.add(new Adw.ActionRow({
             title: 'Settings via CLI',
-            subtitle: 'gsettings set org.gnome.shell.extensions.claude-usage …',
+            subtitle: 'gsettings set org.indri.claude-usage …',
         }));
 
         window.add(page);

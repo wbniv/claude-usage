@@ -37,7 +37,7 @@ def parse_reset(reset, reset_minutes=None, anchor_ts=None):
     if m:
         # BASE-4 (2026-05-30 review): normalise total minutes so an input like
         # "1 hr 90 min" rolls over to 2:30 instead of rendering "1:90". Mirrors
-        # the live branch above and gnome-extension/extension.js::formatReset.
+        # the live branch above and desktop/gnome/extension.js::formatReset.
         total = int(m.group(1)) * 60 + int(m.group(2))
         return (True, f"{total // 60}:{total % 60:02d}")
     m = re.match(r'[Rr]esets? in (\d+) min', reset)

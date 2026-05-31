@@ -91,10 +91,10 @@ asroot "echo 'user:live' | chpasswd"   # make the live user ssh-able
 
 echo "=== Injecting plasmoid + server assets + fixture ==="
 asuser 'mkdir -p ~/.local/share/plasma/plasmoids ~/.cache/claude-usage ~/.config/claude-usage ~/server/schemas ~/.local/share/gnome-shell/extensions/claude-usage@indri.studio/icons'
-cpuser -r "$REPO/kde-plasmoid" user@localhost:'~/.local/share/plasma/plasmoids/org.indri.claude-usage'
+cpuser -r "$REPO/desktop/kde" user@localhost:'~/.local/share/plasma/plasmoids/org.indri.claude-usage'
 cpuser "$REPO"/server/{generate-icon.py,schema_defaults.py,tooltip.py,usage-server.py} user@localhost:'~/server/'
-cpuser "$REPO/gnome-extension/schemas/org.gnome.shell.extensions.claude-usage.gschema.xml" user@localhost:'~/server/schemas/'
-cpuser "$REPO/gnome-extension/icons/claude-64.png" user@localhost:'~/.local/share/gnome-shell/extensions/claude-usage@indri.studio/icons/claude-64.png'
+cpuser "$REPO/desktop/gnome/schemas/org.indri.claude-usage.gschema.xml" user@localhost:'~/server/schemas/'
+cpuser "$REPO/desktop/gnome/icons/claude-64.png" user@localhost:'~/.local/share/gnome-shell/extensions/claude-usage@indri.studio/icons/claude-64.png'
 cpuser "$FIX" user@localhost:'~/.cache/claude-usage/usage.json'
 asuser 'python3 -c "import json,time,os;p=os.path.expanduser(\"~/.cache/claude-usage/usage.json\");d=json.load(open(p));d[\"_timestamp\"]=int(time.time())-120;json.dump(d,open(p,\"w\"))"'
 

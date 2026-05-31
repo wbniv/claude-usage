@@ -26,7 +26,7 @@ tasks:
   test-gnome-format:
     desc: "Unit tests for extension.js's pure popup formatters (formatRows/formatReset/bar), extracted + run under node"
     cmds:
-      - node --test gnome-extension/test/format.test.js
+      - node --test desktop/gnome/test/format.test.js
 
   lint-scraper-parity:
     desc: "Parity lints for hand-synced pairs: scraper.js↔background.js inline (regex sets) and pacingPct↔pacing_pct (numeric constants)"
@@ -39,12 +39,12 @@ tasks:
       - python3 scripts/lint-security-doc.py
 
   gen-js-defaults:
-    desc: "JS-1 (pass-18): regenerate gnome-extension/_defaults.js from the gschema XML"
+    desc: "JS-1 (pass-18): regenerate desktop/gnome/_defaults.js from the gschema XML"
     cmds:
       - python3 scripts/gen-js-defaults.py
 
   lint-js-defaults:
-    desc: "JS-1 (pass-18): assert gnome-extension/_defaults.js is in sync with the gschema XML"
+    desc: "JS-1 (pass-18): assert desktop/gnome/_defaults.js is in sync with the gschema XML"
     cmds:
       - python3 scripts/gen-js-defaults.py --check
 
@@ -70,7 +70,7 @@ tasks:
         # (StandardPaths-without-import, phantom fields, default drift) are
         # covered by scripts/lint-kde-parity.py. Full type-checking needs the
         # Plasma QML modules installed (a KDE box / future test-kde image).
-        files=$(find kde-plasmoid/contents -name '*.qml' | sort)
+        files=$(find desktop/kde/contents -name '*.qml' | sort)
         "$qmllint" --max-warnings 0 \
           --import disable --unqualified disable --unresolved-type disable \
           --missing-property disable --unused-imports disable \
@@ -78,10 +78,10 @@ tasks:
         echo "lint-qml: OK ($(echo "$files" | grep -c . ) QML files parse cleanly)"
 
   lint-gnome:
-    desc: "Static checks for gnome-extension/extension.js: JS syntax + GNOME Shell API symbol verification against the installed libshell binary"
+    desc: "Static checks for desktop/gnome/extension.js: JS syntax + GNOME Shell API symbol verification against the installed libshell binary"
     cmds:
       - |
-        node --check gnome-extension/extension.js && echo "lint-gnome: syntax OK"
+        node --check desktop/gnome/extension.js && echo "lint-gnome: syntax OK"
       - |
         set -euo pipefail
         lib=$(ls /usr/lib/gnome-shell/libshell-*.so 2>/dev/null | head -1 || true)
@@ -111,7 +111,7 @@ tasks:
         # Source guards for fixes in extension.js (no unit-test harness exists —
         # gjs `resource:///` imports can't be loaded under node). These assert
         # the 2026-05-30 review fixes can't be silently removed.
-        ext=gnome-extension/extension.js
+        ext=desktop/gnome/extension.js
         fail=0
         # DIFF-1: broken-tier notify must keep the GNOME-45 fallback.
         grep -qF "typeof MessageTray.getSystemSource === 'function'" "$ext" \
@@ -232,7 +232,7 @@ tasks:
         echo "Bumped to {{.NEW}}. Review:"
         grep '^Version:' packaging/control
         grep '"version"' chrome-extension/manifest.json
-        echo "Note: gnome-extension/metadata.json's integer version is bumped automatically by 'task release'."
+        echo "Note: desktop/gnome/metadata.json's integer version is bumped automatically by 'task release'."
 
   release:
     desc: Preflight checks, tag, and push — CI builds and publishes the release (VERSION= to override)
@@ -272,8 +272,8 @@ tasks:
         fi
         # Auto-increment the GNOME extension integer version (EGO requirement).
         # Runs after all guards so a wrong-branch/dirty-tree abort never mutates the file.
-        python3 -c "import json,pathlib; p=pathlib.Path('gnome-extension/metadata.json'); d=json.loads(p.read_text()); d['version']+=1; p.write_text(json.dumps(d,indent=2)+chr(10))"
-        git add gnome-extension/metadata.json
+        python3 -c "import json,pathlib; p=pathlib.Path('desktop/gnome/metadata.json'); d=json.loads(p.read_text()); d['version']+=1; p.write_text(json.dumps(d,indent=2)+chr(10))"
+        git add desktop/gnome/metadata.json
         git commit -m "chore: bump gnome extension version for release"
       - git push origin main
       - git tag "{{.TAG}}"
@@ -283,13 +283,13 @@ tasks:
         rm -f dist/*.deb dist/*.zip
         echo "Local dist/ artifacts removed (CI uploads the canonical copies)."
 
-  kde-install:
+  install-kde:
     desc: Install KDE plasmoid for the current user
     cmds:
-      - rsync -a kde-plasmoid/ ~/.local/share/plasma/plasmoids/org.indri.claude-usage/
+      - rsync -a desktop/kde/ ~/.local/share/plasma/plasmoids/org.indri.claude-usage/
       - echo "Plasmoid installed. Restart Plasma shell to load the widget."
 
-  kde-uninstall:
+  uninstall-kde:
     desc: Remove KDE plasmoid
     cmds:
       - rm -rf ~/.local/share/plasma/plasmoids/org.indri.claude-usage

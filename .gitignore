@@ -1,4 +1,4 @@
-gnome-extension/schemas/gschemas.compiled
+desktop/gnome/schemas/gschemas.compiled
 __pycache__/
 *.pyc
 dist/

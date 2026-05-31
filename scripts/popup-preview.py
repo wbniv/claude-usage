@@ -2,7 +2,7 @@
 """Render an HTML preview of what the GNOME panel popup would show right now.
 
 Reads the live cache + GSettings and mimics the layout/color rules from
-gnome-extension/extension.js so popup changes can be eyeballed without a
+desktop/gnome/extension.js so popup changes can be eyeballed without a
 Wayland logout/login cycle. Wire this up by pointing the .desktop file's
 Exec= line at it (the dock-icon click then opens the preview in the
 default browser instead of claude.ai/settings/usage).
@@ -75,12 +75,12 @@ def read_cache():
 
 
 def read_gsettings():
-    """Mirror gnome-extension's GSettings reads. Returns dict, all defaults
+    """Mirror desktop/gnome's GSettings reads. Returns dict, all defaults
     on failure (matches the extension's fallback path). Fallback values come
     from server/schema_defaults — never drifts from the gschema."""
     try:
         from gi.repository import Gio
-        s = Gio.Settings.new('org.gnome.shell.extensions.claude-usage')
+        s = Gio.Settings.new('org.indri.claude-usage')
         return {
             'tWarn':       s.get_uint('threshold-warning'),
             'tCrit':       s.get_uint('threshold-critical'),
@@ -396,7 +396,7 @@ def _panel_icon_data_uri(broken=False):
     flagged the drift: 'i don't like the panel icon, tho. seems to just be
     a character now?'. It was. Fixed."""
     import base64
-    icon = (REPO / 'gnome-extension' / 'icons'
+    icon = (REPO / 'desktop' / 'gnome' / 'icons'
             / ('claude-22-red.png' if broken else 'claude-22.png'))
     if not icon.exists():
         return None

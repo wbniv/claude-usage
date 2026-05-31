@@ -19,12 +19,12 @@ test -f /usr/share/claude-usage/tooltip.py
 # load and the import crashes if the XML is missing. py_compile below
 # doesn't catch this (it parses but doesn't execute imports).
 test -f /usr/share/claude-usage/schema_defaults.py
-test -f /usr/share/claude-usage/schemas/org.gnome.shell.extensions.claude-usage.gschema.xml
+test -f /usr/share/claude-usage/schemas/org.indri.claude-usage.gschema.xml
 # Extension + compiled schema in both locations
 test -f /usr/share/gnome-shell/extensions/claude-usage@indri.studio/extension.js
 test -f /usr/share/gnome-shell/extensions/claude-usage@indri.studio/schemas/gschemas.compiled
-test -f /usr/share/glib-2.0/schemas/org.gnome.shell.extensions.claude-usage.gschema.xml
-# KDE plasmoid — build-deb.sh rsyncs kde-plasmoid/ here. Gap 5 (2026-05-30
+test -f /usr/share/glib-2.0/schemas/org.indri.claude-usage.gschema.xml
+# KDE plasmoid — build-deb.sh rsyncs desktop/kde/ here. Gap 5 (2026-05-30
 # review): the plasmoid is shipped but was previously unverified by this script.
 test -f /usr/share/plasma/plasmoids/org.indri.claude-usage/metadata.json
 test -f /usr/share/plasma/plasmoids/org.indri.claude-usage/contents/ui/main.qml
@@ -57,5 +57,5 @@ bash -n /usr/bin/claude-usage-setup
 python3 -m py_compile /usr/bin/claude-usage-status
 # Removal must clear the system-wide schema (postrm)
 DEBIAN_FRONTEND=noninteractive apt-get remove -y claude-usage
-test ! -f /usr/share/glib-2.0/schemas/org.gnome.shell.extensions.claude-usage.gschema.xml
+test ! -f /usr/share/glib-2.0/schemas/org.indri.claude-usage.gschema.xml
 echo OK

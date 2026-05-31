@@ -319,7 +319,7 @@ async function setFailCount(n) {
 
 // Parse "Resets in X hr Y min" / "Resets in X min" / "Resets Tue 5:00 PM"
 // into minutes-from-now. Returns null when the string doesn't match a
-// known shape. Mirrors the parsing logic in gnome-extension/extension.js
+// known shape. Mirrors the parsing logic in desktop/gnome/extension.js
 // formatReset(); we run it server-side here so the cache file carries
 // reset_minutes alongside the raw string for downstream consumers.
 function parseResetMinutes(reset) {

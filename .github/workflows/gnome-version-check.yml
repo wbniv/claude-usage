@@ -34,7 +34,7 @@ jobs:
         run: |
           max=$(python3 -c "
           import json
-          d = json.load(open('gnome-extension/metadata.json'))
+          d = json.load(open('desktop/gnome/metadata.json'))
           print(max(int(v) for v in d['shell-version']))
           ")
           echo "max_supported=$max" >> $GITHUB_OUTPUT
@@ -66,7 +66,7 @@ jobs:
               ``,
               `Steps to add support:`,
               `1. \`task test-gnome UBUNTU_VERSION=<ubuntu-release-with-gnome-${latest}>\``,
-              `2. If **PASS**: add \`"${latest}"\` to \`gnome-extension/metadata.json\` \`shell-version\``,
+              `2. If **PASS**: add \`"${latest}"\` to \`desktop/gnome/metadata.json\` \`shell-version\``,
               `3. Update \`MANUAL.md\` requirements line`,
               `4. Bump version + \`task release\``,
             ].join('\n');

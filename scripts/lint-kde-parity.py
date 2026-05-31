@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Parity + sanity lints for the KDE Plasma plasmoid (kde-plasmoid/).
+"""Parity + sanity lints for the KDE Plasma plasmoid (desktop/kde/).
 
 The plasmoid is a third consumer of the usage.json data contract (after the
 GNOME extension and generate-icon.py) and a third copy of the gschema config
@@ -13,7 +13,7 @@ never emits. These checks guard exactly those failure modes.
    must import the module that defines it (QtCore, Qt 6.2+).            [KDE-1]
 2. usage.json field allowlist — usageData.<f> / meter.<f> / modelData.<f>
    accesses must name a field the server actually writes.              [KDE-2]
-3. config-default parity — kde-plasmoid/contents/config/main.xml defaults must
+3. config-default parity — desktop/kde/contents/config/main.xml defaults must
    equal the GNOME gschema defaults (the single source of truth).      [KDE-5]
 4. pacing-floor parity — main.qml::pacingFraction's floor must mirror
    extension.js::pacingPct (the JS↔Python twins are pinned by
@@ -36,10 +36,10 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-KDE = REPO / 'kde-plasmoid'
+KDE = REPO / 'desktop' / 'kde'
 MAIN_XML = KDE / 'contents' / 'config' / 'main.xml'
-GSCHEMA = REPO / 'gnome-extension' / 'schemas' / 'org.gnome.shell.extensions.claude-usage.gschema.xml'
-EXTENSION_JS = REPO / 'gnome-extension' / 'extension.js'
+GSCHEMA = REPO / 'desktop' / 'gnome' / 'schemas' / 'org.indri.claude-usage.gschema.xml'
+EXTENSION_JS = REPO / 'desktop' / 'gnome' / 'extension.js'
 MAIN_QML = KDE / 'contents' / 'ui' / 'main.qml'
 
 # Fields the server actually writes to usage.json (usage-server.py / scraper.js

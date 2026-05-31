@@ -88,7 +88,7 @@ PlasmoidItem {
         return usageData.meters[Math.min(activeMeterIndex, usageData.meters.length - 1)]
     }
 
-    // Pacing fraction (0–1+): mirrors gnome-extension/extension.js:pacingPct
+    // Pacing fraction (0–1+): mirrors desktop/gnome/extension.js:pacingPct
     // exactly — raw fraction below the floor, pct ÷ elapsed-fraction above it.
     // Reads the real usage.json schema: meter.reset_minutes (minutes-from-now)
     // and the top-level _period_lengths[label] (minutes). Field names are
