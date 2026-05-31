@@ -114,6 +114,10 @@ echo "=== Loading plasmoid into the running shell ==="
 # errors from this load — not stale ones from earlier in the boot.
 MARK=$(asuser 'date "+%Y-%m-%d %H:%M:%S"')
 insession 'systemctl --user restart plasma-plasmashell; for i in $(seq 1 20); do qdbus6 org.kde.plasmashell >/dev/null 2>&1 && break; sleep 1; done'
+# Add to BOTH a panel and the desktop on purpose: exercises the compact (panel)
+# and full (desktop) representations in one run. So a live run shows TWO
+# instances/popups rendering identical data — intentional coverage, not a
+# duplication bug. (Panel-only? drop the desktops()[0].addWidget call.)
 insession 'qdbus6 org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell.evaluateScript "panels()[0].addWidget(\"org.indri.claude-usage\"); desktops()[0].addWidget(\"org.indri.claude-usage\");"'
 sleep 4
 

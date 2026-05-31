@@ -181,15 +181,26 @@ Reports service health, cache freshness, meter breakdown, and extension state in
 
 ---
 
+## KDE Plasma
+
+On KDE Plasma 6 the indicator is a **plasmoid** (the `.deb` installs it to `/usr/share/plasma/plasmoids/org.indri.claude-usage/`; the Chrome extension and local server work exactly as on GNOME). To add it:
+
+1. **Right-click a panel → Add Widgets…**, search **Claude Usage**, and click it. In a panel it shows the compact indicator — the bundled icon plus the selected meter's `%` in its pacing colour — and **click it to expand** the full breakdown (every meter with a bar + reset countdown, the data-age line, a panel-metric selector, and an "Open Usage Page" link). Scroll the panel indicator to cycle which meter the `%` tracks.
+2. **Configure:** right-click the widget → **Configure Claude Usage…** — colours, warning/critical thresholds, popup font, and sizes. These persist in KConfig; colour/threshold/font choices are also mirrored to `~/.config/claude-usage/config.json` so the dock-launcher icon (`generate-icon.py`) picks them up.
+
+> Add it to a **panel**, not the desktop. A panel gives the compact icon that expands on click; dropped on the desktop a plasmoid renders its *full* breakdown directly (Plasma shows the full representation for desktop widgets) — fine as a desktop widget, but not the compact indicator. Adding it to both at once (as the live test harness does, to exercise both representations) is why you'd see two breakdowns.
+
+---
+
 ## Configuration
 
-All settings are stored in GSettings (dconf). Open the preferences UI:
+On **GNOME**, all settings are stored in GSettings (dconf). Open the preferences UI:
 
 ```bash
 gnome-extensions prefs claude-usage@indri.studio
 ```
 
-Changes to colors, thresholds, bar width, and font sizes apply instantly — no restart needed.
+Changes to colors, thresholds, bar width, and font sizes apply instantly — no restart needed. (On **KDE**, configure via the widget's right-click **Configure Claude Usage…** dialog — see *KDE Plasma* above.)
 
 You can also set any value from the command line:
 

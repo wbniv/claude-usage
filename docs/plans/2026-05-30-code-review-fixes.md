@@ -261,6 +261,13 @@ is selectable — not a defect.
     redirect) not exercised — `loadData()` still derives the path from
     `GenericCacheLocation`, so it tracks `$XDG_CACHE_HOME` for free.
 
+    > **Why a live run shows two popups:** the harness adds the widget to
+    > **both** a panel and the desktop (`test-kde-qemu.sh:117` —
+    > `panels()[0].addWidget(…)` + `desktops()[0].addWidget(…)`) so one run
+    > exercises both the compact (panel) and full (desktop) representations.
+    > Two instances render identical data (same `usage.json`) — that's
+    > intentional coverage, **not** a duplication bug in the plasmoid.
+
 11. **[live] GNOME 45:** on a GNOME-45 shell, force `tier=broken`; notification fires (no action button) with no `_updateDisplay` throw.
 
     ```
