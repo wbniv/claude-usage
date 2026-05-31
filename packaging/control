@@ -1,5 +1,5 @@
 Package: claude-usage
-Version: 0.11.27
+Version: 0.11.28
 Architecture: all
 Maintainer: Will Norris <will@biohack.net>
 Depends: python3 (>= 3.8), python3-cairo, python3-pil, systemd
