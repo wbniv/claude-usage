@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import org.kde.plasma.components as PlasmaComponents3
+import org.kde.kirigami as Kirigami
 
 ColumnLayout {
     id: meterRowRoot
@@ -9,6 +10,11 @@ ColumnLayout {
     property int barWidth: 10
     property string fontFamily: "monospace"
     property int fontSize: 10
+
+    // KQ-6 (pass-29): empty-bar cells + the reset hint were hardcoded white
+    // (Qt.rgba(1,1,1,…)) — invisible on a light Plasma theme. Derive both from
+    // the theme text colour so they read on light and dark alike.
+    readonly property color _dimColor: Kirigami.Theme.textColor
 
     spacing: 1
 
@@ -41,7 +47,7 @@ ColumnLayout {
                 height: 4
                 radius: 1
                 color: meter && (index / barWidth * 100) < (meter.pct || 0)
-                    ? meterColor : Qt.rgba(1, 1, 1, 0.2)
+                    ? meterColor : Qt.rgba(_dimColor.r, _dimColor.g, _dimColor.b, 0.2)
             }
         }
 
@@ -59,7 +65,7 @@ ColumnLayout {
                 if (h > 0) return " resets in " + h + "h " + m + "m"
                 return " resets in " + m + "m"
             }
-            color: Qt.rgba(1, 1, 1, 0.6)
+            color: Qt.rgba(_dimColor.r, _dimColor.g, _dimColor.b, 0.6)
             font.pixelSize: fontSize - 1
         }
     }

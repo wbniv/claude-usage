@@ -7,6 +7,16 @@ RowLayout {
     id: compactRoot
     spacing: 4
 
+    // KQ-1 (pass-29): wheel-to-cycle must live on the compact representation —
+    // the item actually placed in the panel. A MouseArea on the root
+    // PlasmoidItem (the previous home) receives no panel wheel events in
+    // Plasma 6, so scroll-to-cycle was dead. WheelHandler doesn't participate
+    // in the layout (no anchors conflict) and leaves click-to-expand to the
+    // framework.
+    WheelHandler {
+        onWheel: (event) => root.cycleMeter(event.angleDelta.y > 0 ? -1 : 1)
+    }
+
     // Icon
     Image {
         id: icon

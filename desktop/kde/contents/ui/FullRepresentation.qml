@@ -23,7 +23,10 @@ ColumnLayout {
                 (astat.claude_ai_component_status && astat.claude_ai_component_status !== "operational")))
                 return "⚠ Anthropic service degraded"
             if (root.usageData._timestamp) {
-                const ageMin = Math.round((Date.now() / 1000 - root.usageData._timestamp) / 60)
+                // KQ-5 (pass-29): clamp ≥ 0 for parity with extension.js BASE-6 —
+                // a _timestamp slightly in the future (NTP backstep between scrape
+                // and read) shouldn't read as a negative age.
+                const ageMin = Math.max(0, Math.round((Date.now() / 1000 - root.usageData._timestamp) / 60))
                 return "Updated " + (ageMin < 1 ? "just now" : ageMin + "m ago")
             }
             return ""

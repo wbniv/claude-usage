@@ -88,6 +88,16 @@ PlasmoidItem {
         return usageData.meters[Math.min(activeMeterIndex, usageData.meters.length - 1)]
     }
 
+    // Cycle the panel metric by `delta` (±1). Called from CompactRepresentation's
+    // WheelHandler — see the note where the root MouseArea used to live.
+    function cycleMeter(delta) {
+        if (!usageData || !usageData.meters) return
+        const n = usageData.meters.length
+        if (n <= 1) return
+        activeMeterIndex = (activeMeterIndex + delta + n) % n
+        Plasmoid.configuration.panelMetric = usageData.meters[activeMeterIndex].label
+    }
+
     // Pacing fraction (0–1+): mirrors desktop/gnome/extension.js:pacingPct
     // exactly — raw fraction below the floor, pct ÷ elapsed-fraction above it.
     // Reads the real usage.json schema: meter.reset_minutes (minutes-from-now)
@@ -108,8 +118,14 @@ PlasmoidItem {
     function pacingColor(meter, cNormal, cWarning, cCritical) {
         if (!meter) return cNormal
         const pacing = pacingFraction(meter)
-        if (pacing >= Plasmoid.configuration.thresholdCritical / 100) return cCritical
-        if (pacing >= Plasmoid.configuration.thresholdWarning / 100) return cWarning
+        const tWarn = Plasmoid.configuration.thresholdWarning
+        // KQ-4 (pass-29): clamp critical > warning even if persisted out of order
+        // (kwriteconfig6 / a config migration bypass the SpinBox interlock, which
+        // only fires on user edits). Mirrors extension.js's DR-1 — without it the
+        // colour ladder inverts: critical fires first and warning is unreachable.
+        const tCrit = Math.max(Plasmoid.configuration.thresholdCritical, tWarn + 1)
+        if (pacing >= tCrit / 100) return cCritical
+        if (pacing >= tWarn / 100) return cWarning
         return cNormal
     }
 
@@ -135,20 +151,4 @@ PlasmoidItem {
     }
 
     Component.onCompleted: { root.loadData(); root.writeConfigJson() }
-
-    // Scroll cycles through meters
-    MouseArea {
-        anchors.fill: parent
-        acceptedButtons: Qt.NoButton
-        onWheel: function(wheel) {
-            if (!usageData || !usageData.meters) return
-            const n = usageData.meters.length
-            if (n <= 1) return
-            if (wheel.angleDelta.y > 0)
-                activeMeterIndex = (activeMeterIndex - 1 + n) % n
-            else
-                activeMeterIndex = (activeMeterIndex + 1) % n
-            Plasmoid.configuration.panelMetric = usageData.meters[activeMeterIndex].label
-        }
-    }
 }
