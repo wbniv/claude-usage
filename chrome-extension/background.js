@@ -365,7 +365,7 @@ async function scrapeAndPost(tabId) {
     target: { tabId },
     // Returns a Promise so executeScript waits for React hydration before
     // scraping. MutationObserver resolves as soon as a "% used" text node
-    // appears; a 10 s deadline fires the scrape unconditionally as a fallback.
+    // appears; a 30 s deadline fires the scrape unconditionally as a fallback.
     func: () => new Promise(resolve => {
       function isHydrated() {
         // SC-2 (pass-15 §6): match the predicate to the consumer. textContent

@@ -20,7 +20,11 @@ const CACHE_FILE         = CACHE_DIR + '/usage.json';
 const NOTIF_TS_FILE      = CACHE_DIR + '/notif-ts';
 const NOTIF_CRIT_TS_FILE = CACHE_DIR + '/notif-crit-ts';
 const USAGE_URL          = 'https://claude.ai/settings/usage';
-const STATUS_URL         = 'https://status.anthropic.com/';
+// EXT-2 (pass-29): status.anthropic.com 302-redirects to status.claude.com (the
+// canonical Statuspage host, used by background.js + lint-security-doc.py). Point
+// the user link straight at the direct host — both work today, but this matches
+// the rest of the codebase and survives retirement of the anthropic.com vanity host.
+const STATUS_URL         = 'https://status.claude.com/';
 
 // Source install puts generate-icon.py under ~/.local/share; .deb under /usr/share.
 // Resolve once at module load — the script location doesn't change at runtime.
@@ -578,7 +582,7 @@ class ClaudeIndicator extends PanelMenu.Button {
 
         // Make _statusItem a clickable link only when Anthropic itself reports
         // a problem — scrape-failure and age-timeout broken cases are local
-        // issues where status.claude.ai wouldn't have relevant information.
+        // issues where status.claude.com wouldn't have relevant information.
         const wantLink = tier === 'broken' &&
             ((astat.indicator && astat.indicator !== 'none') ||
              (astat.claude_ai_component_status && astat.claude_ai_component_status !== 'operational'));
@@ -626,9 +630,16 @@ class ClaudeIndicator extends PanelMenu.Button {
                                 body: reason || 'Service disruption detected',
                                 isTransient: true,
                             });
-                            _notif.addAction('View Status Page', () => {
-                                Gio.AppInfo.launch_default_for_uri(STATUS_URL, null);
-                            });
+                            // EXT-1 (pass-29): only offer "View Status Page" for an
+                            // Anthropic-reported outage — same gate as the popup
+                            // status-item link (wantLink). For local-only broken
+                            // causes (scrape-fail, age-timeout) the status page has
+                            // no relevant info, so the action button would mislead.
+                            if (wantLink) {
+                                _notif.addAction('View Status Page', () => {
+                                    Gio.AppInfo.launch_default_for_uri(STATUS_URL, null);
+                                });
+                            }
                             _src.addNotification(_notif);
                         } else {
                             Main.notify('Claude Usage', reason || 'Service disruption detected');
@@ -668,7 +679,10 @@ class ClaudeIndicator extends PanelMenu.Button {
             popupNorm, popupWarn, popupCrit, tWarn, tCrit,
             primary: primary?.label ?? '',
             meterKey: visibleMeters.map(m =>
-                `${m.label}:${m.pct ?? 0}:${m.reset_minutes ?? ''}`).join(','),
+                // EXT-3 (pass-29): include count/total/spent/balance so a held-open
+                // popup refreshes a count/extra row that changes while pct rounds
+                // to the same value (e.g. 100/201 → 100/200, both 50%).
+                `${m.label}:${m.pct ?? 0}:${m.reset_minutes ?? ''}:${m.count ?? ''}/${m.total ?? ''}:${m.spent ?? ''}:${m.balance ?? ''}`).join(','),
         });
         if (this._lastMenuFp === _menuFp && this.menu.isOpen) return;
         this._lastMenuFp = _menuFp;
