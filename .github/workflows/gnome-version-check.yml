@@ -12,7 +12,7 @@ jobs:
       issues: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Detect latest GNOME Shell major version from ubuntu:latest
         id: detect
@@ -41,7 +41,7 @@ jobs:
 
       - name: Open issue if new version detected
         if: steps.detect.outputs.latest_major != '0' && steps.detect.outputs.latest_major > steps.current.outputs.max_supported
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const latest = '${{ steps.detect.outputs.latest_major }}';

@@ -41,7 +41,7 @@ jobs:
       # below governs Action runtime; this controls the user-shell `node`
       # invoked by task test-scraper.
       - name: Pin Node version
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '24'
 

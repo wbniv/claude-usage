@@ -36,8 +36,16 @@ mkdir -p \
 # before copying so the .deb always ships a current artifact (CI's
 # lint-js-defaults catches drift in the checked-in copy too).
 python3 "$REPO_DIR/scripts/gen-js-defaults.py"
-# GNOME extension
-cp -r "$REPO_DIR/desktop/gnome/." \
+# GNOME extension. PKG-1 (pass-29): rsync with --exclude=test/ so the dev-only
+# format.test.js fixture doesn't ship in the release artifact — the chrome copy
+# below already does this; the old `cp -r` shipped it. Mirrors install.sh, which
+# copies the GNOME files individually and omits test/.
+rsync -a \
+    --exclude='test/' \
+    --exclude='__pycache__/' \
+    --exclude='*.pyc' \
+    --exclude='.DS_Store' \
+    "$REPO_DIR/desktop/gnome/" \
     "$PKG/usr/share/gnome-shell/extensions/claude-usage@indri.studio/"
 # KDE plasmoid
 rsync -a "$REPO_DIR/desktop/kde/" \

@@ -29,12 +29,13 @@ All data stays on your own machine. It is sent only to `http://127.0.0.1:<port>`
 
 | Permission | Why |
 |------------|-----|
-| `tabs` | Open `claude.ai/settings/usage` in a background tab to read usage data |
-| `scripting` | Inject a script into that tab to read the meter values from the DOM |
+| `scripting` | Inject a script into the usage tab to read the meter values from the DOM |
 | `alarms` | Schedule a fetch every 7 minutes |
 | `storage` | Store a fallback copy of usage data when the local server is unavailable |
-| `https://claude.ai/*` | Access the usage page |
-| `https://status.claude.com/*` | Poll Anthropic's public status page for outage detection (no auth, no token cost) |
+| `webNavigation` | Detect when you open `claude.ai/settings/usage` in a normal tab, so it can be scraped without opening a background tab |
+| `idle` | Detect resume-from-suspend so usage refreshes promptly after the machine wakes |
+| `https://claude.ai/settings/usage*` | Read the usage page |
+| `https://status.claude.com/api/v2/*` | Poll Anthropic's public status page for outage detection (no auth, no token cost) |
 | `http://127.0.0.1:7331-7340/*` | Discover and post data to the local server (one of these ports, chosen at server startup) |
 
 ## Contact
