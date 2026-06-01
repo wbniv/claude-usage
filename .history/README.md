@@ -1,5 +1,10 @@
 | Date | Change |
 |------|--------|
+| [2026-05-31](https://github.com/wbniv/claude-usage/commit/1cd66ed) | refactor: de-GNOME-ify naming for cross-desktop (GNOME + KDE) |
+| [2026-05-31](https://github.com/wbniv/claude-usage/commit/96c654c) | docs(kde): explain the two-instance harness behavior + add a KDE Plasma manual section |
+| [2026-05-30](https://github.com/wbniv/claude-usage/commit/aaddd5e) | fix(BASE-3..6): close out deferred code-review lows |
+| [2026-05-22](https://github.com/wbniv/claude-usage/commit/7d21cec) | docs: sanitize MANUAL.md to remove github.com/<owner> URLs |
+| [2026-05-22](https://github.com/wbniv/claude-usage/commit/8e8af88) | feat(install): tighten install.sh pre-flight + document curl|bash path |
 | [2026-05-21](https://github.com/wbniv/claude-usage/commit/2598c2a) | feat(SV-1): GNOME 50 support + test-gnome infrastructure + weekly version check |
 | [2026-05-20](https://github.com/wbniv/claude-usage/commit/2283398) | fix(docs): scroll cycles through every eligible meter, not just two |
 | [2026-05-20](https://github.com/wbniv/claude-usage/commit/3c73e99) | fix(docs): panel icon is bare star, not ring-painted |
