@@ -20,6 +20,10 @@ never emits. These checks guard exactly those failure modes.
    lint-pacing-parity; this brings the QML third copy under the guard). [KDE-2]
 5. usage-URL parity — the plasmoid's hardcoded usage URL must equal
    extension.js's USAGE_URL.                                            [KDE-2]
+6. config-range parity — for keys that declare a numeric range in BOTH
+   main.xml (<min>/<max>) and the gschema (<range>), the bounds must
+   match. Keys that omit the range in main.xml (the size fields, whose
+   bounds are delegated to the QML SpinBoxes) are out of scope.         [KDE-5]
 
 This is a regex-based DRIFT/parity guard, not a QML validator: it can be fooled
 by reformatting or by a phantom field read through a differently-named variable
@@ -130,6 +134,18 @@ def _gschema_defaults():
     return out
 
 
+def _gschema_ranges():
+    # {gschema-key: (min, max)} for keys that carry a <range min=.. max=..>.
+    root = ET.parse(GSCHEMA).getroot()
+    out = {}
+    for key in root.iter('key'):
+        name, r = key.get('name'), key.find('range')
+        if name is not None and r is not None and \
+                r.get('min') is not None and r.get('max') is not None:
+            out[name] = (r.get('min').strip(), r.get('max').strip())
+    return out
+
+
 def _kcfg_defaults():
     # kcfg declares a default namespace; match tags regardless of prefix.
     root = ET.parse(MAIN_XML).getroot()
@@ -144,6 +160,21 @@ def _kcfg_defaults():
     return out
 
 
+def _kcfg_ranges():
+    # {kcfg-key: (min, max)} for entries that declare both <min> and <max>.
+    root = ET.parse(MAIN_XML).getroot()
+    out = {}
+    for entry in root.iter():
+        if not entry.tag.endswith('entry'):
+            continue
+        name = entry.get('name')
+        lo = next((c for c in entry if c.tag.endswith('min')), None)
+        hi = next((c for c in entry if c.tag.endswith('max')), None)
+        if name is not None and lo is not None and hi is not None:
+            out[name] = ((lo.text or '').strip(), (hi.text or '').strip())
+    return out
+
+
 def check_config_parity():
     errs = []
     gs, kde = _gschema_defaults(), _kcfg_defaults()
@@ -155,6 +186,33 @@ def check_config_parity():
         elif kde[kde_key] != gs[gs_key]:
             errs.append(f"default drift: main.xml {kde_key}={kde[kde_key]!r} != "
                         f"gschema {gs_key}={gs[gs_key]!r}")
+    return errs
+
+
+def check_range_parity():
+    """For keys that declare a numeric range in BOTH main.xml (<min>/<max>) and
+    the gschema (<range>), the bounds must match — otherwise the KDE config
+    spinbox and the GNOME control would clamp the same setting differently.
+
+    Keys whose range main.xml omits are skipped by design: the plasmoid leaves
+    those bounds to its QML SpinBox widgets (see the "Sizes" comment in
+    main.xml), so today only thresholdWarning/thresholdCritical are enforced.
+    Any range later added to main.xml is then automatically pinned here.  [KDE-5]"""
+    errs = []
+    gs, kde = _gschema_ranges(), _kcfg_ranges()
+    for kde_key, gs_key in KEY_MAP.items():
+        if kde_key not in kde or gs_key not in gs:
+            continue  # range declared on at most one side — not in scope
+        try:
+            kde_rng = tuple(int(v) for v in kde[kde_key])
+            gs_rng = tuple(int(v) for v in gs[gs_key])
+        except ValueError:
+            errs.append(f"non-integer range: main.xml {kde_key}={kde[kde_key]} / "
+                        f"gschema {gs_key}={gs[gs_key]}")
+            continue
+        if kde_rng != gs_rng:
+            errs.append(f"range drift: main.xml {kde_key} (min,max)={kde_rng} != "
+                        f"gschema {gs_key} range={gs_rng}")
     return errs
 
 
@@ -212,7 +270,8 @@ def check_config_idiom():
 def main():
     errs = []
     for fn in (check_standardpaths_import, check_usage_fields, check_config_parity,
-               check_pacing_floor_parity, check_url_parity, check_config_idiom):
+               check_range_parity, check_pacing_floor_parity, check_url_parity,
+               check_config_idiom):
         errs.extend(fn())
     if errs:
         for e in errs:
@@ -220,7 +279,8 @@ def main():
         print(f"lint-kde-parity: FAIL ({len(errs)} issue(s))", file=sys.stderr)
         return 1
     print(f"lint-kde-parity: OK ({len(_qml_files())} QML files clean, "
-          f"{len(KEY_MAP)} config keys + pacing floor + usage URL mirror the canonical source)")
+          f"{len(KEY_MAP)} config keys (defaults + shared ranges) + pacing floor "
+          f"+ usage URL mirror the canonical source)")
     return 0
 
 
