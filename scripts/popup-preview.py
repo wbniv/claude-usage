@@ -80,6 +80,13 @@ def read_gsettings():
     from server/schema_defaults — never drifts from the gschema."""
     try:
         from gi.repository import Gio
+        # SRV-1 (pass-29): Gio.Settings.new() on an unregistered schema aborts
+        # the process (uncatchable g_error/SIGTRAP). Probe the schema source
+        # first — lookup() returns None for a missing schema — so this falls to
+        # the DEFAULTS branch below instead of killing the preview.
+        _src = Gio.SettingsSchemaSource.get_default()
+        if _src is None or _src.lookup('org.indri.claude-usage', True) is None:
+            raise RuntimeError('gschema org.indri.claude-usage not registered')
         s = Gio.Settings.new('org.indri.claude-usage')
         return {
             'tWarn':       s.get_uint('threshold-warning'),

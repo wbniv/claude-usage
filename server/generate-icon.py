@@ -62,11 +62,38 @@ TRACK         = (0.0, 0.0, 0.0, 0.25)   # subtle dark on orange
 # Pulled from the gschema at import time — see server/schema_defaults.py.
 # Previously a hand-copied dict that drifted (threshold_warning was 50, schema
 # says 70; threshold_critical was 80, schema says 90). Pass-17 DG-1.
-from schema_defaults import DEFAULTS as _SCHEMA_DEFAULTS
+from schema_defaults import DEFAULTS as _SCHEMA_DEFAULTS, RANGES as _SCHEMA_RANGES
 DEFAULTS = {k: _SCHEMA_DEFAULTS[k] for k in (
     'weekly_color_green', 'weekly_color_amber', 'weekly_color_red',
     'sonnet_color', 'threshold_warning', 'threshold_critical',
 )}
+
+def _gsettings_or_none():
+    """Return a Gio.Settings bound to our schema, or None when GSettings is
+    unusable (python3-gi absent, or the gschema not registered).
+
+    SRV-1 (pass-29): Gio.Settings.new() on an UNREGISTERED schema id calls
+    glib's g_error() → the process aborts with SIGTRAP, which `except Exception`
+    cannot catch (the interpreter is already gone). Reachable on a KDE-only
+    source install (install.sh skips glib-compile-schemas for the GNOME schema
+    there) or any dev checkout before install, whenever
+    ~/.config/claude-usage/config.json also doesn't exist yet — then load_config
+    falls through to here. SettingsSchemaSource.lookup() returns None for a
+    missing schema instead of aborting, so we fall back to DEFAULTS cleanly.
+    """
+    try:
+        from gi.repository import Gio
+    except Exception as e:
+        print(f"warning: python3-gi unavailable ({e}); using DEFAULTS",
+              file=sys.stderr, flush=True)
+        return None
+    src = Gio.SettingsSchemaSource.get_default()
+    if src is None or src.lookup('org.indri.claude-usage', True) is None:
+        print("warning: gschema org.indri.claude-usage not registered; using DEFAULTS",
+              file=sys.stderr, flush=True)
+        return None
+    return Gio.Settings.new('org.indri.claude-usage')
+
 
 def load_config():
     _cfg_json = Path(os.environ.get('XDG_CONFIG_HOME') or Path.home() / '.config') \
@@ -96,13 +123,24 @@ def load_config():
                     print(f"warning: invalid {key!r} in config.json, using default",
                           file=sys.stderr, flush=True)
                     cfg[key] = DEFAULTS[key]
+                    continue
+                # ICN-1 (pass-29): the KDE SpinBox clamps to the gschema range,
+                # but a hand-edited config.json could carry e.g. threshold_warning:0
+                # → ring_color() then reads every meter as warning. Reject
+                # out-of-range values the same way invalid colors fall back.
+                lo, hi = _SCHEMA_RANGES.get(key, (None, None))
+                if lo is not None and not (lo <= cfg[key] <= hi):
+                    print(f"warning: {key!r}={cfg[key]} out of range [{lo},{hi}] "
+                          f"in config.json, using default", file=sys.stderr, flush=True)
+                    cfg[key] = DEFAULTS[key]
             return cfg
         except Exception as e:
             print(f"warning: config.json load failed ({e}); falling through to GSettings",
                   file=sys.stderr, flush=True)
+    s = _gsettings_or_none()
+    if s is None:
+        return dict(DEFAULTS)
     try:
-        from gi.repository import Gio
-        s = Gio.Settings.new('org.indri.claude-usage')
         cfg = {
             'weekly_color_green': s.get_string('weekly-color-green'),
             'weekly_color_amber': s.get_string('weekly-color-amber'),
@@ -119,9 +157,8 @@ def load_config():
                 cfg[key] = DEFAULTS[key]
         return cfg
     except Exception as e:
-        # DG-2 (pass-17): silent fallback hid bugs. Log so users running with
-        # an unregistered schema (pre-install) or a broken Gio binding can
-        # see why their colour edits are taking no effect.
+        # DG-2 (pass-17): silent fallback hid bugs. Log so a broken Gio binding
+        # surfaces a reason rather than silently ignoring colour edits.
         print(f"warning: GSettings load failed ({e}); using DEFAULTS",
               file=sys.stderr, flush=True)
         return dict(DEFAULTS)

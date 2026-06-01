@@ -165,6 +165,33 @@ def test_config_json_non_int_threshold_coerced(g, tmp_path, monkeypatch):
     g.ring_color(95, cfg)  # must not raise (was TypeError)
 
 
+def test_config_json_out_of_range_threshold_falls_back(g, tmp_path, monkeypatch):
+    """ICN-1 (pass-29): a threshold outside the gschema range (1..500) in a
+    hand-edited config.json must fall back to the default — else
+    threshold_warning:0 makes ring_color() read every meter as warning."""
+    cfgdir = tmp_path / 'claude-usage'
+    cfgdir.mkdir()
+    (cfgdir / 'config.json').write_text(json.dumps({
+        'threshold_warning': 0, 'threshold_critical': 9999,
+    }))
+    monkeypatch.setenv('XDG_CONFIG_HOME', str(tmp_path))
+    cfg = g.load_config()
+    assert cfg['threshold_warning'] == g.DEFAULTS['threshold_warning']
+    assert cfg['threshold_critical'] == g.DEFAULTS['threshold_critical']
+
+
+def test_load_config_schema_absent_falls_back(g, tmp_path, monkeypatch):
+    """SRV-1 (pass-29): with no config.json and the gschema unregistered,
+    load_config() must return DEFAULTS, not abort. _gsettings_or_none()
+    returns None for a missing schema (via SettingsSchemaSource.lookup, which
+    returns None instead of the uncatchable SIGTRAP that Gio.Settings.new()
+    raises on an unregistered schema id)."""
+    monkeypatch.setenv('XDG_CONFIG_HOME', str(tmp_path))  # no config.json present
+    monkeypatch.setattr(g, '_gsettings_or_none', lambda: None)
+    cfg = g.load_config()
+    assert cfg == dict(g.DEFAULTS)
+
+
 def test_hex_to_rgba_with_hash(g):
     r, gn, b, a = g.hex_to_rgba('#ff0000')
     assert r == 1.0

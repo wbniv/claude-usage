@@ -34,9 +34,19 @@ def _check_cache():
         print(f'  Cache:      ✗ parse error: {e}')
         return
 
-    ts_min = int((time.time() - d.get('_timestamp', 0)) / 60)
+    # STAT-1 (pass-29): the diagnostic must not crash on a corrupt cache — it's
+    # the tool a user runs *because* something is wrong. _timestamp /
+    # _scrape_fail_count / pct are validated on POST, but the cache is read
+    # before any new POST, so a hand-edit or downgrade can leave a non-numeric
+    # value. Coerce defensively (bool ⊂ int in Python, so exclude bool).
+    raw_ts = d.get('_timestamp', 0)
+    if isinstance(raw_ts, bool) or not isinstance(raw_ts, (int, float)):
+        raw_ts = 0
+    ts_min = int((time.time() - raw_ts) / 60)
     plan = d.get('plan') or '?'
     sfc = d.get('_scrape_fail_count', 0) or 0
+    if isinstance(sfc, bool) or not isinstance(sfc, int):
+        sfc = 0
     astat = d.get('_anthropic_status') or {}
 
     if ts_min > 20:
@@ -78,7 +88,7 @@ def _check_cache():
     if d.get('_ext_version_mismatch'):
         print(f'  Chrome ext: ⚠ v{ev or "?"} differs from server-expected version')
         print('              Fix: chrome://extensions → Claude Usage Tracker → Reload')
-    elif ev is None and d.get('_timestamp', 0) > 0:
+    elif ev is None and raw_ts > 0:
         # Cache has data but no version stamp → Chrome ext predates 0.11.1's
         # _ext_version field. Most likely: user upgraded the .deb but Chrome is
         # still running the old loaded copy and was never reloaded.
@@ -88,7 +98,11 @@ def _check_cache():
     for m in d.get('meters', []):
         label = (m.get('label') or '?')[:40]
         pct = m.get('pct', 0)
-        bar = '█' * round(pct / 10) + '░' * (10 - round(pct / 10))
+        if isinstance(pct, bool) or not isinstance(pct, (int, float)):
+            pct = 0
+        pct = int(pct)
+        filled = max(0, min(10, round(pct / 10)))
+        bar = '█' * filled + '░' * (10 - filled)
         print(f'  Meter:      {label:<40}  {pct:3d}%  {bar}')
 
 
