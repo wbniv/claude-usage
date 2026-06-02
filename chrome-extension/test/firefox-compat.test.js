@@ -2,10 +2,14 @@
 //
 // background.js calls chrome.* with `await` (Chrome's chrome.* return promises).
 // Under Firefox the promise namespace is browser.*; chrome-compat.js aliases
-// chrome -> browser so the SAME background.js works unchanged. This test loads
-// chrome-compat.js then background.js in a context where `chrome` is undefined
-// and only `browser` exists (the Firefox-before-shim shape), and asserts a clean
-// synchronous load with no unhandled rejection — the Firefox twin of
+// chrome -> browser so the SAME background.js works unchanged.
+//
+// Real Firefox exposes BOTH a callback-style `chrome` AND a promise-style
+// `browser`. The shim must OVERWRITE the callback `chrome` with `browser` — a
+// conditional `chrome ??= browser` would no-op (chrome is already defined) and
+// leave every `await chrome.*` resolving to undefined. This test reproduces that
+// real-Firefox shape (both namespaces present) so the regression can't return,
+// and asserts a clean synchronous load — the Firefox twin of
 // background-load.test.js's Chrome-path guard.
 
 import { describe, it } from 'node:test';
@@ -43,8 +47,11 @@ describe('Firefox compat shim — chrome-compat.js', () => {
       idle: { onStateChanged: listener },
     };
 
+    // Real Firefox defines BOTH: a callback-style `chrome` (sentinel here) AND
+    // the promise-style `browser`. The shim must replace the former with the latter.
+    const callbackChrome = { __callbackStyleSentinel: true };
     const context = {
-      // No `chrome` key — the shim must create it from `browser`.
+      chrome: callbackChrome,
       browser: browserStub,
       console: { log: () => {}, warn: () => {}, error: () => {} },
       fetch: async () => ({ ok: false, status: 0, text: async () => '', json: async () => ({}) }),
@@ -78,7 +85,9 @@ describe('Firefox compat shim — chrome-compat.js', () => {
       // background.scripts: ["chrome-compat.js", "background.js"] order.
       vm.runInContext(readFileSync(COMPAT_JS, 'utf8'), context, { filename: 'chrome-compat.js' });
       assert.equal(context.chrome, browserStub,
-        'chrome-compat.js must alias chrome → browser when only browser exists');
+        'chrome-compat.js must REPLACE Firefox’s callback-style chrome with the promise-based browser');
+      assert.notEqual(context.chrome, callbackChrome,
+        'the broken callback-style chrome must not survive the shim (the ??= no-op regression)');
       vm.runInContext(readFileSync(BACKGROUND_JS, 'utf8'), context, { filename: 'background.js' });
     } catch (e) {
       topLevelError = e;

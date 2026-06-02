@@ -7,8 +7,12 @@
 // is callback-style, which would leave those `await`s hanging. Alias chrome ->
 // browser before background.js runs so the SAME background.js works unchanged.
 //
-// No-op on Chrome (`chrome` is already defined) and on Firefox >=121 service
-// worker builds (likewise). The Firefox manifest lists this file FIRST in
-// background.scripts so it runs before background.js's top-level
-// chrome.runtime.getManifest().
-globalThis.chrome ??= globalThis.browser;
+// IMPORTANT: Firefox defines BOTH `browser` (promises) AND a callback-style
+// `chrome`. A conditional `chrome ??= browser` would see `chrome` already
+// defined and NO-OP, leaving the callback API in place — every `await chrome.*`
+// then resolves to `undefined` and the scrape silently never POSTs. So
+// UNCONDITIONALLY prefer `browser` when it exists. On Chrome `browser` is
+// undefined, so Chrome's own `chrome` is left untouched. The Firefox manifest
+// lists this file FIRST in background.scripts so it runs before background.js's
+// top-level chrome.runtime.getManifest().
+if (globalThis.browser) globalThis.chrome = globalThis.browser;
