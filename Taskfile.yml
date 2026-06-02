@@ -11,12 +11,13 @@ vars:
       echo "$v"
   DEB: dist/claude-usage_{{.VERSION}}_all.deb
   CHROME_ZIP: dist/claude-usage-chrome-{{.VERSION}}.zip
+  FIREFOX_ZIP: dist/claude-usage-firefox-{{.VERSION}}.zip
 
 tasks:
   test-scraper:
-    desc: Run Chrome extension unit tests (scraper + background load-smoke)
+    desc: Run browser extension unit tests (scraper + background load-smoke + Firefox compat shim)
     cmds:
-      - node --test chrome-extension/test/scraper.test.js chrome-extension/test/background-load.test.js chrome-extension/test/background-runtime.test.js
+      - node --test chrome-extension/test/scraper.test.js chrome-extension/test/background-load.test.js chrome-extension/test/background-runtime.test.js chrome-extension/test/firefox-compat.test.js
 
   test-validate:
     desc: Run server-side validator pytest suite (input contract for usage-server.py)
@@ -37,6 +38,11 @@ tasks:
     desc: "SD-1 (pass-18): assert SECURITY.md's outbound-URL claim matches chrome-extension/manifest.json host_permissions"
     cmds:
       - python3 scripts/lint-security-doc.py
+
+  lint-firefox-manifest:
+    desc: "FF-1: assert the generated Firefox manifest mirrors chrome-extension/manifest.json (permissions, host_permissions, version) and carries the gecko id + compat shim"
+    cmds:
+      - python3 scripts/gen-firefox-manifest.py --check
 
   gen-js-defaults:
     desc: "JS-1 (pass-18): regenerate desktop/gnome/_defaults.js from the gschema XML"
@@ -151,6 +157,7 @@ tasks:
       - task: test-gnome-format
       - task: lint-scraper-parity
       - task: lint-security-doc
+      - task: lint-firefox-manifest
       - task: lint-js-defaults
       - task: lint-kde-parity
       - task: lint-qml
@@ -169,6 +176,13 @@ tasks:
       - bash packaging/build-chrome-zip.sh
     generates:
       - "{{.CHROME_ZIP}}"
+
+  build-firefox-zip:
+    desc: "Build the Firefox extension zip (generated manifest + chrome→browser shim over the shared chrome-extension/ source). Sign for permanent install via web-ext sign --channel=unlisted."
+    cmds:
+      - bash packaging/build-firefox-zip.sh
+    generates:
+      - "{{.FIREFOX_ZIP}}"
 
   test-deb:
     desc: "Install + verify .deb in a clean Ubuntu 24.04 container (validates Depends end-to-end; ~7 min cold, ~4 min warm)"

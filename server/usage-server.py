@@ -53,11 +53,13 @@ PORT_RANGE = range(7331, 7341)
 PORT_FILE  = _CACHE_HOME / 'claude-usage' / 'port'
 # Set CLAUDE_USAGE_EXTENSION_ID to the published Chrome Web Store extension ID
 # to restrict CORS to only that extension. Unset = allow any chrome-extension://
-# origin (safe for dev installs; server only binds to 127.0.0.1 regardless).
+# or moz-extension:// origin (safe for dev installs and Firefox, whose
+# moz-extension:// host is a per-install UUID rather than a stable id; the
+# server only binds to 127.0.0.1 regardless). See _cors() for the match.
 _EXTENSION_ID  = os.environ.get('CLAUDE_USAGE_EXTENSION_ID', '')
 ALLOWED_ORIGINS = {f'chrome-extension://{_EXTENSION_ID}'} if _EXTENSION_ID else None
 if not _EXTENSION_ID:
-    print("warning: CLAUDE_USAGE_EXTENSION_ID not set; CORS allows any Chrome extension",
+    print("warning: CLAUDE_USAGE_EXTENSION_ID not set; CORS allows any Chrome/Firefox extension",
           file=sys.stderr, flush=True)
 MAX_STR_LEN = 128
 
@@ -492,13 +494,14 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(reply)
 
     def _cors(self):
-        # The Chrome extension uses host_permissions for 127.0.0.1, so its
+        # The browser extension uses host_permissions for 127.0.0.1, so its
         # fetches bypass CORS entirely — Origin is absent on the happy path.
-        # Drive-by web pages send their real Origin; only emit Allow-Origin
-        # for extension-style origins so browsers reject the rest.
+        # Drive-by web pages send their real Origin; only emit Allow-Origin for
+        # extension-style origins (Chrome or Firefox) so browsers reject the rest.
         origin = self.headers.get('Origin', '')
         allowed = (
-            (ALLOWED_ORIGINS is None and origin.startswith('chrome-extension://')) or
+            (ALLOWED_ORIGINS is None and (origin.startswith('chrome-extension://')
+                                          or origin.startswith('moz-extension://'))) or
             (ALLOWED_ORIGINS is not None and origin in ALLOWED_ORIGINS)
         )
         if allowed:

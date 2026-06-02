@@ -17,8 +17,8 @@ page Anthropic serves you.
 
 | Component | Reads | Writes | Trust assumption |
 |-----------|-------|--------|------------------|
-| Chrome extension (MV3) | `claude.ai/settings/usage` page DOM (in your Chrome profile) | localhost ports 7331-7340 | Runs in your Chrome profile; sees only what your Chrome profile already sees. |
-| Local HTTP server (`usage-server.py`) | POSTs from the Chrome ext over 127.0.0.1 | `~/.cache/claude-usage/usage.json` (mode 0600), `~/.local/share/applications/claude-usage.desktop`, `~/.local/share/icons/hicolor/<size>/apps/claude-usage.png` | Runs under your UID. Bound to 127.0.0.1 only. |
+| Browser extension (MV3, Chrome/Firefox) | `claude.ai/settings/usage` page DOM (in your browser profile) | localhost ports 7331-7340 | Runs in your browser profile; sees only what your browser profile already sees. |
+| Local HTTP server (`usage-server.py`) | POSTs from the browser ext over 127.0.0.1 | `~/.cache/claude-usage/usage.json` (mode 0600), `~/.local/share/applications/claude-usage.desktop`, `~/.local/share/icons/hicolor/<size>/apps/claude-usage.png` | Runs under your UID. Bound to 127.0.0.1 only. |
 | GNOME extension | The cache JSON file | GNOME panel widgets only | Runs inside gnome-shell under your UID. |
 | KDE plasmoid | The cache JSON file | KDE panel widgets only | Runs inside plasmashell under your UID. |
 
@@ -30,8 +30,8 @@ page Anthropic serves you.
   `0.0.0.0` would be a security finding.
 - **Drive-by web pages** issuing cross-origin fetches to the loopback ports.
   The server returns `Access-Control-Allow-Origin` only for
-  `chrome-extension://...` requests; a web page Origin gets no CORS headers
-  and the browser will block reading the response. The presence of the
+  `chrome-extension://...` or `moz-extension://...` requests; a web page Origin
+  gets no CORS headers and the browser will block reading the response. The presence of the
   server is still observable via probe (yes/no, plus version), but contents
   are not exfiltrable to a web page.
 - **Validator bypass** that lets a malicious POST persist arbitrary keys or
@@ -44,14 +44,14 @@ page Anthropic serves you.
 - **Same-user processes.** The loopback IPC's `/hello` handshake +
   `X-Claude-Usage-Server` response header are a *signature*, not access
   control: any other process running as your UID can bind 7331 first,
-  respond with the right shape, and intercept the Chrome ext's POSTs.
+  respond with the right shape, and intercept the browser ext's POSTs.
   Mitigation today is OS-level process isolation (Flatpak sandboxes,
   browser sub-process separation, etc.). A future release may move to a
   UNIX domain socket under `$XDG_RUNTIME_DIR` with auth tokens, but the
   current architecture trusts everything running as you.
 - **Persisted credentials.** The project stores none. Authentication to
-  `claude.ai` lives in the user's Chrome profile cookie jar, which is
-  Chrome's responsibility.
+  `claude.ai` lives in the user's browser profile cookie jar, which is
+  the browser's responsibility.
 - **Anthropic-side data.** What `claude.ai` chooses to expose on the
   `/settings/usage` page is Anthropic's call; this project only reads it.
 
@@ -60,10 +60,10 @@ page Anthropic serves you.
 See `PRIVACY.md` for the full data inventory. In brief:
 
 ```
-claude.ai/settings/usage  (your Chrome session, your account)
+claude.ai/settings/usage  (your browser session, your account)
         │
-        ▼  scrape via chrome.scripting.executeScript (no creds leave Chrome)
-Chrome extension SW
+        ▼  scrape via scripting.executeScript (no creds leave the browser)
+Browser extension (background)
         │
         ▼  HTTP POST to 127.0.0.1:7331-7340 (signature handshake, no auth)
 usage-server.py

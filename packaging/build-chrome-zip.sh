@@ -15,7 +15,7 @@ OUT="$REPO_DIR/dist/claude-usage-chrome-${VERSION}.zip"
 
 mkdir -p "$REPO_DIR/dist"
 cd "$REPO_DIR/chrome-extension"
-zip -r "$OUT" . -x "*.DS_Store" -x "__pycache__/*" -x "*.pyc" -x "test/*"
+zip -r "$OUT" . -x "*.DS_Store" -x "__pycache__/*" -x "*.pyc" -x "test/*" -x "chrome-compat.js"
 echo "Built: dist/claude-usage-chrome-${VERSION}.zip"
 echo ""
 echo "Upload this zip at: https://chrome.google.com/webstore/devconsole"

@@ -240,6 +240,24 @@ rsync -a --delete \
     "$SERVER_DIR/chrome-extension/"
 echo "  ✓ Chrome extension files synced to $SERVER_DIR/chrome-extension"
 
+# 2c. Firefox extension install copy. Firefox ships the SAME shared source as
+# Chrome, minus the Chrome manifest (we generate a Firefox one with
+# gen-firefox-manifest.py) plus the chrome->browser shim already in the shared
+# source. Source/bootstrap installs only — the .deb does not yet stage this copy.
+if [[ -f "$REPO_DIR/scripts/gen-firefox-manifest.py" ]]; then
+    mkdir -p "$SERVER_DIR/firefox-extension"
+    rsync -a --delete \
+        --exclude='manifest.json' \
+        --exclude='test/' \
+        --exclude='__pycache__/' \
+        --exclude='*.pyc' \
+        --exclude='.DS_Store' \
+        "$REPO_DIR/chrome-extension/" \
+        "$SERVER_DIR/firefox-extension/"
+    python3 "$REPO_DIR/scripts/gen-firefox-manifest.py" > "$SERVER_DIR/firefox-extension/manifest.json"
+    echo "  ✓ Firefox extension files synced to $SERVER_DIR/firefox-extension"
+fi
+
 # 2c. Icon-theme baseline for source installs (TF-1, pass-16 §13).
 # The .desktop file uses `Icon=claude-usage` (name, not path) — GNOME's XDG
 # icon-theme lookup resolves that name to whichever file is present. For
@@ -312,3 +330,9 @@ fi
 echo ""
 echo "The Chrome extension fetches usage data every 7 minutes."
 echo "Click its toolbar icon to force an immediate refresh."
+echo ""
+echo "Firefox (alternative to Chrome):"
+echo "  - Permanent: install a signed .xpi  (task build-firefox-zip, then"
+echo "               web-ext sign --channel=unlisted with a free AMO API key)"
+echo "  - Try it:    about:debugging#/runtime/this-firefox -> Load Temporary Add-on -> select"
+echo "               $SERVER_DIR/firefox-extension/manifest.json  (removed on Firefox restart)"

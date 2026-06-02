@@ -57,7 +57,7 @@ Recovery is automatic: the next successful scrape resets the state and the icons
 
 ## Installation
 
-**Requirements:** GNOME Shell 45–50 **or** KDE Plasma 6 + systemd-user + Google Chrome (logged in to Claude.ai). The Chrome extension and local server are identical on both desktops; only the panel frontend differs (GNOME Shell extension vs KDE plasmoid — see *KDE Plasma* below).
+**Requirements:** GNOME Shell 45–50 **or** KDE Plasma 6 + systemd-user + Google Chrome **or** Mozilla Firefox (logged in to Claude.ai). The browser extension and local server are identical on both desktops and both browsers; only the panel frontend differs (GNOME Shell extension vs KDE plasmoid — see *KDE Plasma* below). Chromium-family browsers (Brave, Edge, Vivaldi) load the Chrome extension unchanged.
 
 Minimum distro versions that ship GNOME Shell 45 or newer (KDE users need Plasma 6.0+):
 
@@ -133,6 +133,23 @@ curl -fsSL https://apt.indri.studio/install-claude-usage.sh | bash -s -- --unins
    - Clone install (Option B): `chrome-extension/` inside the repo
    - One-liner install (Option C): `~/.local/share/claude-usage/chrome-extension/`
    - .deb install (Option A): `/usr/share/claude-usage/chrome-extension/`
+
+Chromium-family browsers (Brave, Edge, Vivaldi) use the same steps.
+
+**Load the Firefox extension** (alternative to Chrome):
+
+Firefox needs a *signed* add-on for a permanent install. Two ways:
+
+- **Permanent (recommended):** install the signed `.xpi` from the project's releases
+  (built with `task build-firefox-zip` then `web-ext sign --channel=unlisted`). It installs
+  on stock Firefox/ESR like any add-on and survives restarts.
+- **Developer / try-it:** run `task build-firefox-zip`, unzip the result, then in Firefox open
+  `about:debugging#/runtime/this-firefox` → **Load Temporary Add-on** → select its
+  `manifest.json`. Temporary add-ons are removed every time Firefox restarts — fine for a
+  quick try, not for daily use.
+
+Firefox ships the *same* extension as Chrome (shared source); only the manifest differs, so
+behaviour is identical.
 
 **Log out and back in** — activates the GNOME Shell extension. (KDE: instead add the widget to a panel — see *KDE Plasma* below.)
 
