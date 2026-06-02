@@ -10,6 +10,8 @@ ColumnLayout {
     property int barWidth: 10
     property string fontFamily: "monospace"
     property int fontSize: 10
+    property real timestamp: 0
+    property int nowTick: 0
 
     // KQ-6 (pass-29): empty-bar cells + the reset hint were hardcoded white
     // (Qt.rgba(1,1,1,…)) — invisible on a light Plasma theme. Derive both from
@@ -53,14 +55,14 @@ ColumnLayout {
 
         PlasmaComponents3.Label {
             text: {
-                // reset_minutes = minutes-from-now snapshot (server schema);
-                // refreshed each 30 s poll, so a coarse d/h/m display is fine.
+                var _ = nowTick  // force re-eval on each tick
                 if (!meter || meter.reset_minutes === undefined || meter.reset_minutes === null) return ""
-                const total = meter.reset_minutes
-                if (total <= 0) return " resets soon"
-                const d = Math.floor(total / 1440)
-                const h = Math.floor((total % 1440) / 60)
-                const m = Math.floor(total % 60)
+                const elapsed = timestamp ? Math.max(0, Math.floor((Date.now() / 1000 - timestamp) / 60)) : 0
+                const live = Math.max(0, meter.reset_minutes - elapsed)
+                if (live <= 0) return " resets soon"
+                const d = Math.floor(live / 1440)
+                const h = Math.floor((live % 1440) / 60)
+                const m = Math.floor(live % 60)
                 if (d > 0) return " resets in " + d + "d " + h + "h"
                 if (h > 0) return " resets in " + h + "h " + m + "m"
                 return " resets in " + m + "m"

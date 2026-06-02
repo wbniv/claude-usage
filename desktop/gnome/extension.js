@@ -83,6 +83,21 @@ function formatReset(reset) {
     return reset;
 }
 
+function liveRemaining(meter, ts) {
+    if (!meter || typeof meter.reset_minutes !== 'number') return null;
+    const elapsed = ts ? Math.max(0, Math.floor((Date.now() / 1000 - ts) / 60)) : 0;
+    return Math.max(0, meter.reset_minutes - elapsed);
+}
+
+function fmtCountdown(mins) {
+    if (mins >= 24 * 60) {
+        const d = Math.floor(mins / 1440);
+        const h = Math.floor((mins % 1440) / 60);
+        return `⏱${d}d ${h}h`;
+    }
+    return `⏱${Math.floor(mins / 60)}:${(mins % 60).toString().padStart(2, '0')}`;
+}
+
 function bar(pct, width = 10) {
     const filled = Math.max(0, Math.min(width, Math.round((pct / 100) * width)));
     return '█'.repeat(filled) + '░'.repeat(width - filled);
@@ -187,7 +202,7 @@ function pangoEscape(s) {
     return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-function formatRows(meters, barWidth) {
+function formatRows(meters, barWidth, ts) {
     const maxLen = Math.max(0, ...meters.map(m => (m.label || '').length));
     const maxCol2 = Math.max(4, ...meters.map(m =>
         (m.count !== undefined && m.total !== undefined)
@@ -219,7 +234,10 @@ function formatRows(meters, barWidth) {
             // window hasn't started — so show "(not started)" rather than a
             // blank tail. Weekly/extra meters always carry a reset, so this
             // only ever fires for the session bucket.
-            const post = m.reset
+            const live = liveRemaining(m, ts);
+            const post = live !== null
+                ? `  resets in ${fmtCountdown(live)}`
+                : m.reset
                 ? `  ${formatReset(m.reset)}`
                 : (pct === 0 && /session/i.test(m.label || '') ? '  (not started)' : '');
             rows.push({text: pre + col3 + post, pre, post, barWidth,
@@ -497,7 +515,17 @@ class ClaudeIndicator extends PanelMenu.Button {
         // case is functionally inert; the intent is to alarm on anything.
         const anyCrit = d.meters.some(m => pacingPct(m, periodLens) >= tCrit);
         const labelColor = anyCrit ? panelCrit : panelColor;
-        this._label.set_text(`${pct}%`);
+        // Countdown: any meter at 100% shows ⏱<time-to-reset> for the soonest resetter.
+        const maxedMeters = d.meters.filter(m =>
+            (m.pct ?? 0) >= 100 && typeof m.reset_minutes === 'number');
+        if (maxedMeters.length > 0) {
+            const ts = d._timestamp ?? null;
+            maxedMeters.sort((a, b) =>
+                (liveRemaining(a, ts) ?? 0) - (liveRemaining(b, ts) ?? 0));
+            this._label.set_text(fmtCountdown(liveRemaining(maxedMeters[0], ts) ?? 0));
+        } else {
+            this._label.set_text(`${pct}%`);
+        }
         this._label.set_style(`font-size: ${fontSize}px; margin-start: ${labelGap}px; color: ${labelColor};`);
 
         // Flash management: blink the panel label when any meter enters critical.
@@ -668,7 +696,7 @@ class ClaudeIndicator extends PanelMenu.Button {
 
         const visibleMeters = d.meters.filter(m =>
             !(m.label?.toLowerCase().includes('sonnet') && (m.pct ?? 0) === 0));
-        const rows = formatRows(visibleMeters, barWidth);
+        const rows = formatRows(visibleMeters, barWidth, d._timestamp);
 
         // UX-1 (pass-26): skip removeAll() + rebuild when the popup is open
         // and data hasn't changed. Without this, every 30 s tick destroyed

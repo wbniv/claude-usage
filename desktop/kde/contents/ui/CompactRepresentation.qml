@@ -45,6 +45,12 @@ RowLayout {
         id: label
         Layout.alignment: Qt.AlignVCenter
         text: {
+            var _ = root.nowTick  // force re-eval on each 30 s tick
+            const maxed = root.maxedMeter()
+            if (maxed !== null) {
+                const rem = root.liveRemaining(maxed)
+                return root.fmtCountdown(rem !== null ? rem : 0)
+            }
             const m = root.currentMeter()
             return m ? Math.round(m.pct) + "%" : "—"
         }

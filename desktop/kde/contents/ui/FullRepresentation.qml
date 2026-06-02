@@ -52,6 +52,8 @@ ColumnLayout {
             barWidth: Plasmoid.configuration.barWidth || 10
             fontFamily: Plasmoid.configuration.popupFontFamily || "monospace"
             fontSize: Plasmoid.configuration.popupFontSize || 10
+            timestamp: root.usageData ? (root.usageData._timestamp || 0) : 0
+            nowTick: root.nowTick
         }
     }
 

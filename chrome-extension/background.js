@@ -10,6 +10,8 @@ const AUTO_DEBOUNCE_MS = 30_000;
 // purpose is preserved (any suspend longer than the alarm period
 // triggers a fresh scrape on resume).
 const WAKE_MIN_INTERVAL_MS = INTERVAL_MINUTES * 60 * 1000;
+const NEAR_MIN  = 2;   // switch to 1-min cadence when reset is this many minutes away
+const RETRY_CAP = 20;  // give up aggressive polling after this many 1-min attempts (~20 min)
 
 // Local server discovery. The server tries to bind 7331 first and falls back
 // through 7340 if something else is squatting on 7331. We probe the range via
@@ -317,6 +319,64 @@ async function setFailCount(n) {
     await chrome.storage.local.set({ _scrape_fail_count: n });
 }
 
+// Schedule (or cancel) the fetch-on-reset alarm based on fresh meter data.
+// Called at the end of every successful scrapeAndPost so all trigger paths
+// (periodic alarm, idle-wake, tab-focus, manual click) feed it.
+async function scheduleResetRefresh(meters) {
+    const { _reset_watch: watch, _reset_retry_count: retryCount = 0 } =
+        await chrome.storage.local.get(['_reset_watch', '_reset_retry_count']);
+
+    // Stand-down: confirm the reset happened against the persisted watch state.
+    if (watch) {
+        const watched = meters.find(m => m.label === watch.label);
+        if (watched) {
+            const pctCleared = (watched.pct ?? 0) < 100;
+            const freshPeriod = typeof watched.reset_minutes === 'number' &&
+                watched.reset_minutes > watch.reset_minutes;
+            if (pctCleared || freshPeriod) {
+                await chrome.alarms.clear('fetch-on-reset');
+                await chrome.storage.local.remove(['_reset_watch', '_reset_retry_count']);
+                return;
+            }
+        }
+    }
+
+    // Find the soonest 100% meter with a known reset distance.
+    const maxed = meters
+        .filter(m => (m.pct ?? 0) >= 100 && typeof m.reset_minutes === 'number')
+        .sort((a, b) => a.reset_minutes - b.reset_minutes);
+
+    if (maxed.length === 0) {
+        await chrome.alarms.clear('fetch-on-reset');
+        await chrome.storage.local.remove(['_reset_watch', '_reset_retry_count']);
+        return;
+    }
+
+    const m = maxed[0];
+
+    if (m.reset_minutes > NEAR_MIN) {
+        // Far from reset: one-shot alarm 1 min before predicted reset.
+        await chrome.storage.local.set({
+            _reset_watch: { label: m.label, reset_minutes: m.reset_minutes, ts: Date.now() },
+        });
+        await chrome.storage.local.remove('_reset_retry_count');
+        chrome.alarms.create('fetch-on-reset', { when: Date.now() + (m.reset_minutes - 1) * 60_000 });
+    } else {
+        // At boundary: 1-min repeating alarm until reset confirmed or backstop.
+        const newCount = retryCount + 1;
+        if (newCount > RETRY_CAP) {
+            await chrome.alarms.clear('fetch-on-reset');
+            await chrome.storage.local.remove(['_reset_watch', '_reset_retry_count']);
+            return;
+        }
+        await chrome.storage.local.set({
+            _reset_watch: { label: m.label, reset_minutes: m.reset_minutes, ts: Date.now() },
+            _reset_retry_count: newCount,
+        });
+        chrome.alarms.create('fetch-on-reset', { periodInMinutes: 1 });
+    }
+}
+
 // Parse "Resets in X hr Y min" / "Resets in X min" / "Resets Tue 5:00 PM"
 // into minutes-from-now. Returns null when the string doesn't match a
 // known shape. Mirrors the parsing logic in desktop/gnome/extension.js
@@ -568,6 +628,7 @@ async function scrapeAndPost(tabId) {
     await chrome.storage.local.set({ claude_usage: { ...data, _buffered_at: Date.now() } });
   }
 
+  await scheduleResetRefresh(data.meters);
 }
 
 async function fetchUsage() {
@@ -856,7 +917,7 @@ if (chrome.idle && chrome.idle.onStateChanged) {
 }
 
 chrome.alarms.onAlarm.addListener(async alarm => {
-  if (alarm.name === 'fetch-usage') await fetchUsage();
+  if (alarm.name === 'fetch-usage' || alarm.name === 'fetch-on-reset') await fetchUsage();
 });
 
 chrome.action.onClicked.addListener(async () => { await fetchUsage(); });

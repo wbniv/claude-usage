@@ -186,6 +186,8 @@ Nothing to do. Everything starts automatically:
 
 **Data updates every 7 minutes** — the Chrome extension scrapes `claude.ai/settings/usage` and writes `~/.cache/claude-usage/usage.json`. If you already have that page open in a tab, it reads from there; otherwise it opens a temporary background tab. The panel indicator updates immediately when the file changes.
 
+**When a meter hits 100%**, the panel label switches from the static percentage to a live countdown: `⏱H:MM` (hours:minutes to reset), ticking down every 30 s. If multiple meters are maxed, the soonest-resetting one drives the label. The extension also shifts to an aggressive ~1-min re-scrape cadence starting ~1 min before the predicted reset, polling every minute until it confirms the window rolled over, then returns to the normal 7-min cadence. Because reset times have only minute resolution, the panel typically reflects the new lower percentage within 1–2 minutes of the actual reset.
+
 **Force an immediate refresh** — two ways:
 
 - **Click the Claude Usage Tracker icon in the Chrome toolbar.** Opens a fresh background tab, scrapes, closes the tab. Background to the user.

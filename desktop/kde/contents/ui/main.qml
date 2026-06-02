@@ -9,6 +9,7 @@ PlasmoidItem {
 
     property var usageData: null
     property int activeMeterIndex: 0
+    property int nowTick: 0
 
     // Read usage.json via the executable engine, NOT XMLHttpRequest: a file://
     // XHR never reaches readyState DONE inside the Plasma 6 plasmoid QML
@@ -129,6 +130,39 @@ PlasmoidItem {
         return cNormal
     }
 
+    // Live countdown helpers — mirror desktop/gnome/extension.js liveRemaining + fmtCountdown.
+    function liveRemaining(meter) {
+        if (!meter || typeof meter.reset_minutes !== "number") return null
+        const ts = usageData ? usageData._timestamp : null
+        const elapsed = ts ? Math.max(0, Math.floor((Date.now() / 1000 - ts) / 60)) : 0
+        return Math.max(0, meter.reset_minutes - elapsed)
+    }
+
+    function fmtCountdown(mins) {
+        if (mins >= 1440) {
+            const d = Math.floor(mins / 1440)
+            const h = Math.floor((mins % 1440) / 60)
+            return "⏱" + d + "d " + h + "h"
+        }
+        const h = Math.floor(mins / 60)
+        const m = mins % 60
+        return "⏱" + h + ":" + (m < 10 ? "0" : "") + m
+    }
+
+    // Returns the soonest-resetting meter with pct >= 100, or null.
+    function maxedMeter() {
+        if (!usageData || !usageData.meters) return null
+        var candidates = usageData.meters.filter(function(m) {
+            return (m.pct || 0) >= 100 && typeof m.reset_minutes === "number"
+        })
+        if (candidates.length === 0) return null
+        candidates.sort(function(a, b) {
+            var ra = liveRemaining(a), rb = liveRemaining(b)
+            return (ra !== null ? ra : 0) - (rb !== null ? rb : 0)
+        })
+        return candidates[0]
+    }
+
     function loadData() {
         // GenericCacheLocation = $XDG_CACHE_HOME or ~/.cache (no app-name
         // suffix) — exactly where usage-server.py writes usage.json. Qt6 QML
@@ -147,7 +181,7 @@ PlasmoidItem {
         interval: 30000
         repeat: true
         running: true
-        onTriggered: root.loadData()
+        onTriggered: { root.loadData(); root.nowTick++ }
     }
 
     Component.onCompleted: { root.loadData(); root.writeConfigJson() }

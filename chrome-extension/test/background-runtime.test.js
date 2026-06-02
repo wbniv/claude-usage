@@ -52,7 +52,7 @@ function makeContext({ store = {}, postOk = true, orphans = [], reusable = [],
   const context = {
     chrome: {
       runtime: { getManifest: () => ({ version: '0.0.0-test' }), onInstalled: listener, onStartup: listener },
-      alarms: { create: noop, onAlarm: listener },
+      alarms: { create: noop, clear: async () => {}, getAll: async () => [], onAlarm: listener },
       storage: { local },
       action: { setTitle: async () => {}, onClicked: listener },
       tabs: {

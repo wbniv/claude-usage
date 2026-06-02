@@ -31,10 +31,13 @@ function extract(decl) {
 
 let formatRows;
 before(() => {
-  // bar / formatReset close over the same `new Function` body scope.
+  // bar / formatReset / liveRemaining / fmtCountdown all close over the same
+  // `new Function` body scope — include them so formatRows can call them.
   const body = [
     extract('function bar('),
     extract('function formatReset('),
+    extract('function liveRemaining('),
+    extract('function fmtCountdown('),
     extract('function formatRows('),
     'return formatRows;',
   ].join('\n');
