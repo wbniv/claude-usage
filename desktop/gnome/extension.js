@@ -606,14 +606,15 @@ class ClaudeIndicator extends PanelMenu.Button {
             this._icon.gicon = this._iconNormal;
             this._icon.opacity = 255;
         }
-        this._statusItem.label.set_text(reason || `${plan}${ageStr}`);
-
         // Make _statusItem a clickable link only when Anthropic itself reports
         // a problem — scrape-failure and age-timeout broken cases are local
         // issues where status.claude.com wouldn't have relevant information.
         const wantLink = tier === 'broken' &&
             ((astat.indicator && astat.indicator !== 'none') ||
              (astat.claude_ai_component_status && astat.claude_ai_component_status !== 'operational'));
+        // Append ↗ when the row is a link so it's visually distinct from plain status text.
+        this._statusItem.label.set_text(
+            (reason || `${plan}${ageStr}`) + (wantLink ? ' ↗' : ''));
         if (wantLink !== this._statusItemLinked) {
             this._statusItem.reactive = wantLink;
             if (wantLink) {
