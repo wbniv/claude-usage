@@ -45,8 +45,8 @@ Picked-up context for the next agent/session. Read this, then
 - **Firefox MV3 auto-grants `host_permissions`** on load — no manual grant step.
 - **Firefox enforces CORS on the extension→`127.0.0.1` fetch** even with
   host_permissions (Chrome bypasses it). The server's `_cors` now covers
-  `moz-extension://`. *(The installed server on this machine was hand-patched too —
-  see "Machine state".)*
+  `moz-extension://`. *(A fresh install gets this from the committed code — see
+  "Setting up a fresh machine".)*
 - **`web-ext` cannot drive the snap Firefox** (the RDP debugger handshake fails) —
   use the manual `about:debugging` → "Load Temporary Add-on" for live testing.
 - **`FF-1` root cause:** the long DOM scrape (open tab → wait ≤30 s for React
@@ -104,23 +104,34 @@ Chrome unchanged.
 `scripts/lint-scraper-parity.py` (KEEP `check_pacing_parity` + `check_pair_inventory`,
 they're data-source-agnostic). `lint-kde-parity` field allowlist is unaffected.
 
-## Machine state (this dev box only — not in git)
+## Setting up a fresh machine
 
-- The **installed** server `~/.local/share/claude-usage/usage-server.py` was
-  **hand-patched** with the `moz-extension` CORS fix so Firefox works now; it's
-  served by the running `systemctl --user` unit `claude-usage-fetch.service`. A
-  normal `install.sh`/upgrade cleanly replaces it with the committed version.
-- `dist/firefox-unpacked/` holds the event-page Firefox build (loadable via
-  `about:debugging`). `dist/` is gitignored.
-- Tag `archive/kde-plasma-support` preserves the retired branch (also on origin).
+The next machine starts clean — **none of the original dev box's local state
+transfers** (it isn't in git). To reach a testable setup:
+
+- **Server:** run `install.sh` (or install the `.deb`). The committed
+  `server/usage-server.py` already contains the `moz-extension://` CORS fix, so a
+  fresh install serves Firefox correctly out of the box — no hand-patching needed.
+  *(Context only: the original dev box had its pre-existing `0.11.22` server
+  hand-patched mid-session to unblock testing. That's local, doesn't carry over,
+  and is unnecessary on a clean install.)*
+- **Firefox build to load:** `task build-firefox-zip`, unzip it, then load via
+  `about:debugging` → "Load Temporary Add-on" → its `manifest.json`. (`dist/` is
+  gitignored, so the build isn't in the repo.) `install.sh` also stages a ready
+  copy under `$XDG_DATA_HOME/claude-usage/firefox-extension/`.
+- **A claude.ai login is required** for the Phase 0 de-risk, and `org_id` is
+  per-account — read it from the `lastActiveOrg` cookie; don't reuse a hardcoded one.
+- **Retired KDE branch:** tag `archive/kde-plasma-support` (on `origin`) —
+  `git switch -c restore archive/kde-plasma-support` to recover it.
 
 ## Verify
-- `task test` — green except `lint-qml` (needs container network on this box; passes
-  in CI). The new mapping: `node --test chrome-extension/test/usage-api.test.js`.
+- `task test` — all green; `lint-qml` needs a networked container (passes in CI,
+  may fail offline). The new mapping: `node --test chrome-extension/test/usage-api.test.js`.
 - Build sanity: `task build-firefox-zip` / `task build-chrome-zip`.
 
 ## Gotchas for the operator
 - This repo enforces a dated `docs/plans/YYYY-MM-DD-*.md` before code (a hook nags).
-- Don't `pkill -f <pattern-in-your-own-command>` — it self-kills (bit me twice).
-- The user can't cleanly copy multi-char commands out of chat (terminal padding) —
-  hand them via a file / clipboard, or keep commands short.
+- Don't `pkill -f <pattern-in-your-own-command>` — it self-kills (happened twice this session).
+- The previous operator couldn't cleanly copy multi-char commands out of chat
+  (terminal padding pulled in whitespace); if you see the same, hand commands via a
+  file or clipboard, or keep them short.
