@@ -1,5 +1,10 @@
 # TODO
 
+> **Next session — read [docs/HANDOFF.md](docs/HANDOFF.md) first.** Firefox support
+> shipped + live-validated; the `FF-1` fix (replace DOM-scrape with the usage JSON
+> API) is mid-flight — Phase 1 (mapping) done, the rest is gated on a live de-risk
+> that needs a browser logged into claude.ai.
+
 - [ ] self-update
 
 ## Fixes
