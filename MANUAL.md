@@ -148,6 +148,15 @@ Firefox needs a *signed* add-on for a permanent install. Two ways:
   `manifest.json`. Temporary add-ons are removed every time Firefox restarts — fine for a
   quick try, not for daily use.
 
+  ![Loaded temporary add-on under about:debugging — background script Running](docs/screenshots/firefox-install/01-about-debugging-loaded.png)
+
+Firefox **auto-grants** the host permissions on load — no manual step (you can review them
+under `about:addons` → Claude Usage Tracker → *Permissions and data*). One Firefox-specific
+detail, handled for you by the bundled server: unlike Chrome, Firefox enforces CORS on the
+extension's `127.0.0.1` fetch even with host_permissions, so the local server sends the
+required `Access-Control-Allow-Origin` for `moz-extension://` origins. Tested on Firefox 151
+(Max plan, live meters scraped and shown in the panel).
+
 Firefox ships the *same* extension as Chrome (shared source); only the manifest differs, so
 behaviour is identical.
 

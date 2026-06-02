@@ -494,10 +494,12 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(reply)
 
     def _cors(self):
-        # The browser extension uses host_permissions for 127.0.0.1, so its
-        # fetches bypass CORS entirely — Origin is absent on the happy path.
-        # Drive-by web pages send their real Origin; only emit Allow-Origin for
-        # extension-style origins (Chrome or Firefox) so browsers reject the rest.
+        # Chrome's extension fetch to 127.0.0.1 bypasses CORS via host_permissions
+        # (Origin absent), so the header was only defensive there. Firefox is
+        # DIFFERENT: it enforces CORS on the extension's localhost fetch even with
+        # host_permissions, sending `Origin: moz-extension://<uuid>` — so emitting
+        # Allow-Origin for that origin is REQUIRED, else the /hello probe is blocked
+        # and the extension never discovers the server. Web-page origins get nothing.
         origin = self.headers.get('Origin', '')
         allowed = (
             (ALLOWED_ORIGINS is None and (origin.startswith('chrome-extension://')
