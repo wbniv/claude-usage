@@ -17,7 +17,7 @@ tasks:
   test-scraper:
     desc: Run browser extension unit tests (scraper + background load-smoke + Firefox compat shim)
     cmds:
-      - node --test chrome-extension/test/scraper.test.js chrome-extension/test/background-load.test.js chrome-extension/test/background-runtime.test.js chrome-extension/test/firefox-compat.test.js
+      - node --test chrome-extension/test/scraper.test.js chrome-extension/test/background-load.test.js chrome-extension/test/background-runtime.test.js chrome-extension/test/firefox-compat.test.js chrome-extension/test/usage-api.test.js
 
   test-validate:
     desc: Run server-side validator pytest suite (input contract for usage-server.py)
