@@ -34,8 +34,6 @@ CACHE = {
          'reset_minutes': 5760, 'reset': 'Resets Tue 1:00 PM'},
         {'label': 'Sonnet only', 'pct': 6,
          'reset_minutes': 5759, 'reset': 'Resets Tue 12:59 PM'},
-        {'label': 'Claude Design', 'pct': 0,
-         'reset_minutes': 5760, 'reset': 'Resets Tue 1:00 PM'},
         {'label': 'Daily included routine runs', 'pct': 0,
          'count': 0, 'total': 15, 'reset': ''},
     ],
@@ -43,7 +41,6 @@ CACHE = {
         'Current session': 300,      # 5 h
         'All models':       10080,   # 7 d
         'Sonnet only':      10080,
-        'Claude Design':    10080,
         'Daily included routine runs': 1440,  # 1 d
     },
 }

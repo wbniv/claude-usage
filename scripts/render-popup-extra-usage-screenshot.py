@@ -33,8 +33,6 @@ CACHE = {
          'reset_minutes': 5760, 'reset': 'Resets Tue 1:00 PM'},
         {'label': 'Sonnet only', 'pct': 6,
          'reset_minutes': 5760, 'reset': 'Resets Tue 1:00 PM'},
-        {'label': 'Claude Design', 'pct': 8,
-         'reset_minutes': 5760, 'reset': 'Resets Tue 1:00 PM'},
         {'label': 'Daily included routine runs', 'pct': 0,
          'count': 0, 'total': 15, 'reset': ''},
         # Extra usage: spent/balance trigger the divider + sub-row injection.
@@ -48,7 +46,6 @@ CACHE = {
         'Current session': 300,
         'All models':       10080,
         'Sonnet only':      10080,
-        'Claude Design':    10080,
         'Daily included routine runs': 1440,
         'Extra usage':      21600,    # ~15 d
     },
