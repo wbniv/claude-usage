@@ -19,6 +19,7 @@ import json
 import os
 import sys
 import time
+import objc
 from pathlib import Path
 
 # server/ holds the shared core (usage_core, tooltip). In the .app bundle it's
@@ -251,6 +252,7 @@ class ClaudeUsageController(NSObject):
         return self
 
     # ── data ──
+    @objc.python_method
     def _loadData(self):
         try:
             st = CACHE_FILE.stat()
@@ -276,6 +278,7 @@ class ClaudeUsageController(NSObject):
         self._refresh()
 
     # ── render ──
+    @objc.python_method
     def _refresh(self):
         button = self._item.button()
         d = self._data
@@ -332,6 +335,7 @@ class ClaudeUsageController(NSObject):
             self._lastMenuFp = fp
             self._buildMenu(d, cfg, meters, period_lens, primary, tier, reason, want_link)
 
+    @objc.python_method
     def _deriveTier(self, d):
         """Highest-confidence active failure signal. Cache-encoded signals come
         from usage_core.derive_tier; the time-based stale/broken thresholds are
@@ -355,6 +359,7 @@ class ClaudeUsageController(NSObject):
         return 'normal', None, False
 
     # ── menu ──
+    @objc.python_method
     def _setMenuLoading(self):
         self._menu.removeAllItems()
         item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_('No data yet', None, '')
@@ -362,6 +367,7 @@ class ClaudeUsageController(NSObject):
         self._menu.addItem_(item)
         self._addFooter()
 
+    @objc.python_method
     def _buildMenu(self, d, cfg, meters, period_lens, primary, tier, reason, want_link):
         self._menu.removeAllItems()
         plan = d.get('plan') or 'Claude'
@@ -412,6 +418,7 @@ class ClaudeUsageController(NSObject):
 
         self._addFooter()
 
+    @objc.python_method
     def _meterItem(self, m, cfg, period_lens, ts, primary, max_label, max_col2, font):
         label = (m.get('label') or '').ljust(max_label)
         is_count = m.get('count') is not None and m.get('total') is not None
@@ -441,6 +448,7 @@ class ClaudeUsageController(NSObject):
                 item.setEnabled_(False)
         return item
 
+    @objc.python_method
     def _addFooter(self):
         self._menu.addItem_(NSMenuItem.separatorItem())
         open_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
@@ -452,6 +460,7 @@ class ClaudeUsageController(NSObject):
         quit_item.setTarget_(NSApplication.sharedApplication())
         self._menu.addItem_(quit_item)
 
+    @objc.python_method
     def _menuFingerprint(self, d, cfg, tier, primary, meters):
         return json.dumps({
             'ts': d.get('_timestamp'), 'tier': tier, 'bw': cfg['barWidth'],
@@ -464,6 +473,7 @@ class ClaudeUsageController(NSObject):
         }, sort_keys=True)
 
     # ── notifications + flash ──
+    @objc.python_method
     def _handleNotifications(self, d, cfg, meters, period_lens, tier, reason, any_crit):
         now_ms = int(time.time() * 1000)
         if any_crit and not self._anyCrit:
@@ -486,6 +496,7 @@ class ClaudeUsageController(NSObject):
                 _write_ts(NOTIF_TS_FILE, now_ms)
         self._lastTier = tier
 
+    @objc.python_method
     def _handleFlash(self, any_crit):
         if not any_crit:
             if self._anyCrit:
@@ -496,6 +507,7 @@ class ClaudeUsageController(NSObject):
                 self._startFlash()
         self._anyCrit = any_crit
 
+    @objc.python_method
     def _startFlash(self):
         self._stopFlash()
         self._flashVisible = False
@@ -506,6 +518,7 @@ class ClaudeUsageController(NSObject):
         self._item.button().setAlphaValue_(1.0 if self._flashVisible else 0.3)
         self._flashVisible = not self._flashVisible
 
+    @objc.python_method
     def _stopFlash(self):
         if self._flashTimer is not None:
             self._flashTimer.invalidate()
@@ -513,18 +526,22 @@ class ClaudeUsageController(NSObject):
         self._item.button().setAlphaValue_(1.0)
 
     # ── attributed-string helpers ──
+    @objc.python_method
     def _labelFont(self):
         return NSFont.menuBarFontOfSize_(0)
 
+    @objc.python_method
     def _popupFont(self, cfg):
         return (NSFont.fontWithName_size_(cfg['popupFont'], cfg['popupSize'])
                 or NSFont.monospacedSystemFontOfSize_weight_(cfg['popupSize'], 0))
 
+    @objc.python_method
     def _attr(self, text, hexcolor, font):
         return NSAttributedString.alloc().initWithString_attributes_(
             text, {NSForegroundColorAttributeName: _nscolor(hexcolor), NSFontAttributeName: font})
 
     # ── actions / events ──
+    @objc.python_method
     def _onScroll(self, event):
         try:
             if event.window() is self._item.button().window() and self._data:
@@ -534,6 +551,7 @@ class ClaudeUsageController(NSObject):
             pass
         return event
 
+    @objc.python_method
     def _cycleMetric(self, delta):
         eligible = [m for m in (self._data.get('meters') or []) if is_selectable(m)]
         if len(eligible) < 2:
