@@ -1,0 +1,73 @@
+# Codemagic CI — macOS test runner for the menu-bar port.
+#
+# Why Codemagic: it provides real Mac runners, which cover the port's
+# [verify][live] gap that Linux + GitHub Actions cannot — building the .app with
+# py2app, resolving PyObjC, and exercising the bundle/logic on actual macOS.
+# The Linux-side suite stays on GitHub Actions (.github/workflows/release.yml);
+# this complements it, it doesn't replace it.
+#
+# ── One-time setup (the single unavoidable manual step) ──────────────────────
+# 1. Sign in at https://codemagic.io and add the repo (github.com/wbniv/claude-usage).
+# 2. Pick "codemagic.yaml" as the configuration source. That's it — this is a
+#    test-only workflow: it does no signing/notarization (the build is ad-hoc
+#    signed) and needs no environment variables, secrets, or code-signing
+#    identities. Everything else is config-as-code below.
+
+workflows:
+  macos-test:
+    name: macOS — build + test the menu-bar port
+    instance_type: mac_mini_m1        # Apple Silicon; bump to mac_mini_m2 if preferred
+    max_build_duration: 30
+    triggering:
+      events:
+        - push
+        - pull_request
+      branch_patterns:
+        - pattern: '*'
+          include: true
+          source: true
+    environment:
+      node: 24                        # Node 24 everywhere (matches release.yml)
+      vars:
+        # Runner Pythons are single-arch, so build native arm64 here; the
+        # release build (build-app.sh default) targets universal2 on a Mac with
+        # a universal2 interpreter.
+        PY2APP_ARCH: arm64
+    scripts:
+      - name: Install go-task
+        script: brew install go-task
+
+      - name: Install Python build + test deps
+        script: |
+          set -euo pipefail
+          python3 -m pip install --upgrade pip
+          python3 -m pip install pytest py2app pyobjc
+
+      - name: Lint + cross-platform unit tests (task test)
+        # Runs the full aggregate suite on macOS. Linux-only sub-checks degrade
+        # gracefully: lint-qml skips (no qmllint/docker), lint-gnome skips the
+        # libshell symbol probe (no gnome-shell) but still runs syntax + source
+        # guards. Everything else (scraper, server pytest, parity/security)
+        # runs for real — incl. test_orphan_sweep, now POSIX-gated.
+        script: task test
+
+      - name: Build claude-usage.app (py2app, ad-hoc signed)
+        script: task build-macos
+
+      - name: Verify the bundle + zip for artifacts
+        script: |
+          set -euo pipefail
+          APP=dist/claude-usage.app
+          test -d "$APP" || { echo "no .app produced" >&2; exit 1; }
+          echo "archs:  $(lipo -archs "$APP"/Contents/MacOS/* | head -1)"
+          codesign -dv "$APP" 2>&1 | grep -q 'Signature=adhoc' && echo "signature: ad-hoc OK"
+          codesign --verify --deep --strict "$APP" && echo "codesign --verify OK"
+          VERSION=$(grep '^Version:' packaging/control | awk '{print $2}')
+          ditto -c -k --keepParent "$APP" "dist/claude-usage-macos-$VERSION.zip"
+
+      - name: Smoke — real PyObjC imports + ported logic
+        script: python3 packaging/macos/ci-smoke.py
+
+    artifacts:
+      - dist/claude-usage-macos-*.zip
+      - dist/claude-usage.app

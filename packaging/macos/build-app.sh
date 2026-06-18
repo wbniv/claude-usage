@@ -77,6 +77,7 @@ sed "s/@VERSION@/$VERSION/g" "$REPO_DIR/desktop/macos/Info.plist.in" > "$BUILD/I
 
 # 5. py2app setup.py.
 cat > "$BUILD/setup.py" <<'SETUP'
+import os
 import pathlib
 import plistlib
 from setuptools import setup
@@ -86,7 +87,9 @@ opts = {
     'plist': plist,
     'includes': ['usage_core', 'tooltip', 'schema_defaults', 'statusbar_image'],
     'packages': ['objc', 'Foundation', 'AppKit'],
-    'arch': 'universal2',
+    # universal2 for release; CI sets PY2APP_ARCH=arm64 since runner Pythons are
+    # single-arch and a universal2 build needs a universal2 interpreter.
+    'arch': os.environ.get('PY2APP_ARCH', 'universal2'),
 }
 if pathlib.Path('claude-usage.icns').exists():
     opts['iconfile'] = 'claude-usage.icns'
