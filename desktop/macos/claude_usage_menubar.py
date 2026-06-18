@@ -216,7 +216,7 @@ def _notify(title, body):
 class ClaudeUsageController(NSObject):
 
     def init(self):
-        self = super().init()
+        self = objc.super(ClaudeUsageController, self).init()
         if self is None:
             return None
         self._data = None

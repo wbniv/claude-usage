@@ -16,6 +16,7 @@ from AppKit import (
     NSWindowStyleMaskTitled,
 )
 from Foundation import NSObject, NSMakeRect
+import objc
 
 import usage_core
 
@@ -64,7 +65,7 @@ class PrefsController(NSObject):
     Obj-C selectors and trip BadPrototypeError (see the macOS-port plan)."""
 
     def init(self):
-        self = super().init()
+        self = objc.super(PrefsController, self).init()
         if self is None:
             return None
         self._valueFields = {}
