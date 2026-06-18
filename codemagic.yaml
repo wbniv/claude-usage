@@ -34,12 +34,21 @@ workflows:
         # a universal2 interpreter.
         PY2APP_ARCH: arm64
     scripts:
+      # Every step tees its output to cm-build.log (listed under artifacts:) so
+      # the full build log — even on a RED build — is fetchable via Codemagic's
+      # artefacts API by the codemagic-build skill (Codemagic has no log API).
+      # `exec > >(tee …)` is a redirect, not a pipe, so each command's real exit
+      # code is preserved. $CM_BUILD_DIR is the clone root Codemagic sets.
       - name: Install go-task
-        script: brew install go-task
+        script: |
+          set -euo pipefail
+          exec > >(tee -a "$CM_BUILD_DIR/cm-build.log") 2>&1
+          brew install go-task
 
       - name: Install Python build + test deps
         script: |
           set -euo pipefail
+          exec > >(tee -a "$CM_BUILD_DIR/cm-build.log") 2>&1
           python3 -m pip install --upgrade pip
           python3 -m pip install pytest py2app pyobjc
 
@@ -49,14 +58,21 @@ workflows:
         # libshell symbol probe (no gnome-shell) but still runs syntax + source
         # guards. Everything else (scraper, server pytest, parity/security)
         # runs for real — incl. test_orphan_sweep, now POSIX-gated.
-        script: task test
+        script: |
+          set -euo pipefail
+          exec > >(tee -a "$CM_BUILD_DIR/cm-build.log") 2>&1
+          task test
 
       - name: Build claude-usage.app (py2app, ad-hoc signed)
-        script: task build-macos
+        script: |
+          set -euo pipefail
+          exec > >(tee -a "$CM_BUILD_DIR/cm-build.log") 2>&1
+          task build-macos
 
       - name: Verify the bundle + zip for artifacts
         script: |
           set -euo pipefail
+          exec > >(tee -a "$CM_BUILD_DIR/cm-build.log") 2>&1
           APP=dist/claude-usage.app
           test -d "$APP" || { echo "no .app produced" >&2; exit 1; }
           echo "archs:  $(lipo -archs "$APP"/Contents/MacOS/* | head -1)"
@@ -66,8 +82,12 @@ workflows:
           ditto -c -k --keepParent "$APP" "dist/claude-usage-macos-$VERSION.zip"
 
       - name: Smoke — real PyObjC imports + ported logic
-        script: python3 packaging/macos/ci-smoke.py
+        script: |
+          set -euo pipefail
+          exec > >(tee -a "$CM_BUILD_DIR/cm-build.log") 2>&1
+          python3 packaging/macos/ci-smoke.py
 
     artifacts:
+      - cm-build.log
       - dist/claude-usage-macos-*.zip
       - dist/claude-usage.app

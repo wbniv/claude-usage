@@ -364,6 +364,18 @@ tasks:
         rm -rf "$HOME/Applications/claude-usage.app"
         echo "Uninstalled. Per-user state in ~/.cache and ~/.config left intact."
 
+  cm-bootstrap:
+    desc: "One-time: store your Codemagic API token (uses the codemagic-build skill)"
+    cmds:
+      - python3 ~/.claude/skills/codemagic-build/codemagic.py bootstrap
+
+  cm-build:
+    desc: "Trigger the Codemagic macOS build, poll, tail logs on failure. Branch defaults to current; override: task cm-build -- --branch macos-port"
+    cmds:
+      - >
+        python3 ~/.claude/skills/codemagic-build/codemagic.py build
+        --app-id 6a33fee036a012a1c9cf966a --workflow macos-test {{.CLI_ARGS}}
+
   test-kde-live:
     desc: "Verify the plasmoid live on a real Plasma 6 session (boots the Foundry ISO in QEMU). Pass ISO=path to override; defaults to newest foundry-anvil-*.iso."
     cmds:
