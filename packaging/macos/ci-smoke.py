@@ -23,6 +23,7 @@ sys.path.insert(0, str(REPO / 'desktop' / 'macos'))
 
 import usage_core  # noqa: E402  — real import; fails loudly if schema XML missing
 import claude_usage_menubar as A  # noqa: E402  — real PyObjC import
+import prefs  # noqa: E402  — real PyObjC import of the preferences window module
 
 ok = True
 
@@ -52,6 +53,10 @@ check('is_selectable All 5%→True', A.is_selectable({'label': 'All models', 'pc
 meters = [{'label': 'Sonnet', 'pct': 0}, {'label': 'All models', 'pct': 5}]
 check("get_primary ''→All models", (A.get_primary(meters, '') or {}).get('label'), 'All models')
 check('reset_hint session 0%', A.reset_hint({'label': 'Current session', 'pct': 0}, now), '  (not started)')
+
+# prefs window module loaded under real PyObjC (NSColorWell/NSStepper/NSWindow resolved).
+check('prefs.PrefsController present', hasattr(prefs, 'PrefsController'), True)
+check('prefs.FIELDS non-empty', len(prefs.FIELDS) > 0, True)
 
 print('\nci-smoke: ALL PASS' if ok else '\nci-smoke: FAILURES')
 sys.exit(0 if ok else 1)

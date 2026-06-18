@@ -167,6 +167,6 @@ Add a `sys.platform == 'darwin'` branch: replace the `systemctl --user is-active
 ## Deferred / open
 
 - **Dock-tile rings** — the `generate-icon.py` Cairo renderer stays wired; a later mode can drop `LSUIElement` and paint the concentric rings onto `NSApp.dockTile`. Promote into v1 only if the dock rings are part of daily glance use.
-- **Native preferences window** — v1 reads `config.json`; a PyObjC prefs panel (color wells + threshold steppers, writing the same `config.json`) is a follow-up matching the GNOME/KDE prefs round-trip.
+- **Native preferences window** — ~~deferred~~ **planned + implemented**: a PyObjC prefs window (`NSColorWell` colour wells + `NSStepper` threshold/size steppers) round-tripping the same `config.json`, matching the GNOME/KDE prefs. See [2026-06-19-macos-prefs-window.md](2026-06-19-macos-prefs-window.md).
 - **Notarized `.dmg`** — needed only for distribution beyond the author (Apple Developer ID, `notarytool`, `stapler`). The cask upgrades to it cleanly.
 - **Universal Cairo/PIL** — confirm `py2app` bundles universal2 wheels; if a dep is x86_64-only, either build it universal or ship arm64 + Rosetta note.

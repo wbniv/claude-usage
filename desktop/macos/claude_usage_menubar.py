@@ -45,6 +45,7 @@ for _cand in _server_dirs:
 import usage_core
 import tooltip
 import statusbar_image
+import prefs
 
 from AppKit import (
     NSApplication, NSApplicationActivationPolicyAccessory, NSStatusBar,
@@ -219,6 +220,7 @@ class ClaudeUsageController(NSObject):
         if self is None:
             return None
         self._data = None
+        self._prefs = None      # lazily-created preferences window controller
         self._mtime = 0
         self._lastTier = 'normal'
         self._lastMenuFp = None
@@ -451,6 +453,10 @@ class ClaudeUsageController(NSObject):
     @objc.python_method
     def _addFooter(self):
         self._menu.addItem_(NSMenuItem.separatorItem())
+        prefs_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+            'Preferences…', b'openPrefs:', ',')
+        prefs_item.setTarget_(self)
+        self._menu.addItem_(prefs_item)
         open_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
             'Open Usage Page', b'openUsage:', '')
         open_item.setTarget_(self)
@@ -564,6 +570,11 @@ class ClaudeUsageController(NSObject):
     def selectMetric_(self, sender):
         _write_metric(sender.representedObject())
         self._refresh()
+
+    def openPrefs_(self, _sender):
+        if self._prefs is None:
+            self._prefs = prefs.PrefsController.alloc().init()
+        self._prefs.show()
 
     def openUsage_(self, _sender):
         NSWorkspace.sharedWorkspace().openURL_(NSURL.URLWithString_(USAGE_URL))

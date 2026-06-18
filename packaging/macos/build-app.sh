@@ -45,6 +45,7 @@ mkdir -p "$BUILD/server/schemas" "$BUILD/icons"
 
 cp "$REPO_DIR/desktop/macos/claude_usage_menubar.py" "$BUILD/"
 cp "$REPO_DIR/desktop/macos/statusbar_image.py"      "$BUILD/"
+cp "$REPO_DIR/desktop/macos/prefs.py"                "$BUILD/"
 # Shared server modules: importable twins (usage_core/tooltip/schema_defaults)
 # + usage-server.py (loaded via importlib at runtime) + the gschema XML.
 cp "$REPO_DIR/server/usage_core.py" \
@@ -85,7 +86,7 @@ from setuptools import setup
 plist = plistlib.loads(pathlib.Path('Info.plist').read_bytes())
 opts = {
     'plist': plist,
-    'includes': ['usage_core', 'tooltip', 'schema_defaults', 'statusbar_image'],
+    'includes': ['usage_core', 'tooltip', 'schema_defaults', 'statusbar_image', 'prefs'],
     'packages': ['objc', 'Foundation', 'AppKit'],
     # universal2 for release; CI sets PY2APP_ARCH=arm64 since runner Pythons are
     # single-arch and a universal2 build needs a universal2 interpreter.

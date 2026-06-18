@@ -206,6 +206,35 @@ def derive_tier(data):
 # unlike the 6-key icon config.
 
 _COLOR_KEYS = frozenset(k for k in _SCHEMA_DEFAULTS if 'color' in k)
+_SKIP = object()  # _coerce sentinel: value invalid/unknown → caller skips it
+
+
+def _coerce(key, val):
+    """Validate/coerce a raw config value for `key`. Returns the value to store,
+    or _SKIP if the key is unknown or the value is invalid (bad hex, non-int or
+    out-of-range number, wrong type). Single source of validation shared by
+    load_ui_config (reads) and write_ui_config (writes)."""
+    if key not in _SCHEMA_DEFAULTS:
+        return _SKIP
+    default = _SCHEMA_DEFAULTS[key]
+    if key in _COLOR_KEYS:
+        try:
+            hex_to_rgba(val)              # validates 6/8-digit hex
+            return val
+        except Exception:
+            return _SKIP
+    if isinstance(default, bool):         # bool ⊂ int — check first
+        return val if isinstance(val, bool) else _SKIP
+    if isinstance(default, int):
+        try:
+            iv = int(val)
+        except (TypeError, ValueError):
+            return _SKIP
+        lo, hi = _SCHEMA_RANGES.get(key, (None, None))
+        if lo is not None and not (lo <= iv <= hi):
+            return _SKIP
+        return iv
+    return val if isinstance(val, str) else _SKIP
 
 
 def config_path():
@@ -228,28 +257,36 @@ def load_ui_config():
                 raw = loaded
         except Exception:
             raw = {}
-    for key, default in _SCHEMA_DEFAULTS.items():
-        if key not in raw:
-            continue
-        val = raw[key]
-        if key in _COLOR_KEYS:
-            try:
-                hex_to_rgba(val)          # validates 6/8-digit hex
-                cfg[key] = val
-            except Exception:
-                pass                      # keep default
-        elif isinstance(default, bool):
-            if isinstance(val, bool):
-                cfg[key] = val
-        elif isinstance(default, int):
-            try:
-                iv = int(val)
-            except (TypeError, ValueError):
-                continue
-            lo, hi = _SCHEMA_RANGES.get(key, (None, None))
-            if lo is not None and not (lo <= iv <= hi):
-                continue
-            cfg[key] = iv
-        elif isinstance(val, str):
-            cfg[key] = val
+    for key in _SCHEMA_DEFAULTS:
+        if key in raw:
+            v = _coerce(key, raw[key])
+            if v is not _SKIP:
+                cfg[key] = v
     return cfg
+
+
+def write_ui_config(updates):
+    """Merge `updates` into ~/.config/claude-usage/config.json and write it
+    atomically (tmp + rename, 0600). Only known keys with valid values are
+    applied (via _coerce — same rules as load_ui_config); unknown/invalid
+    entries are dropped, and other keys already in the file are preserved. Used
+    by the macOS preferences window. Returns the merged dict written."""
+    p = config_path()
+    current = {}
+    if p.exists():
+        try:
+            loaded = json.loads(p.read_text())
+            if isinstance(loaded, dict):
+                current = loaded
+        except Exception:
+            current = {}
+    for key, val in (updates or {}).items():
+        v = _coerce(key, val)
+        if v is not _SKIP:
+            current[key] = v
+    p.parent.mkdir(parents=True, exist_ok=True)
+    tmp = p.with_suffix(f'.{os.getpid()}.tmp')
+    tmp.write_text(json.dumps(current, indent=2) + '\n')
+    tmp.chmod(0o600)
+    tmp.replace(p)
+    return current

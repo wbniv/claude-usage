@@ -245,7 +245,9 @@ The Anthropic star plus the selected meter's `%` in the menu bar, colour-coded b
 
 ### Configuration
 
-macOS has no GSettings — settings live in `~/.config/claude-usage/config.json` (the same keys and defaults as the Linux gschema; see *All settings and defaults* below). Edit the file and the menu bar picks the change up within a few seconds:
+Open **Preferences…** from the menu-bar dropdown (⌘,) for colour wells (the `%` label colours + popup colours) and steppers (warning/critical thresholds, popup bar width, popup font size). Changes apply within a couple of seconds.
+
+Under the hood macOS has no GSettings — settings live in `~/.config/claude-usage/config.json` (the same keys and defaults as the Linux gschema; see *All settings and defaults* below), which the Preferences window round-trips. You can also edit it by hand:
 
 ```bash
 mkdir -p ~/.config/claude-usage
