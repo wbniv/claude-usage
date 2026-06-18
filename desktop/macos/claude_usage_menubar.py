@@ -49,10 +49,12 @@ from AppKit import (
     NSApplication, NSApplicationActivationPolicyAccessory, NSStatusBar,
     NSVariableStatusItemLength, NSMenu, NSMenuItem, NSColor, NSFont, NSWorkspace,
     NSImageLeft, NSEvent, NSEventMaskScrollWheel,
+    # Attributed-string key constants live in AppKit, NOT Foundation (PyObjC) —
+    # importing them from Foundation raises ImportError on real macOS.
+    NSForegroundColorAttributeName, NSFontAttributeName,
 )
 from Foundation import (
-    NSObject, NSTimer, NSAttributedString, NSMutableAttributedString,
-    NSForegroundColorAttributeName, NSFontAttributeName, NSURL,
+    NSObject, NSTimer, NSAttributedString, NSMutableAttributedString, NSURL,
     NSUserNotification, NSUserNotificationCenter,
 )
 

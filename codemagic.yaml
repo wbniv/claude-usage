@@ -75,7 +75,10 @@ workflows:
           exec > >(tee -a "$CM_BUILD_DIR/cm-build.log") 2>&1
           APP=dist/claude-usage.app
           test -d "$APP" || { echo "no .app produced" >&2; exit 1; }
-          echo "archs:  $(lipo -archs "$APP"/Contents/MacOS/* | head -1)"
+          # lipo -archs takes ONE file; py2app puts several in MacOS/, so target
+          # the main executable (first regular file) rather than a glob.
+          MAIN=$(find "$APP/Contents/MacOS" -maxdepth 1 -type f | head -1)
+          echo "archs:  $(lipo -archs "$MAIN")"
           codesign -dv "$APP" 2>&1 | grep -q 'Signature=adhoc' && echo "signature: ad-hoc OK"
           codesign --verify --deep --strict "$APP" && echo "codesign --verify OK"
           VERSION=$(grep '^Version:' packaging/control | awk '{print $2}')
