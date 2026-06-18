@@ -138,7 +138,10 @@ Add a `sys.platform == 'darwin'` branch: replace the `systemctl --user is-active
 
 ## Verification
 
-**Status (2026-06-18, implementation landing).** Linux-runnable steps pass; the macOS bundle/launchd/cask/end-to-end steps (4–7, 9–12) are `[verify][live]` — they need a Mac.
+**Status (2026-06-18, implementation landing).** Linux-runnable steps pass; the macOS BUILD + SMOKE are now green on Codemagic CI (real Mac); the genuinely-interactive steps (LaunchAgent load, server-serves, extension end-to-end, cask install, diagnostics) remain `[verify][live]`.
+
+- **Codemagic CI (real Mac) — GREEN** (build `6a340e9a`, workflow `macos-test`, branch `macos-port`): install go-task + py2app/pyobjc → `task test` → `task build-macos` (py2app + ad-hoc codesign) → bundle verify (`lipo`/`codesign --verify`) → `ci-smoke.py` (real PyObjC import + ported-logic asserts) — **all pass**. Covers steps 4 (.app builds + ad-hoc sign, arm64 in CI) and 8 (smoke). Took three fixes only a Mac could surface — the Linux stub can't model PyObjC: (a) `NSForegroundColorAttributeName`/`NSFontAttributeName` import from AppKit not Foundation; (b) `@objc.python_method` on the 17 non-selector controller helpers (PyObjC selector-arity); (c) CI `lipo -archs` narrowed off a multi-file glob. Logs were pulled each round via the `codemagic-build` skill (cm-build.log artifact).
+- Still `[verify][live]` (needs an interactive Mac session, not headless CI): LaunchAgent load + menu-bar appears (5), in-process server `/hello` (6), extension end-to-end (7), cask install/uninstall (11), diagnostics (12).
 
 - **Step 1 — PASS.** `task test` exits 0: server pytest 115 passed, node scraper + gnome-format tests, and all parity/security/qml/gnome lints. `lint-scraper-parity` now reads `server/usage_core.py` and matches all four JS↔Python pairs.
 - **Step 2 — PASS.** `python3 server/generate-icon.py --baseline` renders (8.9 KB PNG); `test_icon` + `test_pacing` + `test_schema_defaults` = 42 passed — the refactor is behaviour-neutral on Linux.
