@@ -14,12 +14,13 @@ from pathlib import Path
 
 import pytest
 
-# TS-3 (pass-19): the sweep's liveness check uses /proc/<pid>/ existence,
-# which is Linux-only. The product itself is Linux-only (.deb + GNOME), so
-# we skip this whole module rather than fail on macOS dev machines.
+# TS-3 (pass-19) → updated pass-31 (macOS port): the sweep's liveness check is
+# now cross-platform (_pid_alive: /proc on Linux, os.kill(pid, 0) elsewhere), so
+# this runs on macOS too. Skip only on non-POSIX (Windows), which the product
+# doesn't target and where os.kill(pid, 0) has different semantics.
 pytestmark = pytest.mark.skipif(
-    not Path('/proc').is_dir(),
-    reason='_sweep_orphan_tmps uses /proc/<pid>; Linux-only',
+    os.name != 'posix',
+    reason='_sweep_orphan_tmps PID-liveness check requires POSIX os.kill semantics',
 )
 
 REPO = Path(__file__).resolve().parent.parent.parent

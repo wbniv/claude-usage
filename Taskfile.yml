@@ -328,6 +328,42 @@ tasks:
       - rm -rf ~/.local/share/plasma/plasmoids/org.indri.claude-usage
       - echo "Plasmoid removed."
 
+  build-macos:
+    desc: "Build dist/claude-usage.app — macOS menu-bar indicator + bundled server (macOS only; needs py2app)"
+    cmds:
+      - bash packaging/macos/build-app.sh
+
+  install-macos:
+    desc: "Build + install claude-usage.app to ~/Applications and load the LaunchAgent (macOS only)"
+    deps: [build-macos]
+    cmds:
+      - |
+        set -euo pipefail
+        [ "$(uname -s)" = "Darwin" ] || { echo "install-macos: macOS only"; exit 1; }
+        APP="$HOME/Applications/claude-usage.app"
+        rm -rf "$APP"; mkdir -p "$HOME/Applications"
+        cp -R dist/claude-usage.app "$APP"
+        xattr -dr com.apple.quarantine "$APP" 2>/dev/null || true
+        PLIST="$HOME/Library/LaunchAgents/studio.indri.claude-usage.plist"
+        mkdir -p "$HOME/Library/LaunchAgents"
+        # Rewrite the bundled plist's /Applications path to this ~/Applications install.
+        sed "s|/Applications/claude-usage.app|$APP|g" \
+          "$APP/Contents/Resources/studio.indri.claude-usage.plist" > "$PLIST"
+        launchctl bootout "gui/$(id -u)/studio.indri.claude-usage" 2>/dev/null || true
+        launchctl bootstrap "gui/$(id -u)" "$PLIST"
+        echo "Installed + loaded — the menu-bar icon should appear."
+
+  uninstall-macos:
+    desc: "Unload the LaunchAgent and remove the local claude-usage.app (macOS only)"
+    cmds:
+      - |
+        set -euo pipefail
+        [ "$(uname -s)" = "Darwin" ] || { echo "uninstall-macos: macOS only"; exit 1; }
+        launchctl bootout "gui/$(id -u)/studio.indri.claude-usage" 2>/dev/null || true
+        rm -f "$HOME/Library/LaunchAgents/studio.indri.claude-usage.plist"
+        rm -rf "$HOME/Applications/claude-usage.app"
+        echo "Uninstalled. Per-user state in ~/.cache and ~/.config left intact."
+
   test-kde-live:
     desc: "Verify the plasmoid live on a real Plasma 6 session (boots the Foundry ISO in QEMU). Pass ISO=path to override; defaults to newest foundry-anvil-*.iso."
     cmds:
@@ -336,4 +372,4 @@ tasks:
   md:
     desc: Preview a markdown file in the browser
     cmds:
-      - bash ../python-tui-lib/scripts/md-to-pdf.sh {{.CLI_ARGS}}
+      - bash ../python-tui-lib/scripts/md-to-html.sh {{.CLI_ARGS}}

@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  LaunchAgent for the macOS menu-bar indicator — the launchd analog of the Linux
+  systemd user service. Installed to ~/Library/LaunchAgents/ (per-user, runs in
+  the Aqua GUI session that a menu-bar / LSUIElement app requires).
+
+  The app hosts the local HTTP server in a daemon thread, so this single agent
+  covers both the data server and the UI (the Linux systemd-server + GNOME-shell
+  split collapsed into one). The executable name is the py2app default (the app
+  script's basename); update it here if build-app.sh's main script is renamed.
+
+  Load:    launchctl bootstrap   gui/$(id -u) ~/Library/LaunchAgents/studio.indri.claude-usage.plist
+  Unload:  launchctl bootout     gui/$(id -u)/studio.indri.claude-usage
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>studio.indri.claude-usage</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Applications/claude-usage.app/Contents/MacOS/claude_usage_menubar</string>
+  </array>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <!-- Restart on crash (systemd Restart=always analog), but NOT on a clean exit,
+       so the menu's "Quit" stays quit instead of being immediately relaunched. -->
+  <key>KeepAlive</key>
+  <dict>
+    <key>SuccessfulExit</key>
+    <false/>
+  </dict>
+
+  <key>ProcessType</key>
+  <string>Interactive</string>
+
+  <key>StandardOutPath</key>
+  <string>/tmp/claude-usage.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/claude-usage.err.log</string>
+</dict>
+</plist>

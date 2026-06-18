@@ -61,6 +61,7 @@ cp "$REPO_DIR/server/usage-server.py" \
    "$REPO_DIR/server/generate-icon.py" \
    "$REPO_DIR/server/tooltip.py" \
    "$REPO_DIR/server/schema_defaults.py" \
+   "$REPO_DIR/server/usage_core.py" \
    "$PKG/usr/share/claude-usage/"
 mkdir -p "$PKG/usr/share/claude-usage/schemas"
 cp "$REPO_DIR/desktop/gnome/schemas/org.indri.claude-usage.gschema.xml" \

@@ -201,12 +201,16 @@ fi  # end KDE/GNOME branch
 # copy). Cache (~/.cache/claude-usage) and gsettings (dconf) live elsewhere
 # and are left alone.
 rm -rf "$SERVER_DIR/usage-server.py" "$SERVER_DIR/generate-icon.py" "$SERVER_DIR/tooltip.py" \
+       "$SERVER_DIR/schema_defaults.py" "$SERVER_DIR/usage_core.py" \
        "$SERVER_DIR/claude-usage-status" "$SERVER_DIR/chrome-extension"
 mkdir -p "$SERVER_DIR"
 cp "$REPO_DIR/server/usage-server.py" "$SERVER_DIR/"
 cp "$REPO_DIR/server/generate-icon.py" "$SERVER_DIR/"
 cp "$REPO_DIR/server/tooltip.py" "$SERVER_DIR/"
 cp "$REPO_DIR/server/schema_defaults.py" "$SERVER_DIR/"
+# usage_core.py — shared pacing/color/tier math imported by generate-icon.py
+# (and the macOS menu-bar app). Must ship or generate-icon.py fails to import.
+cp "$REPO_DIR/server/usage_core.py" "$SERVER_DIR/"
 # schema_defaults.py parses the gschema XML at import time; copy a sibling
 # `schemas/` so the installed module can find it. Same idea as build-deb.sh.
 mkdir -p "$SERVER_DIR/schemas"

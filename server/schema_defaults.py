@@ -33,7 +33,12 @@ def _find_schema():
     """
     here = Path(__file__).resolve().parent
     data_home = Path(os.environ.get('XDG_DATA_HOME') or Path.home() / '.local/share')
+    # Explicit override dir, checked first. Used by the macOS .app bundle (pass-31):
+    # there this module is inside the zipped library, so __file__ can't locate a
+    # sibling schemas/ — the app sets CLAUDE_USAGE_SCHEMA_DIR to the bundled copy.
+    _env_dir = os.environ.get('CLAUDE_USAGE_SCHEMA_DIR')
     candidates = [
+        *([Path(_env_dir) / _SCHEMA_FILENAME] if _env_dir else []),
         here.parent / 'desktop' / 'gnome' / 'schemas' / _SCHEMA_FILENAME,
         here / 'schemas' / _SCHEMA_FILENAME,
         Path('/usr/share/glib-2.0/schemas') / _SCHEMA_FILENAME,

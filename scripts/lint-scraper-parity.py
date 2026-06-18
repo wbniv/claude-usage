@@ -271,30 +271,26 @@ def check_anchor_strings():
 def check_pacing_parity():
     """Check the hand-synced pacing functions stay in numeric-literal sync.
 
-    Four function pairs across two Python files:
-      JS (extension.js)   ↔ Python (where)                            twin file
-      pacingPct           ↔ pacing_pct                                 generate-icon.py
-      elapsedFraction     ↔ elapsed_fraction                           generate-icon.py
-      pacingSegments      ↔ pacing_segments     (viz; PS-1 pass-23)    popup-preview.py
-      colorFor            ↔ color_for           (viz; PS-1 pass-23)    popup-preview.py
+    Four function pairs — all four Python twins now live in usage_core.py
+    (pass-31 extraction; previously split across generate-icon.py + popup-preview.py):
+      JS (extension.js)   ↔ Python (usage_core.py)
+      pacingPct           ↔ pacing_pct
+      elapsedFraction     ↔ elapsed_fraction
+      pacingSegments      ↔ pacing_segments
+      colorFor            ↔ color_for
     """
     js_raw = _strip_comments((REPO / 'desktop' / 'gnome' / 'extension.js').read_text())
-    gi_raw = _strip_py_docstrings(
+    uc_raw = _strip_py_docstrings(
         _strip_py_comments_tokenize(
-            (REPO / 'server' / 'generate-icon.py').read_text()
-        )
-    )
-    pp_raw = _strip_py_docstrings(
-        _strip_py_comments_tokenize(
-            (REPO / 'scripts' / 'popup-preview.py').read_text()
+            (REPO / 'server' / 'usage_core.py').read_text()
         )
     )
 
     pairs = [
-        ('pacingPct',       'pacing_pct',       'generate-icon.py', gi_raw),
-        ('elapsedFraction', 'elapsed_fraction', 'generate-icon.py', gi_raw),
-        ('pacingSegments',  'pacing_segments',  'popup-preview.py', pp_raw),
-        ('colorFor',        'color_for',        'popup-preview.py', pp_raw),
+        ('pacingPct',       'pacing_pct',       'usage_core.py', uc_raw),
+        ('elapsedFraction', 'elapsed_fraction', 'usage_core.py', uc_raw),
+        ('pacingSegments',  'pacing_segments',  'usage_core.py', uc_raw),
+        ('colorFor',        'color_for',        'usage_core.py', uc_raw),
     ]
 
     rc = 0
@@ -346,6 +342,11 @@ def check_pair_inventory():
     so the next PS-1-class miss doesn't have to wait for a code review to find it.
     """
     js_raw = _strip_comments((REPO / 'desktop' / 'gnome' / 'extension.js').read_text())
+    uc_raw = _strip_py_docstrings(
+        _strip_py_comments_tokenize(
+            (REPO / 'server' / 'usage_core.py').read_text()
+        )
+    )
     gi_raw = _strip_py_docstrings(
         _strip_py_comments_tokenize(
             (REPO / 'server' / 'generate-icon.py').read_text()
@@ -357,15 +358,10 @@ def check_pair_inventory():
         )
     )
 
-    pairs = [
-        ('pacingPct',       'pacing_pct',       'generate-icon.py', gi_raw),
-        ('elapsedFraction', 'elapsed_fraction', 'generate-icon.py', gi_raw),
-        ('pacingSegments',  'pacing_segments',  'popup-preview.py', pp_raw),
-        ('colorFor',        'color_for',        'popup-preview.py', pp_raw),
-    ]
-    declared_js = {p[0] for p in pairs}
+    declared_js = {'pacingPct', 'elapsedFraction', 'pacingSegments', 'colorFor'}
 
     py_sources = {
+        'usage_core.py': uc_raw,
         'generate-icon.py': gi_raw,
         'popup-preview.py': pp_raw,
     }

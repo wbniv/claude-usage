@@ -57,6 +57,8 @@ Recovery is automatic: the next successful scrape resets the state and the icons
 
 ## Installation
 
+> **On macOS?** The Debian/distro instructions here don't apply — jump to the [macOS](#macos) section below.
+
 **Requirements:** GNOME Shell 45–50 **or** KDE Plasma 6 + systemd-user + Google Chrome **or** Mozilla Firefox (logged in to Claude.ai). The browser extension and local server are identical on both desktops and both browsers; only the panel frontend differs (GNOME Shell extension vs KDE plasmoid — see *KDE Plasma* below). Chromium-family browsers (Brave, Edge, Vivaldi) load the Chrome extension unchanged.
 
 Minimum distro versions that ship GNOME Shell 45 or newer (KDE users need Plasma 6.0+):
@@ -221,6 +223,63 @@ On KDE Plasma 6 the indicator is a **plasmoid** (the `.deb` installs it to `/usr
 
 ---
 
+## macOS
+
+On macOS the indicator is a **menu-bar app** (`claude-usage.app`) — the analog of the GNOME panel. The browser extension and the local data server work exactly as on Linux; only the frontend differs. It's a menu-bar-only app (no Dock icon).
+
+**Requirements:** macOS 13 Ventura or newer (Apple Silicon or Intel) + Google Chrome **or** Mozilla Firefox logged in to Claude.ai.
+
+### Install (Homebrew cask)
+
+```bash
+brew install --cask wbniv/tap/claude-usage
+```
+
+This installs `claude-usage.app` to `/Applications`, clears its quarantine flag, and loads a LaunchAgent (`studio.indri.claude-usage`) that starts the app at login and restarts it if it crashes. The app bundles the local data server and runs it in-process, so there's no separate service to manage — one agent covers what systemd + the GNOME extension do on Linux.
+
+Then **load the browser extension** exactly as on Linux (see *Both paths — complete setup* above): `chrome://extensions` → enable Developer mode → **Load unpacked** → the bundled `chrome-extension/` folder (inside the app at `claude-usage.app/Contents/Resources/`, or from a clone). Chrome/Brave/Edge/Vivaldi and Firefox behave identically to Linux.
+
+### What you see
+
+The Anthropic star plus the selected meter's `%` in the menu bar, colour-coded by pacing (green/amber/red — see *Color semantics* under Configuration). The star tints red when Anthropic reports an outage and ghosts grey when data goes stale — the same three tiers as Linux. **Click** the menu-bar item for the full breakdown (every meter with a coloured pacing bar + reset countdown, the data-age/status line, *Open Usage Page*, and *Quit*). **Scroll** over the item to cycle which meter the `%` tracks; **click** a meter row in the dropdown to pin it as the panel metric. When a meter hits 100% the label switches to a live `⏱H:MM` countdown.
+
+### Configuration
+
+macOS has no GSettings — settings live in `~/.config/claude-usage/config.json` (the same keys and defaults as the Linux gschema; see *All settings and defaults* below). Edit the file and the menu bar picks the change up within a few seconds:
+
+```bash
+mkdir -p ~/.config/claude-usage
+cat > ~/.config/claude-usage/config.json <<'JSON'
+{ "threshold_warning": 60, "popup_color_normal": "#2a9a2a" }
+JSON
+```
+
+### Troubleshooting
+
+The dropdown's status line already reports staleness and Anthropic outages. For a deeper look:
+
+```bash
+launchctl print gui/$(id -u)/studio.indri.claude-usage      # is the agent loaded?
+launchctl kickstart -k gui/$(id -u)/studio.indri.claude-usage   # restart it
+tail -f /tmp/claude-usage.err.log                            # app + server stderr
+```
+
+If the menu-bar icon is missing after install, reload the agent:
+
+```bash
+launchctl bootout   gui/$(id -u)/studio.indri.claude-usage
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/studio.indri.claude-usage.plist
+```
+
+### Uninstall (macOS)
+
+```bash
+brew uninstall --cask claude-usage          # also boots out the LaunchAgent
+brew uninstall --zap --cask claude-usage    # …and wipes ~/.cache + ~/.config state too
+```
+
+---
+
 ## Configuration
 
 On **GNOME**, all settings are stored in GSettings (dconf). Open the preferences UI:
@@ -333,10 +392,12 @@ claude-usage/
   chrome-extension/   Chrome extension (load via chrome://extensions → Load unpacked)
   desktop/gnome/      GNOME Shell 45–50 panel + dock indicator (extension)
   desktop/kde/        KDE Plasma 6 panel + popup indicator (plasmoid)
+  desktop/macos/      macOS menu-bar indicator (NSStatusItem, Python + PyObjC)
   desktop/launcher/   Dock launcher entry template (.desktop)
-  server/             Local HTTP server + dock icon generator
-  systemd/            User service definition
-  packaging/          .deb and Chrome Web Store build scripts
+  server/             Local HTTP server, shared pacing/colour/tier core
+                      (usage_core.py) + dock icon generator
+  systemd/            Linux user service (macOS uses a launchd LaunchAgent)
+  packaging/          .deb, Chrome Web Store, and macOS .app/cask build scripts
   scripts/            Build + maintenance utilities. Includes one
                       render-*.py per docs/*.png so screenshots are
                       regenerable from source, not hand-captured.

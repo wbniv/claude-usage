@@ -13,7 +13,31 @@ def _systemctl(*args):
                           capture_output=True, text=True)
 
 
+LAUNCHD_LABEL = 'studio.indri.claude-usage'  # macOS LaunchAgent (menu-bar app + server)
+
+
+def _check_service_macos():
+    uid = os.getuid()
+    try:
+        r = subprocess.run(['launchctl', 'print', f'gui/{uid}/{LAUNCHD_LABEL}'],
+                           capture_output=True, text=True)
+    except FileNotFoundError:
+        print('  Service:    ? launchctl not found (is this macOS?)')
+        return
+    if r.returncode == 0:
+        pid = next((l.split('=', 1)[1].strip() for l in r.stdout.splitlines()
+                    if l.strip().startswith('pid =')), '?')
+        print(f'  Service:    ● LaunchAgent loaded (PID {pid})')
+    else:
+        print('  Service:    ✗ LaunchAgent not loaded')
+        print(f'              Fix: launchctl bootstrap gui/{uid} '
+              f'~/Library/LaunchAgents/{LAUNCHD_LABEL}.plist')
+
+
 def _check_service():
+    if sys.platform == 'darwin':
+        _check_service_macos()
+        return
     if _systemctl('is-active', '--quiet', 'claude-usage-fetch.service').returncode == 0:
         pid = _systemctl('show', '-p', 'MainPID', '--value',
                          'claude-usage-fetch.service').stdout.strip() or '?'
@@ -122,8 +146,11 @@ def _check_chrome_orphans():
     """Flag Chrome-registered Claude Usage extensions whose load-unpacked path
     no longer exists. Common after switching install methods (source → .deb);
     Chrome silently keeps the orphan registration with a load error."""
-    prefs = Path.home() / '.config/google-chrome/Default/Preferences'
-    if not prefs.exists():
+    prefs = next((p for p in (
+        Path.home() / '.config/google-chrome/Default/Preferences',                          # Linux
+        Path.home() / 'Library/Application Support/Google/Chrome/Default/Preferences',       # macOS
+    ) if p.exists()), None)
+    if prefs is None:
         return
     try:
         exts = json.loads(prefs.read_text())['extensions']['settings']
@@ -141,15 +168,18 @@ if __name__ == '__main__':
         print(f'Usage: {Path(sys.argv[0]).name}')
         print()
         print('Check the health of the Claude Usage indicator:')
-        print('  - systemd service status')
+        print('  - background service (systemd on Linux, LaunchAgent on macOS)')
         print('  - cache file age and meter breakdown')
-        print('  - GNOME extension state')
+        print('  - GNOME extension state (Linux only)')
         sys.exit(0)
 
     print('Claude Usage — status check')
     print()
     _check_service()
     _check_cache()
-    _check_extension()
+    if sys.platform != 'darwin':
+        # macOS has no GNOME extension; the menu-bar app is the LaunchAgent the
+        # service check above already covers.
+        _check_extension()
     _check_chrome_orphans()
     print()

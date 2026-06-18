@@ -59,14 +59,16 @@ CANVAS = 96 * SCALE
 ANTHRO_ORANGE = (216/255, 119/255, 88/255, 1.0)
 TRACK         = (0.0, 0.0, 0.0, 0.25)   # subtle dark on orange
 
-# Pulled from the gschema at import time — see server/schema_defaults.py.
-# Previously a hand-copied dict that drifted (threshold_warning was 50, schema
-# says 70; threshold_critical was 80, schema says 90). Pass-17 DG-1.
-from schema_defaults import DEFAULTS as _SCHEMA_DEFAULTS, RANGES as _SCHEMA_RANGES
-DEFAULTS = {k: _SCHEMA_DEFAULTS[k] for k in (
-    'weekly_color_green', 'weekly_color_amber', 'weekly_color_red',
-    'sonnet_color', 'threshold_warning', 'threshold_critical',
-)}
+# Pacing/color/tier math + the gschema-derived DEFAULTS now live in the
+# importable usage_core module — generate-icon.py's hyphenated name can't be
+# imported by the macOS menu-bar app, popup-preview, or the parity lints.
+# This file keeps only the cairo/PIL rendering pipeline + the GSettings-aware
+# load_config() below. Pass-31 (macOS port).
+from schema_defaults import RANGES as _SCHEMA_RANGES
+from usage_core import (
+    DEFAULTS, hex_to_rgba, ring_color, pacing_pct, elapsed_fraction,
+    viz_colors, derive_tier,
+)
 
 def _gsettings_or_none():
     """Return a Gio.Settings bound to our schema, or None when GSettings is
@@ -163,52 +165,7 @@ def load_config():
               file=sys.stderr, flush=True)
         return dict(DEFAULTS)
 
-def hex_to_rgba(h):
-    h = h.lstrip('#')
-    r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
-    # BASE-5 (2026-05-30 review): honour an 8-digit #RRGGBBAA alpha instead of
-    # silently forcing opacity — a user-set translucent ring colour now renders.
-    a = int(h[6:8], 16) / 255 if len(h) == 8 else 1.0
-    return (r/255, g/255, b/255, a)
-
-def ring_color(pct, cfg):
-    # load_config() unconditionally populates both threshold keys (live or DEFAULTS),
-    # so the previous .get(default) was dead defense.
-    if pct >= cfg['threshold_critical']: return hex_to_rgba(cfg['weekly_color_red'])
-    if pct >= cfg['threshold_warning']:  return hex_to_rgba(cfg['weekly_color_amber'])
-    return                                      hex_to_rgba(cfg['weekly_color_green'])
-
-def pacing_pct(meter, period_lens):
-    """pct / fraction_elapsed — uncapped. 100 = on pace, > 100 = over pace.
-    Falls back to raw pct when reset_minutes/period unknown or too few
-    minutes have elapsed for one user action to be statistical noise.
-
-    Kept in sync by hand with desktop/gnome/extension.js:pacingPct.
-    """
-    if not meter:
-        return 0
-    pct = meter.get('pct')
-    # BASE-5 (2026-05-30 review): accept float as well as int to match
-    # extension.js's `typeof pct === 'number'` — the server emits ints, but a
-    # foreign/corrupt cache may carry a float, and Python must not silently fall
-    # back to raw pct where JS would pace. bool ⊂ int in Python, so exclude it
-    # (JS `typeof true === 'boolean'`).
-    if isinstance(pct, bool) or not isinstance(pct, (int, float)) or pct == 0:
-        return pct or 0
-    rm = meter.get('reset_minutes')
-    period = period_lens.get(meter.get('label'))
-    if rm is None or not period:
-        return pct
-    elapsed = period - rm
-    # Floor = max(15 min, 5% of period). WP-1 (pass-16 §6): flat 15-min was
-    # right for the 5h session bucket (15/300=5% elapsed) but for 7d weekly
-    # buckets meant any usage > ~0.14% in the first 16 min paced > critical.
-    # Period-scaled component gives the weekly bucket ~8.4h suppression. The
-    # session bucket sees max(15, 14.75)=15 — unchanged from 0.11.14.
-    # Kept in sync by hand with desktop/gnome/extension.js:pacingPct.
-    if elapsed < max(15, period * 0.05):
-        return pct
-    return pct / (elapsed / period)
+# hex_to_rgba, ring_color, pacing_pct → moved to usage_core (imported above).
 
 def rounded_rect_path(cr, x, y, w, h, r):
     cr.new_sub_path()
@@ -305,34 +262,7 @@ def draw_ring(cr, cx, cy, radius, thick, pct, color, track=True,
                cy + tick_outer * math.sin(elapsed_angle))
     cr.stroke()
 
-def elapsed_fraction(meter, period_lens):
-    """Fraction of period elapsed for a meter, or None if the pacing floor
-    applies (early-period noise). Mirrors popup-preview.py:elapsed_fraction
-    and extension.js:elapsedFraction.
-
-    Kept in sync by hand with desktop/gnome/extension.js:elapsedFraction
-    — the parity lint also checks the numeric constants."""
-    if not meter:
-        return None
-    rm = meter.get('reset_minutes')
-    period = period_lens.get(meter.get('label'))
-    if rm is None or not period:
-        return None
-    elapsed = period - rm
-    if elapsed < max(15, period * 0.05):
-        return None
-    return elapsed / period
-
-
-def viz_colors(pacing, cfg):
-    """Return (on_pace, over_pace) rgba pairs for the dock ring's pacing-viz
-    rendering. Mirrors color_for() in popup-preview.py / extension.js:
-      on_pace  = always the safe ("green") tier color
-      over_pace = warn or crit color depending on pacing"""
-    on_pace = hex_to_rgba(cfg['weekly_color_green'])
-    if pacing >= cfg['threshold_critical']:
-        return on_pace, hex_to_rgba(cfg['weekly_color_red'])
-    return on_pace, hex_to_rgba(cfg['weekly_color_amber'])
+# elapsed_fraction, viz_colors → moved to usage_core (imported above).
 
 
 def _render(all_pct, sonnet_pct, cfg, draw_rings=True, tier='normal',
@@ -422,33 +352,7 @@ def generate(all_pct, sonnet_pct, cfg, dest, draw_rings=True, tier='normal'):
     img.resize((128, 128), RESAMPLE).save(dest)
 
 
-def derive_tier(data):
-    """Decide the tier from cache fields (status-page + scrape-fail count).
-
-    Time-based stale/broken is the GNOME extension's job — it detects age by
-    reading the cache's `_timestamp` and spawns generate-icon.py --tier=stale
-    or --tier=broken explicitly. This function handles the two signals that
-    are already encoded in the cache itself.
-    """
-    astat = data.get('_anthropic_status') or {}
-    # V-3 (pass-17): the validator's `allow_empty=True` on these string fields
-    # combined with the previous "not in (None, 'none')" comparison meant an
-    # empty-string value silently triggered broken tier. Normalize via `or` so
-    # ''/None both fall through to the safe value.
-    indicator = astat.get('indicator') or 'none'
-    if indicator != 'none':
-        return 'broken'
-    component = astat.get('claude_ai_component_status') or 'operational'
-    if component != 'operational':
-        return 'broken'
-    # DT-1 (pass-18): isinstance guard before the comparison. The validator
-    # rejects non-int _scrape_fail_count on POST, but a pre-existing corrupt
-    # cache from a downgrade or hand-edit can still feed `"5" >= 2` here,
-    # raising TypeError on every icon render until the cache is deleted.
-    sfc = data.get('_scrape_fail_count')
-    if isinstance(sfc, int) and not isinstance(sfc, bool) and sfc >= 2:
-        return 'broken'
-    return 'normal'
+# derive_tier → moved to usage_core (imported above).
 
 def _refresh_user_icon_cache():
     """Rebuild the user-local hicolor icon cache. Needed when we create new

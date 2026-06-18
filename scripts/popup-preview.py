@@ -29,33 +29,13 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / 'server'))
 
-# Stub heavy imports we don't need (mirrors test_pacing.py + render-mockups.py).
-for name in ('cairo',):
-    sys.modules.setdefault(name, types.ModuleType(name))
-_pil = types.ModuleType('PIL')
-_pil_image = types.ModuleType('PIL.Image')
-_pil_image.LANCZOS = 1
-_pil.Image = _pil_image
-_pil.ImageOps = types.ModuleType('PIL.ImageOps')
-sys.modules.setdefault('PIL', _pil)
-sys.modules.setdefault('PIL.Image', _pil_image)
-sys.modules.setdefault('PIL.ImageOps', _pil.ImageOps)
-
-# generate-icon.py raises FileNotFoundError if no base icon exists. The
-# real one is at /usr/share/...; we don't open it, just need existence.
-_data_home = Path(os.environ.get('XDG_DATA_HOME') or Path.home() / '.local/share')
-_icon = _data_home / 'gnome-shell/extensions/claude-usage@indri.studio/icons/claude-64.png'
-if not _icon.exists():
-    sys_icon = Path('/usr/share/gnome-shell/extensions/claude-usage@indri.studio/icons/claude-64.png')
-    if not sys_icon.exists():
-        _icon.parent.mkdir(parents=True, exist_ok=True)
-        _icon.touch()
-
-spec = importlib.util.spec_from_file_location('gi_mod', REPO / 'server/generate-icon.py')
-_g = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(_g)
-pacing_pct = _g.pacing_pct
-load_config = _g.load_config
+# Shared pacing / color / segment logic — single source of truth in
+# server/usage_core.py (pure Python; no cairo/PIL load needed any more).
+import usage_core
+pacing_pct = usage_core.pacing_pct
+elapsed_fraction = usage_core.elapsed_fraction
+pacing_segments = usage_core.pacing_segments
+color_for = usage_core.color_for
 
 spec = importlib.util.spec_from_file_location('tooltip', REPO / 'server/tooltip.py')
 _t = importlib.util.module_from_spec(spec)
@@ -139,78 +119,9 @@ def get_primary(meters, cfg):
     )
 
 
-def elapsed_fraction(meter, period_lens):
-    """Mirror the pacing_pct floor. Returns 0..1, or None when the floor
-    applies (suppresses tick + two-tone — early-period noise is hidden).
-
-    EF-1 sibling (pass-24): null-meter guard for symmetry with the two
-    other twins (generate-icon.py:elapsed_fraction and
-    extension.js:elapsedFraction)."""
-    if not meter:
-        return None
-    rm = meter.get('reset_minutes')
-    period = period_lens.get(meter.get('label'))
-    if rm is None or not period:
-        return None
-    elapsed = period - rm
-    if elapsed < max(15, period * 0.05):
-        return None
-    return elapsed / period
-
-
-def pacing_segments(pct, elapsed_frac, width):
-    """Decompose bar into (char, role) tuples. Role ∈ {on_pace, over_pace,
-    tick, empty}. Caller maps roles to colors based on tier.
-
-    Visual grammar (docs/plans/2026-05-20-pacing-viz-tick-overpace.md):
-      under-pace: filled cells in on_pace + ┊ tick in first empty cell + ░ rest
-      on-pace:    filled cells in on_pace + ┊ tick at fill boundary + ░ rest
-      over-pace:  filled cells split (on_pace before elapsed_pos, over_pace
-                  beyond), no tick — boundary is the color change.
-    """
-    pct = max(0, min(100, pct or 0))
-    fill_frac = pct / 100
-    # PVS-1 (pass-26): decide over-pace on raw fractions BEFORE rounding.
-    # When fill_frac and elapsed_frac round to the same cell index the old
-    # code emitted a tick (on-pace signal) even when fill_frac > elapsed_frac.
-    over_pace_raw = elapsed_frac is not None and fill_frac > elapsed_frac
-    fill = round(fill_frac * width)
-    elapsed_pos = (min(round(elapsed_frac * width), width)
-                   if elapsed_frac is not None else None)
-
-    out = []
-    for i in range(width):
-        if i < fill:
-            # When over_pace_raw and fill == elapsed_pos (both rounded same),
-            # color all filled cells over_pace so the user sees the signal.
-            over_here = over_pace_raw and (
-                elapsed_pos is None or fill == elapsed_pos or i >= elapsed_pos)
-            out.append(('█', 'over_pace' if over_here else 'on_pace'))
-        else:
-            if (not over_pace_raw
-                    and elapsed_pos is not None
-                    and i == elapsed_pos
-                    and fill <= elapsed_pos):
-                out.append(('┊', 'tick'))
-            else:
-                out.append(('░', 'empty'))
-    return out
-
-
-def color_for(role, pacing, cfg):
-    """Map a bar segment's role + the row's pacing tier to a CSS color."""
-    if role == 'on_pace':
-        return cfg['popupNorm']
-    if role == 'over_pace':
-        return cfg['popupCrit'] if pacing >= cfg['tCrit'] else cfg['popupWarn']
-    if role == 'tick':
-        return '#888'
-    # empty cell + row label/numbers — match the row's tier color
-    if pacing >= cfg['tCrit']:
-        return cfg['popupCrit']
-    if pacing >= cfg['tWarn']:
-        return cfg['popupWarn']
-    return cfg['popupNorm']
+# elapsed_fraction, pacing_segments, color_for → server/usage_core.py (imported
+# above). Re-exported as module attributes so scripts/_doc_render.py's
+# pp.elapsed_fraction / pp.pacing_segments / pp.color_for keep resolving.
 
 
 def reset_text(meter, anchor_ts):

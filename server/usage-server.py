@@ -19,6 +19,10 @@ GENERATE_ICON = next(
 )
 if GENERATE_ICON is None:
     print("warning: generate-icon.py not found; dock icon updates disabled", file=sys.stderr, flush=True)
+# macOS: the menu-bar app renders its own status-bar image in-process (no dock
+# icon, no hicolor PNG theme dirs), so don't spawn the Linux dock-icon
+# generator there. Pass-31 (macOS port).
+_SPAWN_ICON = sys.platform != 'darwin'
 # Single source of truth for both the server's own version AND the bundled
 # Chrome extension's expected version — they ship together in every install
 # method. Derived at module load to eliminate the drift class the
@@ -477,7 +481,7 @@ class Handler(BaseHTTPRequestHandler):
                 os.chmod(tmp, 0o600)
                 tmp.replace(OUTPUT)
                 print(f"Saved {len(body.get('meters', []))} meters → {OUTPUT}", flush=True)
-                if GENERATE_ICON:
+                if GENERATE_ICON and _SPAWN_ICON:
                     # stderr inherits from the server (→ systemd journal under
                     # claude-usage-fetch.service) so generate-icon.py crashes
                     # are debuggable via `journalctl --user-unit=...`. stdout
@@ -572,6 +576,24 @@ def _write_port_file(port):
     tmp.replace(PORT_FILE)
 
 
+def _pid_alive(pid):
+    """True if a process with `pid` is currently running.
+
+    Linux reads /proc/<pid> (the historical check). Other platforms (macOS)
+    use os.kill(pid, 0): sends no signal but raises ProcessLookupError when
+    the pid is dead, and OSError/PermissionError when it's alive but owned by
+    another user. Pass-31 (macOS port) — was an inline Linux-only /proc check."""
+    if sys.platform.startswith('linux'):
+        return Path(f'/proc/{pid}').exists()
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except OSError:
+        return True   # alive but e.g. owned by another user (PermissionError)
+    return True
+
+
 def _sweep_orphan_tmps():
     """Prune leftover unique-tmp files from crashed writes.
 
@@ -594,7 +616,7 @@ def _sweep_orphan_tmps():
                 pid = int(orphan.name.split('.')[pid_position])
             except (ValueError, IndexError):
                 continue
-            if Path(f'/proc/{pid}').exists():
+            if _pid_alive(pid):
                 continue  # process still alive — not an orphan
             try:
                 orphan.unlink()
@@ -616,14 +638,24 @@ def _sweep_orphan_tmps():
             _sweep(size_dir, '.claude-usage.tmp.*.png', 3)
 
 
-if __name__ == '__main__':
+def serve_forever():
+    """Start the server and serve until interrupted. Entry point for both
+    `python3 usage-server.py` (systemd user service on Linux) and the macOS
+    menu-bar app, which runs this in a daemon thread — one process, one
+    LaunchAgent (pass-31, macOS port)."""
     # SC-1 (pass-26): install SIGCHLD handler here, not at module import. The
     # server is only ever run directly; keeping this at import-time silently
     # mutates the global handler in every test process that exec_modules this
     # file. Auto-reap exited child processes (generate-icon.py spawns). The
     # Popen objects are discarded after dispatch, so without SIGCHLD ignored
     # the kernel keeps zombies around until the next subprocess._cleanup() sweep.
-    signal.signal(signal.SIGCHLD, signal.SIG_IGN)
+    # signal.signal only works on the main thread; the macOS app runs us in a
+    # worker thread, which raises ValueError — skip it there (the icon spawn is
+    # disabled on macOS anyway, so there are no children to reap).
+    try:
+        signal.signal(signal.SIGCHLD, signal.SIG_IGN)
+    except ValueError:
+        pass
     _sweep_orphan_tmps()
     server, port = _bind()
     _write_port_file(port)
@@ -633,7 +665,7 @@ if __name__ == '__main__':
     # next Chrome alarm fires (up to 7 min — longer if Chrome isn't running).
     # generate-icon.py exits 0 cleanly when the cache doesn't exist yet, so
     # no error on fresh install.
-    if GENERATE_ICON and OUTPUT.exists():
+    if GENERATE_ICON and _SPAWN_ICON and OUTPUT.exists():
         subprocess.Popen([sys.executable, str(GENERATE_ICON)],
                          stdout=subprocess.DEVNULL)
     threading.Thread(target=_tooltip_tick, daemon=True).start()
@@ -641,3 +673,7 @@ if __name__ == '__main__':
         server.serve_forever()
     except KeyboardInterrupt:
         pass
+
+
+if __name__ == '__main__':
+    serve_forever()
