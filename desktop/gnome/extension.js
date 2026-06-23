@@ -322,7 +322,18 @@ class ClaudeIndicator extends PanelMenu.Button {
         box.add_child(this._label);
         this.add_child(box);
 
-        this._statusItem = new PopupMenu.PopupMenuItem('Loading…', {reactive: false});
+        // Build reactive so GNOME wires up track_hover, the hover→active highlight
+        // binding, and _activatable at construction — these are fixed there and a
+        // later `.reactive = true` toggle cannot restore them. We then gate whether
+        // the row *acts* as a link per-update via `.reactive` (see _updateDisplay);
+        // the handler only fires while reactive, which we only allow during an
+        // Anthropic-reported outage. Mirrors the working "Open Usage Page" item.
+        this._statusItem = new PopupMenu.PopupMenuItem('Loading…');
+        this._statusItem.connect('activate', () => {
+            Gio.AppInfo.launch_default_for_uri(STATUS_URL, null);
+            this.menu.close();
+        });
+        this._statusItem.reactive = false;   // default: plain status label, no link
         this.menu.addMenuItem(this._statusItem);
 
         this._metersSection = new PopupMenu.PopupMenuSection();
@@ -349,8 +360,6 @@ class ClaudeIndicator extends PanelMenu.Button {
 
         this._anyCrit = false;
         this._flashSuppressed = false;
-        this._statusItemLinked = false;
-        this._statusItemActivateId = null;
         try {
             const [ok, bytes] = GLib.file_get_contents(NOTIF_TS_FILE);
             this._lastNotifyTs = ok ? (parseInt(new TextDecoder().decode(bytes), 10) || 0) : 0;
@@ -615,19 +624,10 @@ class ClaudeIndicator extends PanelMenu.Button {
         // Append ↗ when the row is a link so it's visually distinct from plain status text.
         this._statusItem.label.set_text(
             (reason || `${plan}${ageStr}`) + (wantLink ? ' ↗' : ''));
-        if (wantLink !== this._statusItemLinked) {
-            this._statusItem.reactive = wantLink;
-            if (wantLink) {
-                this._statusItemActivateId = this._statusItem.connect('activate', () => {
-                    Gio.AppInfo.launch_default_for_uri(STATUS_URL, null);
-                    this.menu.close();
-                });
-            } else if (this._statusItemActivateId) {
-                this._statusItem.disconnect(this._statusItemActivateId);
-                this._statusItemActivateId = null;
-            }
-            this._statusItemLinked = wantLink;
-        }
+        // Gate link behaviour: reactive only during an Anthropic-reported outage.
+        // The activate handler is connected once at construction; it can only fire
+        // while the row is reactive. Idempotent — safe to set every update.
+        this._statusItem.reactive = wantLink;
 
         // Tier transition: notify on entry to stale/broken, spawn dock-icon
         // regen with the new tier. Recovery to normal also regens so the
@@ -889,10 +889,6 @@ class ClaudeIndicator extends PanelMenu.Button {
         if (this._menuOpenId) {
             this.menu.disconnect(this._menuOpenId);
             this._menuOpenId = null;
-        }
-        if (this._statusItemActivateId) {
-            this._statusItem.disconnect(this._statusItemActivateId);
-            this._statusItemActivateId = null;
         }
         super.destroy();
     }
