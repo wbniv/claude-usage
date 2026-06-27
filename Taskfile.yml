@@ -248,23 +248,26 @@ tasks:
       - docker run --rm claude-usage-gnome-{{.UBUNTU_VERSION}}
 
   bump:
-    desc: "Bump version across packaging/control + chrome-extension/manifest.json (NEW=X.Y.Z). Pass-17 P-2: kills the manual two-place sync that auto-memory used to track."
+    desc: "Bump version across packaging/control + chrome-extension/manifest.json. No args = auto patch increment; NEW=X.Y.Z to set explicitly."
     cmds:
       - |
         set -euo pipefail
+        current=$(grep '^Version:' packaging/control | awk '{print $2}')
         if [ -z "{{.NEW}}" ]; then
-          echo "Usage: task bump NEW=X.Y.Z" >&2
+          major=$(echo "$current" | cut -d. -f1)
+          minor=$(echo "$current" | cut -d. -f2)
+          patch=$(echo "$current" | cut -d. -f3)
+          new_ver="$major.$minor.$((patch + 1))"
+        else
+          new_ver="{{.NEW}}"
+        fi
+        if ! echo "$new_ver" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+          echo "Invalid version $new_ver (expected X.Y.Z)" >&2
           exit 1
         fi
-        if ! echo "{{.NEW}}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-          echo "Invalid version {{.NEW}} (expected X.Y.Z)" >&2
-          exit 1
-        fi
-        sed -i "s/^Version: .*/Version: {{.NEW}}/" packaging/control
-        python3 -c "import json,pathlib; p=pathlib.Path('chrome-extension/manifest.json'); d=json.loads(p.read_text()); d['version']='{{.NEW}}'; p.write_text(json.dumps(d,indent=2)+'\n')"
-        echo "Bumped to {{.NEW}}. Review:"
-        grep '^Version:' packaging/control
-        grep '"version"' chrome-extension/manifest.json
+        sed -i "s/^Version: .*/Version: $new_ver/" packaging/control
+        python3 -c "import json,pathlib; p=pathlib.Path('chrome-extension/manifest.json'); d=json.loads(p.read_text()); d['version']='$new_ver'; p.write_text(json.dumps(d,indent=2)+'\n')"
+        echo "Bumped $current → $new_ver"
         echo "Note: desktop/gnome/metadata.json's integer version is bumped automatically by 'task release'."
 
   release:
