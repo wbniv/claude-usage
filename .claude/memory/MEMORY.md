@@ -7,6 +7,7 @@
 - [Render PNG popup preview instead of logout/login](feedback_popup_preview_render.md) — when extension.js changes need Wayland reload, render a PIL mockup using live data + GSettings instead of asking user to log out
 - [Next session: test .deb install](project_deb_test.md) — source install removed, v0.9 .deb built, user logging out to test clean .deb install + selectable panel metric feature
 - [Use semver patch bumps for small fixes](feedback_semver_patch_bumps.md) — 0.9 → 0.9.1, not 0.10
+- [No PRs on this solo repo](feedback_no_pr_solo_repo.md) — "push" means push the branch/merge to main; only open a PR if explicitly asked
 - [Public email is will@biohack.net](user_email_preference.md) — use for Maintainer/contact fields, not wbnorris@gmail.com
 - [QEMU runs ≥1024x768](feedback_qemu_resolution.md) — set virtio-gpu xres/yres (prefer 1280x800) for all VM boots; default mode is too cramped
 
