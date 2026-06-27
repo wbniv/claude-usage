@@ -99,7 +99,7 @@ describe('parseResetMinutes', () => {
 // ── doScrape helpers ──────────────────────────────────────────────────────────
 
 // Build a minimal usage-page text fixture from parts.
-function makePageText({ plan = '', section1 = [], section2 = [], section3 = null } = {}) {
+function makePageText({ plan = '', section1 = [], section2 = [], section3 = null, section3Header = 'Extra usage' } = {}) {
   const lines = [];
   if (plan) lines.push(plan);
   if (section1.length) {
@@ -111,7 +111,7 @@ function makePageText({ plan = '', section1 = [], section2 = [], section3 = null
     lines.push(...section2);
   }
   if (section3 !== null) {
-    lines.push('Extra usage');
+    lines.push(section3Header);
     lines.push(...section3);
   }
   lines.push('Last updated: just now');
@@ -333,6 +333,28 @@ describe('doScrape — Section 3 (Extra usage)', () => {
     const extra = meters.find(m => m.label === 'Extra usage');
     assert.ok(extra);
     assert.equal(extra.pct, 0);  // 99% was after boundary; pct still null → defaults to 0
+  });
+
+  it('recognises "Usage credits" section header (UI rename)', () => {
+    const text = makePageText({
+      section3: ['$1.02 spent', 'Resets Jul 1', '10% used', '$10.00', 'Current balance'],
+      section3Header: 'Usage credits',
+    });
+    const { meters } = doScrape(text, true);
+    const extra = meters.find(m => m.label === 'Extra usage');
+    assert.ok(extra, 'meter should be present under renamed header');
+    assert.equal(extra.pct, 10);
+    assert.equal(extra.spent, '$1.02');
+    assert.equal(extra.balance, '$10.00');
+  });
+
+  it('"Usage credits" section is skipped when toggle off', () => {
+    const text = makePageText({
+      section3: ['$1.02 spent', '10% used'],
+      section3Header: 'Usage credits',
+    });
+    const { meters } = doScrape(text, false);
+    assert.ok(!meters.find(m => m.label === 'Extra usage'));
   });
 });
 

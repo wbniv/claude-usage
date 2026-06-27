@@ -452,7 +452,7 @@ async function scrapeAndPost(tabId) {
         // ── Section 1: Plan usage limits ─────────────────────────────────
         const planStart = lines.findIndex(l => l === 'Plan usage limits');
         const planEnd   = lines.findIndex((l, i) =>
-          i > planStart && /^(Additional features|Last updated:|Extra usage)/.test(l));
+          i > planStart && /^(Additional features|Last updated:|Extra usage|Usage credits)/.test(l));
         const planRange = [planStart >= 0 ? planStart + 1 : 0, planEnd >= 0 ? planEnd : lines.length];
 
         for (let i = planRange[0]; i < planRange[1]; i++) {
@@ -468,7 +468,7 @@ async function scrapeAndPost(tabId) {
         // ── Section 2: Additional features ───────────────────────────────
         const addlStart = lines.findIndex(l => /^Additional features$/i.test(l));
         const addlEnd   = lines.findIndex((l, i) =>
-          i > addlStart && /^(Extra usage|Last updated:)/.test(l));
+          i > addlStart && /^(Extra usage|Usage credits|Last updated:)/.test(l));
         if (addlStart >= 0) {
           const end = addlEnd >= 0 ? addlEnd : lines.length;
           for (let i = addlStart + 1; i < end; i++) {
@@ -484,8 +484,9 @@ async function scrapeAndPost(tabId) {
         }
 
         // ── Section 3: Extra usage ────────────────────────────────────────
-        const extraStart = lines.findIndex(l => l === 'Extra usage');
-        const extraToggleEl = document.querySelector('[role="switch"][aria-label="Extra usage"]');
+        const extraStart = lines.findIndex(l => l === 'Extra usage' || l === 'Usage credits');
+        const extraToggleEl = document.querySelector('[role="switch"][aria-label="Extra usage"]')
+            || document.querySelector('[role="switch"][aria-label="Usage credits"]');
         const extraOn = extraToggleEl?.getAttribute('aria-checked') === 'true';
         if (extraStart >= 0 && extraOn) {
           let spent = null, balance = null, pct = null, reset = null;

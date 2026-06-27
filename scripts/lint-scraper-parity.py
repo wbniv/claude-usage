@@ -224,6 +224,7 @@ def check_scraper_parity():
 ANCHOR_STRINGS = [
     'Plan usage limits',
     'Extra usage',
+    'Usage credits',
 ]
 
 # Single-sided pin: scraper.js takes the toggle state as a parameter, so
@@ -231,6 +232,7 @@ ANCHOR_STRINGS = [
 # silently drops the query is caught.
 DOM_SELECTORS_IN_BACKGROUND = [
     '[role="switch"][aria-label="Extra usage"]',
+    '[role="switch"][aria-label="Usage credits"]',
 ]
 
 
