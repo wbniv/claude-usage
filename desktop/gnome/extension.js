@@ -376,10 +376,12 @@ class ClaudeIndicator extends PanelMenu.Button {
         this._loadData();
 
         // Time-based stale/broken can't be triggered by cache-write events —
-        // they're absence-of-write signals. A 30 s tick re-runs _updateDisplay
+        // they're absence-of-write signals. A 60 s tick re-runs _updateDisplay
         // so the icon flips to ghosted grey at the 10 min threshold and red
-        // at the 20 min threshold even when no fresh POST arrives.
-        this._tickId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 30, () => {
+        // at the 20 min threshold even when no fresh POST arrives. 60 s is
+        // sufficient: the countdown shows H:MM granularity and the staleness
+        // thresholds are 10/20 min, so 1 min jitter is imperceptible.
+        this._tickId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 60, () => {
             this._updateDisplay();
             return GLib.SOURCE_CONTINUE;
         });
