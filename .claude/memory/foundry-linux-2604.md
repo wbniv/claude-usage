@@ -1,14 +1,14 @@
 ---
 name: foundry-linux-2604
-description: "Foundry Linux (~/SRC/foundrylinux.org) is Will's Ubuntu 26.04 + KDE Plasma 6 distro — dogfood it whenever a 26.04 / Plasma-6 environment is needed"
+description: "Foundry Linux (~/foundrylinux.org) is Will's Ubuntu 26.04 + KDE Plasma 6 distro — dogfood it whenever a 26.04 / Plasma-6 environment is needed"
 metadata: 
   node_type: memory
   type: feedback
   originSessionId: fc0f1fc4-7923-421e-9ed2-4ef49eeeb7e8
 ---
 
-Foundry Linux lives at `~/SRC/foundrylinux.org` (i.e. `../foundrylinux.org/` from
-`~/SRC/claude-usage`). It is Will's own Ubuntu **26.04**-based distro shipping **KDE
+Foundry Linux lives at `~/foundrylinux.org` (i.e. `../foundrylinux.org/` from
+`~/claude-usage`). It is Will's own Ubuntu **26.04**-based distro shipping **KDE
 Plasma 6** and the full org.kde.plasma.* / Kirigami QML module stack. The
 `claude-usage` KDE live-test harness (`scripts/test-kde-qemu.sh`) already boots a
 Foundry ISO in QEMU.

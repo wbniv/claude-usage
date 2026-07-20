@@ -14,7 +14,7 @@ After building v0.9 .deb and uninstalling the source install, the user logged ou
 **How to apply:** On next session start, remind the user to install the .deb if they haven't already:
 
 ```bash
-sudo dpkg -i ~/SRC/claude-usage/dist/claude-usage_0.9_all.deb
+sudo dpkg -i ~/claude-usage/dist/claude-usage_0.9_all.deb
 sudo apt-get install -f
 claude-usage-setup
 ```
