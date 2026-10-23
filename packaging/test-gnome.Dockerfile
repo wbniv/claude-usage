@@ -3,7 +3,7 @@ FROM ubuntu:${UBUNTU_VERSION}
 ARG UBUNTU_VERSION
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    gnome-shell gjs libglib2.0-bin \
+    gjs gnome-shell libglib2.0-bin \
     && rm -rf /var/lib/apt/lists/*
 
 COPY desktop/gnome/ /root/.local/share/gnome-shell/extensions/claude-usage@indri.studio/

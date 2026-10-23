@@ -21,6 +21,6 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
         ${DEPS} \
-        libglib2.0-bin \
         desktop-file-utils \
+        libglib2.0-bin \
  && rm -rf /var/lib/apt/lists/*
